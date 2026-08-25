@@ -4,55 +4,34 @@ import test from "node:test";
 import { assertBuildOnlySelectorBoundary, validateBuildOnlyArtifactEvidence } from "./build-only-artifact.mjs";
 import { validateSelectorPublication } from "./candidate-selector.mjs";
 
-const operationsCommit = "a".repeat(40);
-const digest = (value) => createHash("sha256").update(value).digest("hex");
-const makeEvidence = (role) => {
-  const rollback = role === "rollback";
-  const manifestNames = rollback
-    ? ["rollback-bcn.manifest", "rollback-release.manifest"]
-    : ["built-next.manifest", "forward-release.manifest", "manifest-index.sha256", "runtime-bcn.manifest", "runtime-circle-card.manifest"];
-  const manifestIdentities = Object.fromEntries(manifestNames.map((name, index) => [name, String(index + 1).repeat(64).slice(0, 64)]));
-  const aggregate = manifestNames.map((name) => `${name}:${manifestIdentities[name]}\n`).join("");
-  return {
-    schemaVersion: "phase-f1-build-only-artifact-v1",
-    role,
-    applicationSha: rollback ? "5d1f81bb05a01b08e1134785c2f86b77c8969fe3" : "b43a1e4e708bc9f02ef83bd63dab1db1f366b32e",
-    operationsCommit,
-    artifactPath: rollback ? "/var/www/rollbacks/5d1f81bb05a01b08e1134785c2f86b77c8969fe3" : "/var/www/releases/b43a1e4e708bc9f02ef83bd63dab1db1f366b32e",
-    manifestIdentities,
-    artifactIdentity: digest(Buffer.from(aggregate)),
-    releaseIntegrity: "PASS",
-    selectorsPublished: false,
-    valueMaterialRecorded: false
-  };
+const operationsCommit = "a".repeat(40), digest = value => createHash("sha256").update(value).digest("hex");
+const contracts = {
+  "rollback-reference": { sha: "5d1f81bb05a01b08e1134785c2f86b77c8969fe3", path: "/var/www/rollbacks/5d1f81bb05a01b08e1134785c2f86b77c8969fe3", names: ["rollback-bcn.manifest", "rollback-release.manifest"], brand: "bcn", origin: "https://thebusinesscircle.net" },
+  bcn: { sha: "b43a1e4e708bc9f02ef83bd63dab1db1f366b32e", path: "/var/www/releases/b43a1e4e708bc9f02ef83bd63dab1db1f366b32e/.runtime/bcn", names: ["runtime-bcn.manifest", "forward-release.manifest"], brand: "bcn", origin: "https://thebusinesscircle.net" },
+  "circle-card": { sha: "b43a1e4e708bc9f02ef83bd63dab1db1f366b32e", path: "/var/www/releases/b43a1e4e708bc9f02ef83bd63dab1db1f366b32e/.runtime/circle-card", names: ["runtime-circle-card.manifest", "forward-release.manifest"], brand: "circle-card", origin: "https://circlecard.co.uk" }
+};
+const makeEvidence = role => {
+  const contract = contracts[role], manifestIdentities = Object.fromEntries(contract.names.map((name, index) => [name, String(index + 1).repeat(64).slice(0, 64)]));
+  const releaseIntegrityIdentity = "f".repeat(64);
+  const aggregate = contract.names.map(name => `${name}:${manifestIdentities[name]}\n`).join("") + `release-integrity:${releaseIntegrityIdentity}\n`;
+  return { schemaVersion: "phase-f1-build-only-artifact-v2", buildRole: role, applicationSha: contract.sha, operationsCommit, artifactPath: contract.path, appBrand: contract.brand, publicOrigin: contract.origin, manifestIdentities, releaseIntegrityIdentity, artifactIdentity: digest(Buffer.from(aggregate)), releaseIntegrity: "PASS", selectorsPublished: false, valueMaterialRecorded: false };
 };
 
-test("build-only artifact evidence is closed and selector-free", () => {
-  const rollback = makeEvidence("rollback");
-  const forward = makeEvidence("forward");
-  assert.equal(validateBuildOnlyArtifactEvidence(rollback, { role: "rollback", operationsCommit }), rollback);
-  assert.equal(validateBuildOnlyArtifactEvidence(forward, { role: "forward", operationsCommit }), forward);
-  assert.throws(() => validateBuildOnlyArtifactEvidence({ ...forward, selectorsPublished: true }), /invalid or stale/u);
-  assert.throws(() => validateBuildOnlyArtifactEvidence({ ...forward, artifactPath: "/tmp/alternate" }), /invalid or stale/u);
-  assert.throws(() => validateBuildOnlyArtifactEvidence({ ...forward, releaseIntegrity: "NOT_EVALUATED" }), /invalid or stale/u);
+test("build-only artifact evidence binds each closed role and fixed identity", () => {
+  for (const role of Object.keys(contracts)) assert.equal(validateBuildOnlyArtifactEvidence(makeEvidence(role), { role, operationsCommit }).buildRole, role);
+  const circle = makeEvidence("circle-card");
+  assert.throws(() => validateBuildOnlyArtifactEvidence({ ...circle, appBrand: "bcn" }), /invalid or stale/u);
+  assert.throws(() => validateBuildOnlyArtifactEvidence({ ...circle, artifactPath: contracts.bcn.path }), /invalid or stale/u);
+  assert.throws(() => validateBuildOnlyArtifactEvidence({ ...circle, selectorsPublished: true }), /invalid or stale/u);
 });
 
-test("candidate selector requests consume only exact current build-only evidence", () => {
-  const rollback = makeEvidence("rollback");
-  const forward = makeEvidence("forward");
-  assert.deepEqual(validateSelectorPublication("rollback-probe", operationsCommit, rollback), {
-    role: "rollback",
-    selector: "/var/www/current-bcn-rollback-probe",
-    target: "/var/www/rollbacks/5d1f81bb05a01b08e1134785c2f86b77c8969fe3"
-  });
-  assert.deepEqual(validateSelectorPublication("circle-card", operationsCommit, forward), {
-    role: "forward",
-    selector: "/var/www/current-circle-card",
-    target: "/var/www/releases/b43a1e4e708bc9f02ef83bd63dab1db1f366b32e"
-  });
-  assert.throws(() => validateSelectorPublication("circle-card", operationsCommit, rollback), /exact current/u);
-  assert.throws(() => validateSelectorPublication("unknown", operationsCommit, forward), /role or operations/u);
-  assert.throws(() => validateSelectorPublication("circle-card", "b".repeat(40), forward), /exact current/u);
+test("candidate selector consumes role evidence while targeting the shared immutable release root", () => {
+  const rollback = makeEvidence("rollback-reference"), circle = makeEvidence("circle-card");
+  assert.equal(validateSelectorPublication("rollback-probe", operationsCommit, rollback).role, "rollback-reference");
+  const contract = validateSelectorPublication("circle-card", operationsCommit, circle);
+  assert.equal(contract.target, "/var/www/releases/b43a1e4e708bc9f02ef83bd63dab1db1f366b32e");
+  assert.equal(contract.evidencePath, circle.artifactPath);
+  assert.throws(() => validateSelectorPublication("circle-card", operationsCommit, makeEvidence("bcn")), /exact current/u);
 });
 
 test("build-only completion rejects every selector object including a broken link", () => {

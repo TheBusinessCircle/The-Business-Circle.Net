@@ -6,8 +6,8 @@ import { verifyBuildOnlyArtifactEvidence } from "./build-only-artifact.mjs";
 const FORWARD_SHA = "b43a1e4e708bc9f02ef83bd63dab1db1f366b32e";
 const ROLLBACK_SHA = "5d1f81bb05a01b08e1134785c2f86b77c8969fe3";
 const CONTRACTS = Object.freeze({
-  "rollback-probe": Object.freeze({ role: "rollback", selector: "/var/www/current-bcn-rollback-probe", target: `/var/www/rollbacks/${ROLLBACK_SHA}` }),
-  "circle-card": Object.freeze({ role: "forward", selector: "/var/www/current-circle-card", target: `/var/www/releases/${FORWARD_SHA}` })
+  "rollback-probe": Object.freeze({ role: "rollback-reference", selector: "/var/www/current-bcn-rollback-probe", target: `/var/www/rollbacks/${ROLLBACK_SHA}`, evidencePath: `/var/www/rollbacks/${ROLLBACK_SHA}` }),
+  "circle-card": Object.freeze({ role: "circle-card", selector: "/var/www/current-circle-card", target: `/var/www/releases/${FORWARD_SHA}`, evidencePath: `/var/www/releases/${FORWARD_SHA}/.runtime/circle-card` })
 });
 
 export function validateSelectorPublication(role, operationsCommit, evidence) {
@@ -15,8 +15,8 @@ export function validateSelectorPublication(role, operationsCommit, evidence) {
   if (!contract || !/^[0-9a-f]{40}$/u.test(operationsCommit || "")) {
     throw new Error("Candidate selector role or operations commit is invalid.");
   }
-  if (evidence.role !== contract.role || evidence.operationsCommit !== operationsCommit ||
-      evidence.artifactPath !== contract.target || evidence.releaseIntegrity !== "PASS" ||
+  if (evidence.buildRole !== contract.role || evidence.operationsCommit !== operationsCommit ||
+      evidence.artifactPath !== contract.evidencePath || evidence.releaseIntegrity !== "PASS" ||
       evidence.selectorsPublished !== false) {
     throw new Error("Candidate selector requires exact current build-only artifact evidence.");
   }

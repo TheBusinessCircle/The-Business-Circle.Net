@@ -345,8 +345,8 @@ describe("Phase F1 corrected ordering source contract", () => {
 
   it("requires readiness before build and release integrity only after artifact creation", () => {
     const build = source("build-release.sh");
-    assert.ok(build.indexOf("require_environment_ready") < build.indexOf("npm ci"));
-    assert.ok(build.indexOf("require_release_integrity") > build.indexOf("release-create"));
+    assert.ok(build.indexOf("require_environment_ready") < build.indexOf("offline-npm-install.mjs"));
+    assert.ok(build.indexOf("build-release-integrity.mjs") > build.indexOf("release-create"));
   });
 
   it("separates immutable artifact publication from candidate selector publication", () => {
@@ -357,8 +357,8 @@ describe("Phase F1 corrected ordering source contract", () => {
     const evidence = source("build-only-artifact.mjs");
     assert.doesNotMatch(build, /PHASE_F1_CURRENT_CIRCLE|current-circle-card|\bln -s\b/u);
     assert.doesNotMatch(rollback, /current-bcn-rollback-probe|\bln -s\b/u);
-    assert.match(build, /build-only-artifact\.mjs" publish forward/u);
-    assert.match(rollback, /build-only-artifact\.mjs" publish rollback/u);
+    assert.match(build, /build-only-artifact\.mjs" publish "\$\{build_role\}"/u);
+    assert.match(rollback, /build-only-artifact\.mjs" publish rollback-reference/u);
     assert.match(selector, /require_release_integrity/u);
     assert.match(selector, /candidate-selector\.mjs" publish/u);
     assert.match(selectorUtility, /verifyBuildOnlyArtifactEvidence/u);

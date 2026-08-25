@@ -34,5 +34,5 @@ chmod 0600 "${PHASE_F1_ARTIFACT_ROOT}"/rollback-*.manifest; chown root:root "${P
   "${PHASE_F1_ROLLBACK_DIR}/.next" "${PHASE_F1_ARTIFACT_ROOT}/rollback-bcn.manifest" >/dev/null
 /usr/bin/node "${PHASE_F1_PACK_DIR}/artifact-manifest.mjs" release-verify \
   "${PHASE_F1_ROLLBACK_DIR}" "${PHASE_F1_ARTIFACT_ROOT}/rollback-release.manifest" >/dev/null
-/usr/bin/node "${PHASE_F1_PACK_DIR}/build-only-artifact.mjs" publish rollback "${PHASE_F1_PACK_COMMIT}" >/dev/null
+/usr/bin/node "${PHASE_F1_PACK_DIR}/build-only-artifact.mjs" publish rollback-reference "${PHASE_F1_PACK_COMMIT}" >/dev/null
 printf 'Rollback artifact was immutably published without selector creation.\n'

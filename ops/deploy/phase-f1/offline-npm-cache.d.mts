@@ -1,6 +1,7 @@
 export const OFFLINE_CACHE_ROOT: string;
 export const READINESS_PATH: string;
 export const ROLLBACK_APPLICATION_SHA: string;
+export const FORWARD_APPLICATION_SHA: string;
 export const NODE_VERSION: string;
 export const NPM_VERSION: string;
 export const READINESS_SCHEMA: string;
@@ -19,6 +20,7 @@ export function packageIntegrityContract(lockfile: Record<string, unknown>, targ
 export function evaluateOfflineCache(cacheRoot: string, lockfilePath: string, options?: { operational?: boolean; expectedGid?: number | null; enforceMetadata?: boolean; targetPlatform?: TargetPlatform }): OfflineCacheEvaluation;
 export function publishOfflineCacheReadiness(workspace: string, operationsCommit: string, options?: { offlineResolutionVerified?: boolean }): OfflineCacheReadiness;
 export function verifyOfflineCacheReadiness(workspace: string, operationsCommit: string): OfflineCacheReadiness;
+export function verifyOfflineCacheForForwardBuild(workspace: string, operationsCommit: string, options?: Record<string, unknown>): { cacheRoot: string; applicationSha: string; operationsCommit: string; lockfileSha256: string; cacheInventorySha256: string; requiredTargetIntegrityCount: number; missingRequiredTargetIntegrityCount: 0; offlineResolutionRequired: true; ready: true; valueMaterialRecorded: false };
 export function validateOfflineCacheReadiness(record: OfflineCacheReadiness, operationsCommit: string, expected?: OfflineCacheReadiness): OfflineCacheReadiness;
 export function classifyOfflineCacheReadinessDelta(source: OfflineCacheReadiness, candidate: OfflineCacheReadiness): string;
 export function preservedOfflineCacheReadinessPath(stateRoot: string, operationsCommit: string): string;

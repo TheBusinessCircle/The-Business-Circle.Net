@@ -22,6 +22,7 @@ export const READINESS_PATH = "/var/lib/thebusinesscircle/deployment-state/offli
 const AUTHORITY_PATH = "/var/lib/thebusinesscircle/approved-phase-f1-pack.json";
 const DEPLOYMENT_LOG_ROOT = "/var/log/thebusinesscircle/deployments";
 export const ROLLBACK_APPLICATION_SHA = "5d1f81bb05a01b08e1134785c2f86b77c8969fe3";
+export const FORWARD_APPLICATION_SHA = "b43a1e4e708bc9f02ef83bd63dab1db1f366b32e";
 export const NODE_VERSION = "v22.22.2";
 export const NPM_VERSION = "10.9.7";
 export const READINESS_SCHEMA = "phase-f1-offline-npm-cache-readiness-v2";
@@ -258,15 +259,28 @@ function buildGroupId() {
   return Number(row[2]);
 }
 
-function verifyWorkspace(workspace) {
+function verifyApplicationWorkspace(workspace, role) {
+  const applicationSha = role === "rollback" ? ROLLBACK_APPLICATION_SHA :
+    role === "forward" ? FORWARD_APPLICATION_SHA : null;
+  if (!applicationSha) throw new Error("Offline cache workspace role is invalid.");
   const canonical = realpathSync(resolve(workspace));
-  if (!canonical.startsWith(`/var/www/builds/rollback-${ROLLBACK_APPLICATION_SHA}-`)) throw new Error("Offline cache readiness requires the approved rollback checkout.");
+  if (!canonical.startsWith(`/var/www/builds/${role}-${applicationSha}-`)) {
+    throw new Error(`Offline cache ${role} verification requires the approved checkout.`);
+  }
   const head = gitAsBuildUser(canonical, ["rev-parse", "HEAD"]).trim();
-  if (head !== ROLLBACK_APPLICATION_SHA) throw new Error("Offline cache readiness rollback identity mismatch.");
+  if (head !== applicationSha) throw new Error(`Offline cache ${role} application identity mismatch.`);
   const lockfile = join(canonical, "package-lock.json");
-  const committed = gitAsBuildUser(canonical, ["show", `${ROLLBACK_APPLICATION_SHA}:package-lock.json`], "buffer");
-  if (!readFileSync(lockfile).equals(committed)) throw new Error("Approved rollback lockfile differs from its commit.");
+  const committed = gitAsBuildUser(canonical, ["show", `${applicationSha}:package-lock.json`], "buffer");
+  if (!readFileSync(lockfile).equals(committed)) throw new Error(`Approved ${role} lockfile differs from its commit.`);
   return { canonical, lockfile };
+}
+
+function verifyWorkspace(workspace) {
+  return verifyApplicationWorkspace(workspace, "rollback");
+}
+
+function verifyForwardWorkspace(workspace) {
+  return verifyApplicationWorkspace(workspace, "forward");
 }
 
 function runtimeVersions() {
@@ -496,11 +510,10 @@ function firstCacheContentFile(directory = join(OFFLINE_CACHE_ROOT, "_cacache", 
   return null;
 }
 
-function assertReadyCarryForwardOperationalState(workspace) {
-  const canonicalWorkspace = verifyWorkspace(workspace).canonical;
+function assertSealedCacheOperationalPolicy(canonicalWorkspace) {
   if (!pathIsAbsent(join(canonicalWorkspace, "node_modules")) ||
       !pathIsAbsent(join(canonicalWorkspace, ".next"))) {
-    throw new Error("Offline npm cache carry-forward workspace is not disposable and clean.");
+    throw new Error("Offline npm cache workspace is not disposable and clean.");
   }
   const promotionPrefix = ".npm-offline-v1.promotion.";
   if (readdirSync(dirname(OFFLINE_CACHE_ROOT)).some((name) => name.startsWith(promotionPrefix))) {
@@ -523,6 +536,55 @@ function assertReadyCarryForwardOperationalState(workspace) {
     throw new Error("Offline npm cache runtime-user mutation isolation differs.");
   }
   return canonicalWorkspace;
+}
+
+function assertReadyCarryForwardOperationalState(workspace) {
+  return assertSealedCacheOperationalPolicy(verifyWorkspace(workspace).canonical);
+}
+
+export function verifyOfflineCacheForForwardBuild(workspace, operationsCommit, options = {}) {
+  validateOperationsCommit(operationsCommit);
+  const operational = options.operational !== false;
+  if (operational) runtimeVersions();
+  const verified = options.workspace ?? verifyForwardWorkspace(workspace);
+  const readiness = options.readiness ?? readReadiness();
+  validateOfflineCacheReadiness(readiness, operationsCommit);
+  if (readiness.cacheRoot !== OFFLINE_CACHE_ROOT || readiness.offlineResolutionVerified !== true ||
+      readiness.ready !== true) {
+    throw new Error("Current offline npm cache READY evidence is unavailable.");
+  }
+  if (operational) assertSealedCacheOperationalPolicy(verified.canonical);
+  const result = (options.evaluate ?? evaluateOfflineCache)(OFFLINE_CACHE_ROOT, verified.lockfile, {
+    operational,
+    expectedGid: operational ? buildGroupId() : options.expectedGid,
+    enforceMetadata: operational,
+    targetPlatform: approvedTargetPlatform()
+  });
+  if (result.lockfileSha256 !== readiness.lockfileSha256 ||
+      result.targetPlatform.os !== readiness.targetOs ||
+      result.targetPlatform.cpu !== readiness.targetCpu ||
+      result.targetPlatform.libc !== readiness.targetLibc ||
+      result.totalLockfileIntegrityCount !== readiness.totalLockfileIntegrityCount ||
+      result.requiredTargetIntegrityCount !== readiness.requiredTargetIntegrityCount ||
+      result.presentRequiredTargetIntegrityCount !== readiness.presentRequiredTargetIntegrityCount ||
+      result.missingRequiredTargetIntegrityCount !== 0 ||
+      result.optionalInapplicableIntegrityCount !== readiness.optionalInapplicableIntegrityCount ||
+      result.cacheInventorySha256 !== readiness.cacheInventorySha256 ||
+      result.fileCount !== readiness.cacheFileCount) {
+    throw new Error("Forward dependency contract differs from the sealed READY cache contract.");
+  }
+  return {
+    cacheRoot: OFFLINE_CACHE_ROOT,
+    applicationSha: FORWARD_APPLICATION_SHA,
+    operationsCommit,
+    lockfileSha256: result.lockfileSha256,
+    cacheInventorySha256: result.cacheInventorySha256,
+    requiredTargetIntegrityCount: result.requiredTargetIntegrityCount,
+    missingRequiredTargetIntegrityCount: 0,
+    offlineResolutionRequired: true,
+    ready: true,
+    valueMaterialRecorded: false
+  };
 }
 
 function protectedCurrentAuthority(operationsCommit) {
@@ -866,6 +928,13 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       carryForward
     });
     process.stdout.write(`OFFLINE_NPM_CACHE_READY identity-only source=${result.sourceReadinessIdentity} current=${result.carriedForwardReadinessIdentity} cache-contents-unchanged=true\n`);
+  } else if (command === "verify-forward-build") {
+    const [workspace, operationsCommit, ...extras] = arguments_;
+    if (extras.length || !workspace || !operationsCommit) {
+      throw new Error("Usage: offline-npm-cache.mjs verify-forward-build <approved-forward-workspace> <operations-commit>");
+    }
+    const result = verifyOfflineCacheForForwardBuild(workspace, operationsCommit);
+    process.stdout.write(`OFFLINE_NPM_CACHE_FORWARD_BUILD_READY cache=${result.cacheRoot} missing-required=0 values-recorded=false\n`);
   } else {
     const [workspace, operationsCommit, ...extras] = arguments_;
     if (extras.length || !workspace || !operationsCommit) {

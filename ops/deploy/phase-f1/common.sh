@@ -190,6 +190,8 @@ require_release_integrity() {
     "${PHASE_F1_RELEASE_DIR}/.runtime/circle-card" "${PHASE_F1_ARTIFACT_ROOT}/runtime-circle-card.manifest" >/dev/null
   /usr/bin/node "${PHASE_F1_PACK_DIR}/artifact-manifest.mjs" release-verify \
     "${PHASE_F1_RELEASE_DIR}" "${PHASE_F1_ARTIFACT_ROOT}/forward-release.manifest" >/dev/null
+  /usr/bin/node "${PHASE_F1_PACK_DIR}/build-release-integrity.mjs" verify bcn "${PHASE_F1_PACK_COMMIT}" >/dev/null
+  /usr/bin/node "${PHASE_F1_PACK_DIR}/build-release-integrity.mjs" verify circle-card "${PHASE_F1_PACK_COMMIT}" >/dev/null
   [[ -d ${PHASE_F1_ROLLBACK_DIR} && ! -L ${PHASE_F1_ROLLBACK_DIR} ]] || die "approved rollback release is missing"
   /usr/bin/node "${PHASE_F1_PACK_DIR}/artifact-manifest.mjs" runtime-verify \
     "${PHASE_F1_ROLLBACK_DIR}/.next" "${PHASE_F1_ARTIFACT_ROOT}/rollback-bcn.manifest" >/dev/null

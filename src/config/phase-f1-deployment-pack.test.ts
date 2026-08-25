@@ -716,8 +716,8 @@ describe("Phase F1 protected environment and release ordering", () => {
     expect(readiness).toContain("publishNoReplaceSet");
     expect(readiness).not.toMatch(/skip-integrity|SKIP_RELEASE_INTEGRITY/iu);
     expect(common).toContain('environment-readiness.mjs" verify');
-    expect(build.indexOf("require_environment_ready")).toBeLessThan(build.indexOf("npm ci"));
-    expect(build.indexOf("require_release_integrity")).toBeGreaterThan(build.indexOf("release-create"));
+    expect(build.indexOf("require_environment_ready")).toBeLessThan(build.indexOf("offline-npm-install.mjs"));
+    expect(build.indexOf("build-release-integrity.mjs")).toBeGreaterThan(build.indexOf("release-create"));
   });
 
   it("carries Git-auth readiness only through protected authority lineage", () => {
@@ -1324,12 +1324,28 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
     const evidence = source("build-only-artifact.mjs");
     expect(build).not.toMatch(/PHASE_F1_CURRENT_CIRCLE|current-circle-card|\bln -s\b/u);
     expect(rollback).not.toMatch(/current-bcn-rollback-probe|\bln -s\b/u);
-    expect(build).toContain('build-only-artifact.mjs" publish forward');
-    expect(rollback).toContain('build-only-artifact.mjs" publish rollback');
+    expect(build).toContain('build-only-artifact.mjs" publish "${build_role}"');
+    expect(rollback).toContain('build-only-artifact.mjs" publish rollback-reference');
     expect(selector).toContain("require_release_integrity");
     expect(selectorUtility).toContain("verifyBuildOnlyArtifactEvidence");
-    expect(evidence).toContain("phase-f1-build-only-artifact-v1");
+    expect(evidence).toContain("phase-f1-build-only-artifact-v2");
     expect(evidence).toContain("selectorsPublished: false");
+  });
+
+  it("installs only from the fixed READY cache and builds BCN and Circle Card independently", () => {
+    const build = source("build-release.sh");
+    const install = source("offline-npm-install.mjs");
+    const command = source("build-command.mjs");
+    expect(build).toContain("for build_role in bcn circle-card");
+    expect(build).toContain('build-command.mjs" "${command}" "${build_role}"');
+    expect(build).not.toContain('cp -a "${promotion}/.next"');
+    expect(build).toContain("BCN runtime output was reused as Circle Card");
+    expect(install).toContain("OFFLINE_CACHE_ROOT");
+    expect(source("offline-npm-cache.mjs")).toContain('OFFLINE_CACHE_ROOT = "/var/cache/thebusinesscircle/phase-f1/npm-offline-v1"');
+    expect(install).toContain('"NPM_CONFIG_OFFLINE=true"');
+    expect(install).toContain('"ci", "--offline", "--no-audit", "--no-fund"');
+    expect(install).not.toContain("/var/lib/thebusinesscircle/build/npm-cache");
+    expect(command).toContain("forwardBuildRole(role)");
   });
 
   it("removes build-user mutation authority before accepting rollback next-start evidence", () => {

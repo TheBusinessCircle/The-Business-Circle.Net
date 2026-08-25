@@ -108,8 +108,7 @@ describe("Phase F1 trusted npm configuration", () => {
     const scripts = [
       "prepare-offline-npm-cache.sh",
       "reverify-sealed-offline-npm-cache.sh",
-      "prepare-rollback-fixture.sh",
-      "build-release.sh"
+      "prepare-rollback-fixture.sh"
     ].map((name) => readFileSync(join(packRoot, name), "utf8"));
     for (const source of scripts) {
       assert.match(source, /require_trusted_npm_config_sources/u);
@@ -127,6 +126,15 @@ describe("Phase F1 trusted npm configuration", () => {
     assert.match(recovery, /NPM_CONFIG_CACHE="\$\{PHASE_F1_OFFLINE_NPM_CACHE_ROOT\}"/u);
     assert.match(recovery, /NPM_CONFIG_OFFLINE=true/u);
     assert.match(recovery, /npm --prefix "\$\{workspace\}" ci --offline/u);
+    const forwardInstall = readFileSync(join(packRoot, "offline-npm-install.mjs"), "utf8");
+    const forwardBuild = readFileSync(join(packRoot, "build-release.sh"), "utf8");
+    assert.match(forwardBuild, /offline-npm-install\.mjs" install/u);
+    assert.doesNotMatch(forwardBuild, /npm ci/u);
+    assert.match(forwardInstall, /NPM_CONFIG_USERCONFIG/u);
+    assert.match(forwardInstall, /NPM_CONFIG_GLOBALCONFIG/u);
+    assert.match(forwardInstall, /NPM_CONFIG_OFFLINE=true/u);
+    assert.match(forwardInstall, /"ci", "--offline", "--no-audit", "--no-fund"/u);
+    assert.doesNotMatch(forwardInstall, /\/var\/lib\/thebusinesscircle\/build\/npm-cache/u);
   });
 
   it("refuses caller-selected operational paths", () => {

@@ -487,22 +487,40 @@ identity or size, failed exchange or uncertain post-exchange state fails closed.
 and production execution remain separate gates.
 
 After a pack containing this mechanism becomes authoritative, the exact next gate is
-`SEPARATELY_AUTHORIZED_GIT_AUTHENTICATION_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_CHAINED_ENVIRONMENT_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_OFFLINE_NPM_CACHE_READY_EVIDENCE_IDENTITY_ONLY_CARRY_FORWARD_AND_IMMUTABLE_BUILD_ONLY_ROLLBACK_BCN_CIRCLE_CARD_ARTIFACT_PREPARATION_PUBLICATION_AND_RELEASE_INTEGRITY_VERIFICATION_WITHOUT_SELECTOR_PUBLICATION_OR_CANDIDATE_START_UNDER_<CURRENT_OPERATIONS_COMMIT>_AUTHORITY`.
+`SEPARATELY_AUTHORIZED_GIT_AUTHENTICATION_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_CHAINED_ENVIRONMENT_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_OFFLINE_NPM_CACHE_READY_EVIDENCE_IDENTITY_ONLY_CARRY_FORWARD_AND_IMMUTABLE_BUILD_ONLY_ROLLBACK_REFERENCE_BCN_AND_INDEPENDENT_CIRCLE_CARD_ARTIFACT_PREPARATION_PUBLICATION_AND_RELEASE_INTEGRITY_VERIFICATION_WITHOUT_SELECTOR_PUBLICATION_OR_CANDIDATE_START_UNDER_<CURRENT_OPERATIONS_COMMIT>_AUTHORITY`.
 
 The rollback fixture refuses to consume the build attempt unless that current-authority
 readiness evidence verifies. Its subsequent `npm ci` remains frozen and offline. Cache
 population is not implicit in checkout or build and must never be run without its separate
 network-authorisation gate.
 
-Immutable artifact construction and selector publication are separate operations. The rollback
-artifact command verifies and publishes the exact rollback release and a protected
-`rollback-build-only-artifact.json` record without creating `current-bcn-rollback-probe`. The
-forward build verifies both role-specific runtime copies and the complete release, then publishes
-`forward-build-only-artifact.json` without creating `current-circle-card` or changing
-`current-bcn`. Both records are current-operations-commit-bound, value-free, no-replace evidence;
-they bind the exact application SHA, canonical immutable artifact path, all required manifest
-identities, aggregate artifact identity, `releaseIntegrity=PASS`, and
-`selectorsPublished=false`.
+Immutable artifact construction and selector publication are separate operations. Forward
+dependency installation is performed only by `offline-npm-install.mjs`. It derives the fixed
+sealed READY cache `/var/cache/thebusinesscircle/phase-f1/npm-offline-v1` from committed code,
+revalidates its current-authority READY evidence against the exact forward lockfile, runs exactly
+one scrubbed `npm ci --offline --no-audit --no-fund`, and redundantly sets
+`NPM_CONFIG_OFFLINE=true`. The trusted distinct empty user/global npm configuration sources are
+fixed by the installed pack. Callers cannot select a cache, registry, config source or offline
+mode; a missing cache object fails the one invocation without a registry retry.
+
+The forward release uses a closed `bcn`/`circle-card` build-role model. Both roles are bound to
+the exact same forward source commit, but `build-command.mjs` creates their fixed brand, public
+origin and auth-origin environment internally. It invokes the Next build separately for BCN and
+Circle Card, removes each disposable build cache, and publishes that role's output directly to
+`.runtime/bcn` or `.runtime/circle-card`. A BCN `.next` tree is never copied into the Circle Card
+runtime. Role provenance inside each runtime binds the application SHA, operations authority,
+brand, origin and that invocation's `BUILD_ID`; equal role output identity fails closed.
+
+The rollback command verifies and publishes the exact rollback release and protected
+`rollback-build-only-artifact.json` without creating `current-bcn-rollback-probe`. The forward
+build publishes separate `bcn-build-only-artifact.json` and
+`circle-card-build-only-artifact.json` records. `build-release-integrity.mjs` directly verifies
+the role runtime inventory, complete shared immutable release, embedded role provenance, fixed
+brand/origin identity, protected-value exclusion, distinct cross-role artifact identity and the
+absence of selectors. A BCN artifact cannot validate as Circle Card or vice versa. These checks
+are build-time standalone evidence only; runtime independence remains for the later candidate
+preflight. All records are current-authority-bound, value-free, no-replace evidence with
+`releaseIntegrity=PASS` and `selectorsPublished=false`.
 
 Selector publication is available only through `publish-candidate-selector.sh`, accepts only
 `rollback-probe` with the exact rollback SHA or `circle-card` with the exact forward SHA, requires
@@ -512,8 +530,9 @@ It uses a same-directory staged symlink plus atomic no-replace hard-link publica
 directory fsync. Build commands contain no selector publication path; candidate activation is a
 later separately authorised gate.
 
-After a pack containing this separation becomes authoritative, the exact next gate is
-`SEPARATELY_AUTHORIZED_GIT_AUTHENTICATION_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_CHAINED_ENVIRONMENT_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_OFFLINE_NPM_CACHE_READINESS_REVALIDATION_AND_IMMUTABLE_BUILD_ONLY_APPLICATION_ARTIFACT_PREPARATION_PUBLICATION_AND_RELEASE_INTEGRITY_UNDER_<CURRENT_OPERATIONS_COMMIT>_AUTHORITY`.
+Implementation and execution are separate gates. After a pack containing this mechanism becomes
+authoritative, the exact next gate is
+`SEPARATELY_AUTHORIZED_GIT_AUTHENTICATION_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_CHAINED_ENVIRONMENT_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_OFFLINE_NPM_CACHE_READY_EVIDENCE_IDENTITY_ONLY_CARRY_FORWARD_AND_IMMUTABLE_BUILD_ONLY_ROLLBACK_REFERENCE_BCN_AND_INDEPENDENT_CIRCLE_CARD_ARTIFACT_PREPARATION_PUBLICATION_AND_RELEASE_INTEGRITY_VERIFICATION_WITHOUT_SELECTOR_PUBLICATION_OR_CANDIDATE_START_UNDER_<CURRENT_OPERATIONS_COMMIT>_AUTHORITY`.
 
 The rollback build must run the committed-candidate flow in `src/config/rollback-immutable-runtime-cache.test.ts` from exact SHA `5d1f81bb05a01b08e1134785c2f86b77c8969fe3`. Final fixture generation cannot run from an uncommitted review diff. Provenance must bind the actual candidate SHA, historical parent, exact three-file set, raw Git diff digest, reviewed-file hashes, package identities, Next.js `15.5.15`, `BUILD_ID`, and recomputed full artifact manifest. It must record a synthetic build, absent production authority, enforced Linux loopback-only/no-route network isolation, and historical BCN identity. Forward Circle Card identity is rejected.
 
