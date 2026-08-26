@@ -534,6 +534,37 @@ Implementation and execution are separate gates. After a pack containing this me
 authoritative, the exact next gate is
 `SEPARATELY_AUTHORIZED_GIT_AUTHENTICATION_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_CHAINED_ENVIRONMENT_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_OFFLINE_NPM_CACHE_READY_EVIDENCE_IDENTITY_ONLY_CARRY_FORWARD_AND_IMMUTABLE_BUILD_ONLY_ROLLBACK_REFERENCE_BCN_AND_INDEPENDENT_CIRCLE_CARD_ARTIFACT_PREPARATION_PUBLICATION_AND_RELEASE_INTEGRITY_VERIFICATION_WITHOUT_SELECTOR_PUBLICATION_OR_CANDIDATE_START_UNDER_<CURRENT_OPERATIONS_COMMIT>_AUTHORITY`.
 
+Rollback fixture test discovery is rooted explicitly at the protected rollback workspace returned
+by the current build-attempt handoff. Both committed Vitest invocations pass that canonical path as
+the fixed `--root` and retain the single fixed relative
+`src/config/rollback-immutable-runtime-cache.test.ts` filter. The build-user command receives no
+caller-selected working directory, root, config or filter. Fixture residue is named from the same
+verified workspace basename, so a caller working directory cannot affect test discovery or cleanup
+identity.
+
+A rollback fixture failure after the offline install but before immutable artifact publication is
+not reusable. `recover-failed-rollback-attempt.sh` accepts only the exact protected failed-attempt
+SHA-256; every path, application identity, authority, fixture residue and cleanup target is derived
+internally. `failed-rollback-attempt-recovery.mjs` requires the closed v2 attempt to be exactly
+`failed`, verifies its embedded authority on the protected authority lineage, re-verifies the exact
+rollback commit as the build user, and accepts only a canonical build-user-owned workspace with
+installed `node_modules`, absent `.next`, and one empty exact fixture residue. It rejects mounts,
+symlinks, active process references, selector references, candidate listeners, published artifacts,
+post-build evidence and any release-integrity or build-only success evidence.
+
+Recovery first publishes a no-replace intent and byte-identical histories for the application
+identity, failed attempt and application recheck. Only then may it remove the two exact
+inode-revalidated disposable directories and unlink the three exact canonical evidence slots.
+Every parent is fsynced and a closed value-free report publishes only after the canonical retry
+state is `READY`. If interrupted, the protected intent and inode identities permit only resumption
+of the same cleanup; substitution or contradictory state fails closed. The offline cache, protected
+environments, readiness evidence, authentication material, acquisition state, authority history and
+selectors are outside the mechanism and cannot be caller-selected.
+
+Implementation and production recovery remain separate gates. After a corrected pack becomes
+authoritative, the exact next gate is
+`SEPARATELY_AUTHORIZED_GIT_AUTHENTICATION_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_CHAINED_ENVIRONMENT_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_OFFLINE_NPM_CACHE_READY_EVIDENCE_IDENTITY_ONLY_CARRY_FORWARD_AND_FAILED_ROLLBACK_BUILD_ATTEMPT_PROTECTED_RECOVERY_AND_FRESH_TRUSTED_ROLLBACK_CHECKOUT_AND_IMMUTABLE_BUILD_ONLY_ROLLBACK_REFERENCE_BCN_AND_INDEPENDENT_CIRCLE_CARD_ARTIFACT_PREPARATION_PUBLICATION_AND_RELEASE_INTEGRITY_VERIFICATION_WITHOUT_SELECTOR_PUBLICATION_OR_CANDIDATE_START_UNDER_<CURRENT_OPERATIONS_COMMIT>_AUTHORITY`.
+
 The rollback build must run the committed-candidate flow in `src/config/rollback-immutable-runtime-cache.test.ts` from exact SHA `5d1f81bb05a01b08e1134785c2f86b77c8969fe3`. Final fixture generation cannot run from an uncommitted review diff. Provenance must bind the actual candidate SHA, historical parent, exact three-file set, raw Git diff digest, reviewed-file hashes, package identities, Next.js `15.5.15`, `BUILD_ID`, and recomputed full artifact manifest. It must record a synthetic build, absent production authority, enforced Linux loopback-only/no-route network isolation, and historical BCN identity. Forward Circle Card identity is rejected.
 
 A skipped fixture-generation or real-server test is incomplete evidence and blocks cutover. The rollback proof cryptographically binds:

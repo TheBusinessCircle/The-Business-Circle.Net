@@ -20,6 +20,7 @@ from pathlib import Path
 from unittest import mock
 
 
+sys.dont_write_bytecode = True
 UTILITY = Path(__file__).with_name("atomic-identity-exchange.py")
 SPEC = importlib.util.spec_from_file_location(
     "phase_f1_atomic_identity_exchange", UTILITY

@@ -28,14 +28,18 @@ sudo -u phase-f1-build env -i HOME=/var/lib/thebusinesscircle/build PATH=/usr/lo
   NPM_CONFIG_USERCONFIG="${PHASE_F1_NPM_USER_CONFIG}" NPM_CONFIG_GLOBALCONFIG="${PHASE_F1_NPM_GLOBAL_CONFIG}" NPM_CONFIG_CACHE="${OFFLINE_CACHE}" \
   NPM_CONFIG_LOGS_DIR=/var/lib/thebusinesscircle/build/npm-logs NPM_CONFIG_OFFLINE=true NPM_CONFIG_UPDATE_NOTIFIER=false NEXT_TELEMETRY_DISABLED=1 \
   npm --prefix "${workspace}" ci --offline --no-audit --no-fund
-fixture_parent="${PHASE_F1_BUILD_ROOT}/rollback-fixture-${PHASE_F1_ROLLBACK_SHA}-$(openssl rand -hex 8)"
+workspace_basename=$(basename "${workspace}")
+[[ ${workspace_basename} == rollback-${PHASE_F1_ROLLBACK_SHA}-* && ${workspace_basename} != *..* ]] ||
+  die "rollback fixture workspace basename is unsafe"
+fixture_parent="${PHASE_F1_BUILD_ROOT}/rollback-fixture-${PHASE_F1_ROLLBACK_SHA}-${workspace_basename}"
 fixture="${fixture_parent}/fixture"
 [[ ! -e ${fixture_parent} && ! -L ${fixture_parent} ]] || die "rollback fixture path collision"
 install -d -m 0750 -o phase-f1-build -g phase-f1-build "${fixture_parent}"
 sudo -u phase-f1-build env -i HOME=/var/lib/thebusinesscircle/build PATH=/usr/local/bin:/usr/bin:/bin \
   NPM_CONFIG_CACHE="${OFFLINE_CACHE}" NPM_CONFIG_OFFLINE=true NEXT_TELEMETRY_DISABLED=1 \
   PHASE_E3_OFFLINE_NPM_CACHE_ROOT="${OFFLINE_CACHE}" PHASE_E3_GENERATE_PRODUCTION_FIXTURE_ROOT="${fixture}" \
-  /usr/bin/node "${workspace}/node_modules/vitest/vitest.mjs" run src/config/rollback-immutable-runtime-cache.test.ts
+  /usr/bin/node "${workspace}/node_modules/vitest/vitest.mjs" run --root "${workspace}" \
+  src/config/rollback-immutable-runtime-cache.test.ts
 [[ -f ${fixture}/.phase-e3-production-fixture.json && ! -L ${fixture}/.phase-e3-production-fixture.json ]] || die "rollback fixture provenance is absent"
 post_build_identity="${PHASE_F1_STATE_ROOT}/rollback-application-identity.post-build.json"
 [[ ! -e ${post_build_identity} && ! -L ${post_build_identity} ]] || die "post-build rollback identity evidence already exists"
@@ -48,7 +52,8 @@ find -P "${workspace}" "${fixture_parent}" -xdev -type f -perm /111 -exec chmod 
 find -P "${workspace}" "${fixture_parent}" -xdev -type f ! -perm /111 -exec chmod 0444 {} +
 sudo -u phase-f1-build env -i HOME=/var/lib/thebusinesscircle/build PATH=/usr/local/bin:/usr/bin:/bin \
   NEXT_TELEMETRY_DISABLED=1 PHASE_E3_PRODUCTION_FIXTURE_ROOT="${fixture}" \
-  /usr/bin/node "${workspace}/node_modules/vitest/vitest.mjs" run src/config/rollback-immutable-runtime-cache.test.ts
+  /usr/bin/node "${workspace}/node_modules/vitest/vitest.mjs" run --root "${workspace}" \
+  src/config/rollback-immutable-runtime-cache.test.ts
 provenance_evidence="${PHASE_F1_STATE_ROOT}/rollback-production-fixture-provenance.json"
 next_start_evidence="${PHASE_F1_STATE_ROOT}/rollback-linux-next-start-evidence.json"
 fixture_evidence="${PHASE_F1_STATE_ROOT}/rollback-fixture.path"
