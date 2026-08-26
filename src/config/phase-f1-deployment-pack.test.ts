@@ -1343,9 +1343,29 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
     expect(install).toContain("OFFLINE_CACHE_ROOT");
     expect(source("offline-npm-cache.mjs")).toContain('OFFLINE_CACHE_ROOT = "/var/cache/thebusinesscircle/phase-f1/npm-offline-v1"');
     expect(install).toContain('"NPM_CONFIG_OFFLINE=true"');
-    expect(install).toContain('"ci", "--offline", "--no-audit", "--no-fund"');
+    expect(install).toContain('"ci", "--include=dev", "--offline", "--no-audit", "--no-fund"');
+    expect(install).toContain('"NPM_CONFIG_INCLUDE=dev"');
     expect(install).not.toContain("/var/lib/thebusinesscircle/build/npm-cache");
     expect(command).toContain("forwardBuildRole(role)");
+  });
+
+  it("separates explicit offline build-dependency installation from production build semantics", () => {
+    const rollbackPackage = JSON.parse(
+      readCommittedBlob(root, rollbackSha, "package.json").toString("utf8"),
+    );
+    const fixture = source("prepare-rollback-fixture.sh");
+    const isolated = source("rollback-fixture-network-isolation.mjs");
+    const shim = source("rollback-fixture-npm-command.mjs");
+    expect(rollbackPackage.devDependencies?.tailwindcss).toBeTruthy();
+    expect(fixture).toContain("ci --include=dev --offline --no-audit --no-fund");
+    expect(shim).toContain('"ci", "--include=dev", "--offline", "--no-audit", "--no-fund"');
+    expect(shim).toContain('phase: "DEPENDENCY_INSTALL"');
+    expect(shim).toContain('phase: "APPLICATION_BUILD"');
+    expect(shim).toContain('environment.NODE_ENV !== "production"');
+    expect(shim).toContain("Caller-controlled npm dependency inclusion policy is forbidden");
+    expect(isolated).toContain('"-t", "tmpfs"');
+    expect(isolated).toContain('"remount,ro,nosuid,nodev"');
+    expect(isolated).toContain("prepareFixtureNpmShim();");
   });
 
   it("removes build-user mutation authority before accepting rollback next-start evidence", () => {

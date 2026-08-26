@@ -36,6 +36,10 @@ describe("Phase F1 rollback fixture loopback-only namespace", () => {
     assert.match(helperSource, /"link", "set", "dev", "lo", "up"/u);
     assert.match(helperSource, /"--make-rprivate", "\/"/u);
     assert.match(helperSource, /"ro,nosuid,nodev,noexec", "sysfs", "\/sys"/u);
+    assert.match(helperSource, /"-t", "tmpfs"/u);
+    assert.match(helperSource, /rollback-fixture-npm\.sh/u);
+    assert.match(helperSource, /rollback-fixture-npm-command\.mjs/u);
+    assert.match(helperSource, /"remount,ro,nosuid,nodev"/u);
     assert.match(helperSource, /--user=phase-f1-build/u);
     assert.match(helperSource, /`--chdir=\$\{workspace\}`/u);
     assert.match(helperSource, /src\/config\/rollback-immutable-runtime-cache\.test\.ts/u);

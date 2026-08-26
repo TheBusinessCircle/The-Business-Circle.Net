@@ -6,9 +6,12 @@ const authority = "a".repeat(40), workspace = "/var/www/builds/forward-b43a1e4e7
 test("forward install is fixed-cache, isolated, and redundantly offline", () => {
   const invocation = createOfflineNpmInstallInvocation(workspace, authority), joined = invocation.arguments.join(" ");
   assert.match(joined, /NPM_CONFIG_CACHE=\/var\/cache\/thebusinesscircle\/phase-f1\/npm-offline-v1/u);
-  assert.match(joined, /NPM_CONFIG_OFFLINE=true/u); assert.match(joined, /npm --prefix .* ci --offline --no-audit --no-fund/u);
+  assert.match(joined, /NPM_CONFIG_OFFLINE=true/u);
+  assert.match(joined, /NPM_CONFIG_INCLUDE=dev/u);
+  assert.match(joined, /npm --prefix .* ci --include=dev --offline --no-audit --no-fund/u);
   assert.doesNotMatch(joined, /\/var\/lib\/thebusinesscircle\/build\/npm-cache/u);
   assert.doesNotMatch(joined, /NPM_CONFIG_REGISTRY|NODE_AUTH_TOKEN|NPM_TOKEN/u);
+  assert.doesNotMatch(joined, /NPM_CONFIG_(?:PRODUCTION|OMIT)=|NODE_ENV=/u);
   const userConfig = invocation.arguments.find(value => value.startsWith("NPM_CONFIG_USERCONFIG="));
   const globalConfig = invocation.arguments.find(value => value.startsWith("NPM_CONFIG_GLOBALCONFIG="));
   assert.notEqual(userConfig, globalConfig);

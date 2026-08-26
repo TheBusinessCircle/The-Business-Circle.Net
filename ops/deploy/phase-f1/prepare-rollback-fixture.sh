@@ -26,8 +26,8 @@ record_failed_attempt() { local status=$?; trap - EXIT ERR INT TERM; if ((status
 trap record_failed_attempt EXIT INT TERM
 sudo -u phase-f1-build env -i HOME=/var/lib/thebusinesscircle/build PATH=/usr/local/bin:/usr/bin:/bin \
   NPM_CONFIG_USERCONFIG="${PHASE_F1_NPM_USER_CONFIG}" NPM_CONFIG_GLOBALCONFIG="${PHASE_F1_NPM_GLOBAL_CONFIG}" NPM_CONFIG_CACHE="${OFFLINE_CACHE}" \
-  NPM_CONFIG_LOGS_DIR=/var/lib/thebusinesscircle/build/npm-logs NPM_CONFIG_OFFLINE=true NPM_CONFIG_UPDATE_NOTIFIER=false NEXT_TELEMETRY_DISABLED=1 \
-  npm --prefix "${workspace}" ci --offline --no-audit --no-fund
+  NPM_CONFIG_LOGS_DIR=/var/lib/thebusinesscircle/build/npm-logs NPM_CONFIG_OFFLINE=true NPM_CONFIG_INCLUDE=dev NPM_CONFIG_UPDATE_NOTIFIER=false NEXT_TELEMETRY_DISABLED=1 \
+  npm --prefix "${workspace}" ci --include=dev --offline --no-audit --no-fund
 workspace_basename=$(basename "${workspace}")
 [[ ${workspace_basename} == rollback-${PHASE_F1_ROLLBACK_SHA}-* && ${workspace_basename} != *..* ]] ||
   die "rollback fixture workspace basename is unsafe"

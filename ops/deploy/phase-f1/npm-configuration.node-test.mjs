@@ -133,7 +133,9 @@ describe("Phase F1 trusted npm configuration", () => {
     assert.match(forwardInstall, /NPM_CONFIG_USERCONFIG/u);
     assert.match(forwardInstall, /NPM_CONFIG_GLOBALCONFIG/u);
     assert.match(forwardInstall, /NPM_CONFIG_OFFLINE=true/u);
-    assert.match(forwardInstall, /"ci", "--offline", "--no-audit", "--no-fund"/u);
+    assert.match(forwardInstall, /"ci", "--include=dev", "--offline", "--no-audit", "--no-fund"/u);
+    assert.match(forwardInstall, /"NPM_CONFIG_INCLUDE=dev"/u);
+    assert.doesNotMatch(forwardInstall, /NPM_CONFIG_(?:PRODUCTION|OMIT)=/u);
     assert.doesNotMatch(forwardInstall, /\/var\/lib\/thebusinesscircle\/build\/npm-cache/u);
   });
 

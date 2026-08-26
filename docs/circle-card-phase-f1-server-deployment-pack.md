@@ -490,16 +490,32 @@ After a pack containing this mechanism becomes authoritative, the exact next gat
 `SEPARATELY_AUTHORIZED_GIT_AUTHENTICATION_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_CHAINED_ENVIRONMENT_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_OFFLINE_NPM_CACHE_READY_EVIDENCE_IDENTITY_ONLY_CARRY_FORWARD_AND_IMMUTABLE_BUILD_ONLY_ROLLBACK_REFERENCE_BCN_AND_INDEPENDENT_CIRCLE_CARD_ARTIFACT_PREPARATION_PUBLICATION_AND_RELEASE_INTEGRITY_VERIFICATION_WITHOUT_SELECTOR_PUBLICATION_OR_CANDIDATE_START_UNDER_<CURRENT_OPERATIONS_COMMIT>_AUTHORITY`.
 
 The rollback fixture refuses to consume the build attempt unless that current-authority
-readiness evidence verifies. Its subsequent `npm ci` remains frozen and offline. Cache
+readiness evidence verifies. Its outer dependency install explicitly runs
+`npm ci --include=dev --offline --no-audit --no-fund`, so every build-required locked
+devDependency is present without relying on ambient `NODE_ENV` or npm omit defaults. Cache
 population is not implicit in checkout or build and must never be run without its separate
 network-authorisation gate.
+
+The Phase E3 fixture deliberately constructs its inner build environment with
+`NODE_ENV=production`, but dependency installation and application build are separate closed
+commands. Inside the ephemeral mount/network namespace, the privileged launcher mounts a
+private tmpfs over `/usr/local/bin`, installs only a root-owned fixed npm shim plus its immutable
+command helper, and remounts that command directory read-only. The build-user fixture can invoke
+only the exact application-owned `npm ci --offline --no-audit --no-fund` and `npm run build`
+requests. The shim maps the former to npm 10.9.7 with fixed `--include=dev`, fixed READY cache and
+offline policy; the latter retains `NODE_ENV=production` and receives no install-phase include
+option. Caller `production`, `omit` or `include` npm policy, arbitrary commands, alternate cache
+and registry fallback fail closed. The tmpfs and shim disappear with the namespace and do not
+alter host command paths or application source identity.
 
 Immutable artifact construction and selector publication are separate operations. Forward
 dependency installation is performed only by `offline-npm-install.mjs`. It derives the fixed
 sealed READY cache `/var/cache/thebusinesscircle/phase-f1/npm-offline-v1` from committed code,
 revalidates its current-authority READY evidence against the exact forward lockfile, runs exactly
-one scrubbed `npm ci --offline --no-audit --no-fund`, and redundantly sets
-`NPM_CONFIG_OFFLINE=true`. The trusted distinct empty user/global npm configuration sources are
+one scrubbed `npm ci --include=dev --offline --no-audit --no-fund`, and redundantly sets
+`NPM_CONFIG_OFFLINE=true` plus the fixed `NPM_CONFIG_INCLUDE=dev`. The install process is separate
+from both role-specific production builds, so its include policy cannot become runtime authority.
+The trusted distinct empty user/global npm configuration sources are
 fixed by the installed pack. Callers cannot select a cache, registry, config source or offline
 mode; a missing cache object fails the one invocation without a registry retry.
 

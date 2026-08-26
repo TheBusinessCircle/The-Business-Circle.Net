@@ -7,7 +7,9 @@ import { verifyOfflineCacheForForwardBuild, OFFLINE_CACHE_ROOT } from "./offline
 import { verifyTrustedNpmConfiguration, NPM_CONFIG_FILENAMES } from "./npm-configuration.mjs";
 
 export const OFFLINE_INSTALL_SCHEMA = "phase-f1-forward-offline-npm-install-v1";
-export const OFFLINE_NPM_ARGUMENTS = Object.freeze(["ci", "--offline", "--no-audit", "--no-fund"]);
+export const OFFLINE_NPM_ARGUMENTS = Object.freeze([
+  "ci", "--include=dev", "--offline", "--no-audit", "--no-fund"
+]);
 const AUTHORITY_PATH = "/var/lib/thebusinesscircle/approved-phase-f1-pack.json";
 const PACK_ROOT = dirname(fileURLToPath(import.meta.url));
 const NPM_CONFIG_ROOT = join(PACK_ROOT, "npm-config");
@@ -38,6 +40,7 @@ export function createOfflineNpmInstallInvocation(workspace, operationsCommit) {
       `NPM_CONFIG_GLOBALCONFIG=${GLOBAL_CONFIG}`,
       `NPM_CONFIG_CACHE=${OFFLINE_CACHE_ROOT}`,
       "NPM_CONFIG_OFFLINE=true",
+      "NPM_CONFIG_INCLUDE=dev",
       "NPM_CONFIG_AUDIT=false",
       "NPM_CONFIG_FUND=false",
       "NPM_CONFIG_UPDATE_NOTIFIER=false",

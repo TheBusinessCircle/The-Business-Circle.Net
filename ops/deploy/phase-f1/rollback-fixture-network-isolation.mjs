@@ -191,6 +191,39 @@ function prepareAndVerifyNamespace() {
   });
 }
 
+function prepareFixtureNpmShim() {
+  const wrapper = join(PACK_ROOT, "rollback-fixture-npm.sh");
+  const command = join(PACK_ROOT, "rollback-fixture-npm-command.mjs");
+  const npmCli = realpathSync("/usr/bin/npm");
+  const npmCliStats = lstatSync(npmCli);
+  if (npmCli !== "/usr/lib/node_modules/npm/bin/npm-cli.js" ||
+      !npmCliStats.isFile() || npmCliStats.isSymbolicLink() ||
+      npmCliStats.uid !== 0 || npmCliStats.gid !== 0 || (npmCliStats.mode & 0o022)) {
+    throw new Error("Exact protected npm 10.9.7 CLI is unavailable.");
+  }
+  fixedCommand("/usr/bin/mount", [
+    "-t", "tmpfs", "-o", "nosuid,nodev,mode=0755,size=64k", "tmpfs", "/usr/local/bin"
+  ], { error: "Rollback fixture npm shim mount isolation failed." });
+  fixedCommand("/usr/bin/install", [
+    "-m", "0555", "-o", "root", "-g", "root", wrapper, "/usr/local/bin/npm"
+  ], { error: "Rollback fixture fixed npm shim installation failed." });
+  fixedCommand("/usr/bin/install", [
+    "-m", "0444", "-o", "root", "-g", "root", command,
+    "/usr/local/bin/rollback-fixture-npm-command.mjs"
+  ], { error: "Rollback fixture fixed npm command installation failed." });
+  fixedCommand("/usr/bin/mount", [
+    "-o", "remount,ro,nosuid,nodev", "/usr/local/bin"
+  ], { error: "Rollback fixture npm shim read-only remount failed." });
+  const shim = lstatSync("/usr/local/bin/npm");
+  const helper = lstatSync("/usr/local/bin/rollback-fixture-npm-command.mjs");
+  if (!shim.isFile() || shim.isSymbolicLink() || shim.nlink !== 1 ||
+      shim.uid !== 0 || shim.gid !== 0 || (shim.mode & 0o777) !== 0o555 ||
+      !helper.isFile() || helper.isSymbolicLink() || helper.nlink !== 1 ||
+      helper.uid !== 0 || helper.gid !== 0 || (helper.mode & 0o777) !== 0o444) {
+    throw new Error("Rollback fixture npm shim metadata is unsafe.");
+  }
+}
+
 function assertInstalledContext(requireCurrentAuthority) {
   const expected = `/opt/thebusinesscircle/deployment-packs/${OPERATIONS_COMMIT}`;
   if (!/^[0-9a-f]{40}$/u.test(OPERATIONS_COMMIT) || PACK_ROOT !== expected ||
@@ -275,6 +308,7 @@ export function runIsolatedRollbackFixture(mode) {
   }
   assertInstalledContext(mode !== "probe");
   const network = prepareAndVerifyNamespace();
+  prepareFixtureNpmShim();
   const execution = mode === "probe" ? runProbe() : runFixture(mode);
   return { mode, network, execution, namespaceLifecycle: "EPHEMERAL_UNSHARE_PROCESS" };
 }
