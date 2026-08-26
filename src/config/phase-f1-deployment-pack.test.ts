@@ -1351,7 +1351,9 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
   it("removes build-user mutation authority before accepting rollback next-start evidence", () => {
     const fixture = source("prepare-rollback-fixture.sh");
     expect(fixture).toContain("rollback-application-identity.post-build.json");
-    expect(fixture.indexOf("chown -hR root:root")).toBeLessThan(fixture.indexOf("PHASE_E3_PRODUCTION_FIXTURE_ROOT"));
+    expect(fixture.indexOf("chown -hR root:root")).toBeLessThan(
+      fixture.indexOf('rollback-fixture-network-isolation.mjs" verify'),
+    );
     expect(source("rollback-proof.mjs")).toContain("rollbackPostBuildCommitEvidence");
   });
 

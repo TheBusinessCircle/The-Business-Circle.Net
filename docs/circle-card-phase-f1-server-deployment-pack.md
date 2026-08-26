@@ -548,6 +548,18 @@ their actual `process.cwd()` is the verified rollback workspace rather than the 
 directory. The fixed build user and scrubbed environment remain unchanged; no shell string, `cd`,
 caller path, environment-selected cwd or relative workspace participates in process launch.
 
+Each rollback Vitest invocation is wrapped by a fresh, unnamed `unshare --mount --net` process. The
+trusted helper makes the inherited mount tree private and mounts a read-only, namespace-scoped
+`sysfs` at `/sys`, so `/sys/class/net` reflects the new network namespace rather than the host.
+commit-bound `rollback-fixture-network-isolation.mjs` helper raises `lo`, proves that its network
+namespace differs from the host, requires `/sys/class/net` to contain only an UP loopback, rejects
+every non-loopback or default IPv4/IPv6 route, and proves both non-loopback and host-loopback
+connectivity are unavailable before dropping to `phase-f1-build`. It derives the consumed rollback
+workspace and fixture path only from protected evidence and launches only the fixed approved test
+filter with the trusted cwd. No `nsenter`, named namespace, arbitrary command, caller cwd, network
+fallback or host-network mutation exists. The namespace has process lifetime and disappears on
+success, failure or interruption.
+
 A rollback fixture failure after the offline install but before immutable artifact publication is
 not reusable. `recover-failed-rollback-attempt.sh` accepts only the exact protected failed-attempt
 SHA-256; every path, application identity, authority, fixture residue and cleanup target is derived

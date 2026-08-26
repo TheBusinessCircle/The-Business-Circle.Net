@@ -14,17 +14,18 @@ afterEach(() => {
 describe("Phase F1 rollback fixture trusted workspace root", () => {
   it("binds both fixed Vitest invocations and fixture residue to the protected workspace", () => {
     const source = readFileSync(new URL("./prepare-rollback-fixture.sh", import.meta.url), "utf8");
-    assert.equal((source.match(/run --root "\$\{workspace\}"/gu) ?? []).length, 2);
-    assert.equal((source.match(/vitest\.mjs" run --root/gu) ?? []).length, 2);
-    assert.ok((source.match(/src\/config\/rollback-immutable-runtime-cache\.test\.ts/gu) ?? []).length >= 2);
+    const isolated = readFileSync(new URL("./rollback-fixture-network-isolation.mjs", import.meta.url), "utf8");
+    assert.equal((isolated.match(/"run", "--root", workspace, FIXTURE_FILTER/gu) ?? []).length, 1);
+    assert.equal((isolated.match(/node_modules\/vitest\/vitest\.mjs/gu) ?? []).length, 1);
+    assert.equal((isolated.match(/src\/config\/rollback-immutable-runtime-cache\.test\.ts/gu) ?? []).length, 1);
     assert.match(source, /workspace=\$\(\/usr\/bin\/node .*build-state\.mjs" inspect/u);
     assert.match(source, /workspace=\$\(realpath -e "\$\{workspace\}"\)/u);
-    assert.equal((source.match(/\/usr\/bin\/sudo --user=phase-f1-build \/usr\/bin\/env --chdir="\$\{workspace\}" -i/gu) ?? []).length, 2);
-    assert.equal((source.match(/\/usr\/bin\/sudo --user=phase-f1-build \/usr\/bin\/env --chdir="\$\{workspace\}" -i[^\n]*\\\n(?:[^\n]*\\\n){1,4}\s*\/usr\/bin\/node "\$\{workspace\}\/node_modules\/vitest\/vitest\.mjs"/gu) ?? []).length, 2);
+    assert.equal((source.match(/\/usr\/bin\/unshare --mount --net -- \/usr\/bin\/env -i/gu) ?? []).length, 2);
+    assert.match(isolated, /"--user=phase-f1-build", "\/usr\/bin\/env", `--chdir=\$\{workspace\}`, "-i"/u);
     assert.match(source, /fixture_parent=.*\$\{workspace_basename\}/u);
     assert.doesNotMatch(source, /fixture_parent=.*openssl rand/u);
     assert.doesNotMatch(source, /run src\/config\/rollback-immutable-runtime-cache\.test\.ts/u);
-    assert.doesNotMatch(source, /(?:bash|sh) -c|\bcd\s+"?\$\{workspace\}|--chdir="?\$\{?(?:PWD|CWD)/u);
+    assert.doesNotMatch(`${source}\n${isolated}`, /(?:bash|sh) -c|\bcd\s+"?\$\{workspace\}|--chdir="?\$\{?(?:PWD|CWD)/u);
   });
 
   it("finds the approved relative filter from an unrelated caller cwd", () => {

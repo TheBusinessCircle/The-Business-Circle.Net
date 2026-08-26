@@ -35,11 +35,8 @@ fixture_parent="${PHASE_F1_BUILD_ROOT}/rollback-fixture-${PHASE_F1_ROLLBACK_SHA}
 fixture="${fixture_parent}/fixture"
 [[ ! -e ${fixture_parent} && ! -L ${fixture_parent} ]] || die "rollback fixture path collision"
 install -d -m 0750 -o phase-f1-build -g phase-f1-build "${fixture_parent}"
-/usr/bin/sudo --user=phase-f1-build /usr/bin/env --chdir="${workspace}" -i HOME=/var/lib/thebusinesscircle/build PATH=/usr/local/bin:/usr/bin:/bin \
-  NPM_CONFIG_CACHE="${OFFLINE_CACHE}" NPM_CONFIG_OFFLINE=true NEXT_TELEMETRY_DISABLED=1 \
-  PHASE_E3_OFFLINE_NPM_CACHE_ROOT="${OFFLINE_CACHE}" PHASE_E3_GENERATE_PRODUCTION_FIXTURE_ROOT="${fixture}" \
-  /usr/bin/node "${workspace}/node_modules/vitest/vitest.mjs" run --root "${workspace}" \
-  src/config/rollback-immutable-runtime-cache.test.ts
+/usr/bin/unshare --mount --net -- /usr/bin/env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin \
+  /usr/bin/node "${PHASE_F1_PACK_DIR}/rollback-fixture-network-isolation.mjs" generate
 [[ -f ${fixture}/.phase-e3-production-fixture.json && ! -L ${fixture}/.phase-e3-production-fixture.json ]] || die "rollback fixture provenance is absent"
 post_build_identity="${PHASE_F1_STATE_ROOT}/rollback-application-identity.post-build.json"
 [[ ! -e ${post_build_identity} && ! -L ${post_build_identity} ]] || die "post-build rollback identity evidence already exists"
@@ -50,10 +47,8 @@ chown -hR root:root "${workspace}" "${fixture_parent}"
 find -P "${workspace}" "${fixture_parent}" -xdev -type d -exec chmod 0555 {} +
 find -P "${workspace}" "${fixture_parent}" -xdev -type f -perm /111 -exec chmod 0555 {} +
 find -P "${workspace}" "${fixture_parent}" -xdev -type f ! -perm /111 -exec chmod 0444 {} +
-/usr/bin/sudo --user=phase-f1-build /usr/bin/env --chdir="${workspace}" -i HOME=/var/lib/thebusinesscircle/build PATH=/usr/local/bin:/usr/bin:/bin \
-  NEXT_TELEMETRY_DISABLED=1 PHASE_E3_PRODUCTION_FIXTURE_ROOT="${fixture}" \
-  /usr/bin/node "${workspace}/node_modules/vitest/vitest.mjs" run --root "${workspace}" \
-  src/config/rollback-immutable-runtime-cache.test.ts
+/usr/bin/unshare --mount --net -- /usr/bin/env -i HOME=/root PATH=/usr/local/bin:/usr/bin:/bin \
+  /usr/bin/node "${PHASE_F1_PACK_DIR}/rollback-fixture-network-isolation.mjs" verify
 provenance_evidence="${PHASE_F1_STATE_ROOT}/rollback-production-fixture-provenance.json"
 next_start_evidence="${PHASE_F1_STATE_ROOT}/rollback-linux-next-start-evidence.json"
 fixture_evidence="${PHASE_F1_STATE_ROOT}/rollback-fixture.path"
