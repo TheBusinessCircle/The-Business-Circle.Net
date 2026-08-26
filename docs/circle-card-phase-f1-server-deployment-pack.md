@@ -542,6 +542,12 @@ caller-selected working directory, root, config or filter. Fixture residue is na
 verified workspace basename, so a caller working directory cannot affect test discovery or cleanup
 identity.
 
+Both Vitest children also run `/usr/bin/env --chdir=<trusted-workspace>` directly as the fixed build
+user, so the cwd transition is performed by that child without requiring sudo chdir policy, and
+their actual `process.cwd()` is the verified rollback workspace rather than the operator's caller
+directory. The fixed build user and scrubbed environment remain unchanged; no shell string, `cd`,
+caller path, environment-selected cwd or relative workspace participates in process launch.
+
 A rollback fixture failure after the offline install but before immutable artifact publication is
 not reusable. `recover-failed-rollback-attempt.sh` accepts only the exact protected failed-attempt
 SHA-256; every path, application identity, authority, fixture residue and cleanup target is derived
