@@ -24,6 +24,8 @@ export const ENVIRONMENT_APPLICATION_TRANSITION_SCHEMA =
   "phase-f1-environment-readiness-rollback-application-transition-v1";
 export const ENVIRONMENT_APPLICATION_TRANSITION_DELTA =
   "ROLLBACK_APPLICATION_IDENTITY_ONLY";
+export const ENVIRONMENT_APPLICATION_TRANSITION_EXCHANGE_MODE =
+  "readiness-exchange";
 export const TRANSITION_SOURCE_OPERATIONS_COMMIT =
   "c10abd77ceca632d206b83bcdae3cf8b7db3c9df";
 
@@ -214,7 +216,7 @@ function validateCurrentEnvironment(dependencies) {
 function exchange(paths, identities, operationsCommit) {
   const helper = `/opt/thebusinesscircle/deployment-packs/${operationsCommit}/atomic-identity-exchange.py`;
   const result = spawnSync("/usr/bin/python3", [
-    helper, "environment-readiness-exchange",
+    helper, ENVIRONMENT_APPLICATION_TRANSITION_EXCHANGE_MODE,
     "--authority", paths.authority,
     "--exchange-slot", paths.slot,
     "--preserved-history", paths.preserved,

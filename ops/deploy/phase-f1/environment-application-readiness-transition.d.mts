@@ -1,6 +1,7 @@
 export const ENVIRONMENT_APPLICATION_TRANSITION: string;
 export const ENVIRONMENT_APPLICATION_TRANSITION_SCHEMA: string;
 export const ENVIRONMENT_APPLICATION_TRANSITION_DELTA: string;
+export const ENVIRONMENT_APPLICATION_TRANSITION_EXCHANGE_MODE: string;
 export const TRANSITION_SOURCE_OPERATIONS_COMMIT: string;
 export function validateSourceEnvironmentReadiness(record: Record<string, unknown>, operationsCommit: string): Record<string, unknown>;
 export function classifyEnvironmentApplicationTransition(source: Record<string, unknown>, candidate: Record<string, unknown>): string;

@@ -378,6 +378,10 @@ report and exact exchange slot are published with fsync-backed no-replace semant
 dedicated atomic readiness exchange. Protected selection and acquisition evidence is not edited,
 copied or relabelled by this transition.
 
+The transition invokes the atomic helper's existing exact `readiness-exchange` mode. The
+unsupported `environment-readiness-exchange` spelling is not a parser mode and must never be
+used; focused contract coverage binds the Node transition launcher to the Python helper parser.
+
 Compare the live PM2/BCN/Next/listener/Nginx/PostgreSQL/systemd baseline after each separately authorised gate. Do not destroy the input if preparation fails, publication is partial or uncertain, environment-only validation fails, release integrity fails, full preflight fails, or live state changes. Preserve the root-only tmpfs evidence for separately approved recovery; a reboot also clears `/run`.
 
 After protected publication and environment-only readiness are conclusively `VERIFIED`, both releases pass integrity, full preflight is conclusively `PASSED`, and the protected-readiness reader independently returns ready, unlink the input:

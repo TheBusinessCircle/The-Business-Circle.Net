@@ -1369,7 +1369,10 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
     );
     expect(environmentTransition).toContain("ROLLBACK_APPLICATION_IDENTITY_ONLY");
     expect(environmentTransition).toContain("publishNoReplaceSet");
-    expect(environmentTransition).toContain("environment-readiness-exchange");
+    expect(environmentTransition).toContain('"readiness-exchange"');
+    expect(environmentTransition).not.toContain(
+      'helper, "environment-readiness-exchange"',
+    );
     expect(cacheTransition).toContain(
       "REVIEWED_ROLLBACK_APPLICATION_IDENTITY_OFFLINE_CACHE_READY_TRANSITION",
     );

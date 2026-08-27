@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
   FORWARD_APPLICATION_SHA,
@@ -16,6 +17,7 @@ import {
 import {
   createEnvironmentApplicationTransitionArtifacts,
   ENVIRONMENT_APPLICATION_TRANSITION_DELTA,
+  ENVIRONMENT_APPLICATION_TRANSITION_EXCHANGE_MODE,
   TRANSITION_SOURCE_OPERATIONS_COMMIT as ENVIRONMENT_SOURCE,
   validateEnvironmentApplicationTransitionReport
 } from "./environment-application-readiness-transition.mjs";
@@ -131,6 +133,18 @@ function reviewedTransitionGit(overrides = {}) {
 }
 
 describe("Phase F1 reviewed rollback application readiness transitions", () => {
+  it("binds the environment application transition to the committed atomic helper mode", () => {
+    const helper = readFileSync(new URL("./atomic-identity-exchange.py", import.meta.url), "utf8");
+    const transition = readFileSync(
+      new URL("./environment-application-readiness-transition.mjs", import.meta.url),
+      "utf8"
+    );
+    assert.equal(ENVIRONMENT_APPLICATION_TRANSITION_EXCHANGE_MODE, "readiness-exchange");
+    assert.match(helper, /add_parser\("readiness-exchange"\)/u);
+    assert.doesNotMatch(helper, /add_parser\("environment-readiness-exchange"\)/u);
+    assert.doesNotMatch(transition, /helper, "environment-readiness-exchange"/u);
+  });
+
   it("approves only the exact reviewed two-line absolute font mock transition", () => {
     const review = verifyReviewedRollbackApplicationTransition(
       ".", reviewedTransitionGit()
