@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   FORWARD_APPLICATION_SHA,
   HISTORICAL_PRODUCTION_SHA,
+  PREVIOUS_ROLLBACK_APPLICATION_SHA,
   ROLLBACK_APPLICATION_SHA
 } from "./application-identities.mjs";
 import { publishNoReplaceSet } from "./atomic-no-replace.mjs";
@@ -20,6 +21,10 @@ export const CHAINED_IDENTITY_ONLY_ENVIRONMENT_READINESS_CARRY_FORWARD =
   "CHAINED_IDENTITY_ONLY_ENVIRONMENT_READINESS_CARRY_FORWARD";
 export const CHAINED_ENVIRONMENT_READINESS_CARRY_FORWARD_SCHEMA =
   "phase-f1-environment-readiness-chained-carry-forward-report-v1";
+export const TRANSITION_DERIVED_CHAINED_IDENTITY_ONLY_ENVIRONMENT_READINESS_CARRY_FORWARD =
+  "TRANSITION_DERIVED_CHAINED_IDENTITY_ONLY_ENVIRONMENT_READINESS_CARRY_FORWARD";
+export const TRANSITION_DERIVED_CHAINED_ENVIRONMENT_READINESS_CARRY_FORWARD_SCHEMA =
+  "phase-f1-environment-readiness-transition-derived-chained-carry-forward-report-v1";
 export const IDENTITY_ONLY_READINESS_DELTA = "IDENTITY_ONLY";
 export const READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT =
   "2cabfe759e743509315f6c6b81540d2bbf7a0df2";
@@ -27,6 +32,16 @@ export const READINESS_CARRY_FORWARD_IMMEDIATE_PREDECESSOR =
   "5b50788fc815fcde726db04f79254df3121ce13a";
 export const READINESS_CARRY_FORWARD_CHAIN_SOURCE =
   "f041d4f52ad4cbbb240f4a2ed51fb9f8f8c9a87f";
+export const ROLLBACK_APPLICATION_TRANSITION_SOURCE_OPERATIONS_COMMIT =
+  "c10abd77ceca632d206b83bcdae3cf8b7db3c9df";
+export const ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT =
+  "2cc489362cbd8ccabdacf2be4660f4e4da939e5d";
+const ENVIRONMENT_APPLICATION_TRANSITION_SCHEMA =
+  "phase-f1-environment-readiness-rollback-application-transition-v1";
+const ENVIRONMENT_APPLICATION_TRANSITION =
+  "REVIEWED_ROLLBACK_APPLICATION_IDENTITY_ENVIRONMENT_READINESS_TRANSITION";
+const ENVIRONMENT_APPLICATION_TRANSITION_DELTA =
+  "ROLLBACK_APPLICATION_IDENTITY_ONLY";
 const MAX_AUTHORITY_LINEAGE_LENGTH = 64;
 const READINESS_NAME = "environment-readiness.json";
 const AUTHORITY_IDENTITY_PATH =
@@ -99,6 +114,24 @@ export function environmentReadinessCarryForwardReportPath(
   return join(
     resolve(stateRoot),
     `environment-readiness-carry-forward-${operationsCommit}.json`
+  );
+}
+
+export function transitionDerivedEnvironmentReadinessCarryForwardReportPath(
+  stateRoot,
+  operationsCommit
+) {
+  validateOperationsCommit(operationsCommit);
+  return join(
+    resolve(stateRoot),
+    `environment-readiness-transition-derived-carry-forward-${operationsCommit}.json`
+  );
+}
+
+function environmentApplicationTransitionReportPath(stateRoot) {
+  return join(
+    resolve(stateRoot),
+    `environment-readiness-application-transition-${ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT}.json`
   );
 }
 
@@ -213,6 +246,80 @@ function readReadinessEvidenceUnbound(target, operational) {
   validateOperationsCommit(record?.operationsCommit);
   validateEnvironmentReadinessRecord(record, record.operationsCommit);
   return { bytes, record, identity: sha256(bytes) };
+}
+
+function validateApplicationTransitionSourceReadiness(record) {
+  exactKeys(record, [
+    "schemaVersion", "authority", "ready", "operationsCommit",
+    "forwardApplicationSha", "rollbackApplicationSha",
+    "historicalProductionSha", "validations", "valuesRecorded"
+  ], "Application-transition source environment readiness");
+  exactKeys(
+    record.validations,
+    Object.keys(EXPECTED_VALIDATIONS),
+    "Application-transition source environment readiness validations"
+  );
+  if (record.schemaVersion !== ENVIRONMENT_READINESS_SCHEMA ||
+      record.authority !== "protected-environment-only" || record.ready !== true ||
+      record.operationsCommit !== ROLLBACK_APPLICATION_TRANSITION_SOURCE_OPERATIONS_COMMIT ||
+      record.forwardApplicationSha !== FORWARD_APPLICATION_SHA ||
+      record.rollbackApplicationSha !== PREVIOUS_ROLLBACK_APPLICATION_SHA ||
+      record.historicalProductionSha !== HISTORICAL_PRODUCTION_SHA ||
+      record.valuesRecorded !== false ||
+      Object.entries(EXPECTED_VALIDATIONS)
+        .some(([key, value]) => record.validations[key] !== value)) {
+    throw new Error("Application-transition source environment readiness is invalid.");
+  }
+  return record;
+}
+
+function readApplicationTransitionSourceReadinessEvidence(target, operational) {
+  if (operational) {
+    assertProtectedRegularFile(
+      target,
+      "Application-transition source environment readiness"
+    );
+  }
+  const bytes = readFileSync(target);
+  let record;
+  try {
+    record = JSON.parse(bytes.toString("utf8"));
+  } catch {
+    throw new Error("Application-transition source environment readiness is not valid JSON.");
+  }
+  validateApplicationTransitionSourceReadiness(record);
+  return { bytes, record, identity: sha256(bytes) };
+}
+
+function validateEnvironmentApplicationTransitionReportAnchor(report) {
+  exactKeys(report, [
+    "schemaVersion", "transition", "semanticDelta", "sourceOperationsCommit",
+    "operationsCommit", "lineage", "sourceReadinessSha256",
+    "transitionedReadinessSha256", "previousRollbackApplicationSha",
+    "rollbackApplicationSha", "forwardApplicationSha",
+    "protectedEnvironmentSemanticsUnchanged", "sourcePreserved", "valuesRecorded"
+  ], "Environment application-transition anchor report");
+  if (report.schemaVersion !== ENVIRONMENT_APPLICATION_TRANSITION_SCHEMA ||
+      report.transition !== ENVIRONMENT_APPLICATION_TRANSITION ||
+      report.semanticDelta !== ENVIRONMENT_APPLICATION_TRANSITION_DELTA ||
+      report.sourceOperationsCommit !==
+        ROLLBACK_APPLICATION_TRANSITION_SOURCE_OPERATIONS_COMMIT ||
+      report.operationsCommit !== ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT ||
+      report.previousRollbackApplicationSha !== PREVIOUS_ROLLBACK_APPLICATION_SHA ||
+      report.rollbackApplicationSha !== ROLLBACK_APPLICATION_SHA ||
+      report.forwardApplicationSha !== FORWARD_APPLICATION_SHA ||
+      !Array.isArray(report.lineage) ||
+      report.lineage[0] !== report.sourceOperationsCommit ||
+      report.lineage.at(-1) !== report.operationsCommit ||
+      new Set(report.lineage).size !== report.lineage.length ||
+      report.lineage.some(value => !/^[0-9a-f]{40}$/u.test(value)) ||
+      !/^[0-9a-f]{64}$/u.test(report.sourceReadinessSha256 || "") ||
+      !/^[0-9a-f]{64}$/u.test(report.transitionedReadinessSha256 || "") ||
+      report.protectedEnvironmentSemanticsUnchanged !== true ||
+      report.sourcePreserved !== true || report.valuesRecorded !== false) {
+    throw new Error("Environment application-transition anchor report is invalid.");
+  }
+  return report;
 }
 
 function validateCurrentEnvironment(dependencies = {}) {
@@ -529,6 +636,220 @@ export function validateChainedEnvironmentReadinessCarryForwardReport(
     throw new Error("Chained environment-readiness carry-forward report is invalid.");
   }
   return report;
+}
+
+function transitionDerivedChainedCarryForwardOptions(options) {
+  exactOptions(options, [
+    "sourceOperationsCommit",
+    "sourceReadinessSha256",
+    "operationsCommit",
+    "carryForward"
+  ], "transition-derived chained environment-readiness carry-forward options");
+  validateOperationsCommit(options.sourceOperationsCommit);
+  validateOperationsCommit(options.operationsCommit);
+  if (!/^[0-9a-f]{64}$/u.test(options.sourceReadinessSha256 || "")) {
+    throw new Error(
+      "Exact transition-derived source environment-readiness identity is required."
+    );
+  }
+  if (options.carryForward !==
+      TRANSITION_DERIVED_CHAINED_IDENTITY_ONLY_ENVIRONMENT_READINESS_CARRY_FORWARD) {
+    throw new Error(
+      "Unsupported transition-derived chained environment-readiness carry-forward identifier."
+    );
+  }
+  if (options.sourceOperationsCommit === options.operationsCommit) {
+    throw new Error(
+      "Transition-derived environment-readiness source and target must differ."
+    );
+  }
+  return options;
+}
+
+export function validateTransitionDerivedEnvironmentReadinessCarryForwardReport(
+  report,
+  expected
+) {
+  exactKeys(report, [
+    "schemaVersion", "carryForward", "semanticDelta",
+    "sourceOperationsCommit", "operationsCommit", "lineage",
+    "sourceReadinessSha256", "carriedForwardReadinessSha256",
+    "sourceLineageReportSha256", "applicationTransitionReportSha256",
+    "applicationTransitionSourceReadinessSha256",
+    "applicationTransitionReadinessSha256",
+    "protectedEnvironmentSemanticsUnchanged", "sourcePreserved",
+    "valuesRecorded"
+  ], "transition-derived chained environment-readiness carry-forward report");
+  transitionDerivedChainedCarryForwardOptions({
+    sourceOperationsCommit: report.sourceOperationsCommit,
+    sourceReadinessSha256: report.sourceReadinessSha256,
+    operationsCommit: report.operationsCommit,
+    carryForward: report.carryForward
+  });
+  if (report.schemaVersion !==
+        TRANSITION_DERIVED_CHAINED_ENVIRONMENT_READINESS_CARRY_FORWARD_SCHEMA ||
+      report.semanticDelta !== IDENTITY_ONLY_READINESS_DELTA ||
+      !Array.isArray(report.lineage) || report.lineage.length < 4 ||
+      new Set(report.lineage).size !== report.lineage.length ||
+      report.lineage[0] !== ROLLBACK_APPLICATION_TRANSITION_SOURCE_OPERATIONS_COMMIT ||
+      report.lineage.at(-1) !== report.operationsCommit ||
+      !report.lineage.includes(ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT) ||
+      !report.lineage.includes(report.sourceOperationsCommit) ||
+      report.lineage.indexOf(report.sourceOperationsCommit) >=
+        report.lineage.length - 1 ||
+      report.lineage.some(value => !/^[0-9a-f]{40}$/u.test(value)) ||
+      !/^[0-9a-f]{64}$/u.test(report.carriedForwardReadinessSha256 || "") ||
+      !/^[0-9a-f]{64}$/u.test(report.sourceLineageReportSha256 || "") ||
+      !/^[0-9a-f]{64}$/u.test(report.applicationTransitionReportSha256 || "") ||
+      !/^[0-9a-f]{64}$/u.test(
+        report.applicationTransitionSourceReadinessSha256 || ""
+      ) ||
+      !/^[0-9a-f]{64}$/u.test(report.applicationTransitionReadinessSha256 || "") ||
+      report.protectedEnvironmentSemanticsUnchanged !== true ||
+      report.sourcePreserved !== true || report.valuesRecorded !== false ||
+      (expected && JSON.stringify(report) !== JSON.stringify(expected))) {
+    throw new Error(
+      "Transition-derived chained environment-readiness carry-forward report is invalid."
+    );
+  }
+  return report;
+}
+
+export function createTransitionDerivedEnvironmentReadinessCarryForwardArtifacts(
+  sourceEvidence,
+  priorLineageReportEvidence,
+  applicationTransitionReportEvidence,
+  applicationTransitionSourceReadinessEvidence,
+  applicationTransitionReadinessEvidence,
+  options,
+  trustedLineage
+) {
+  transitionDerivedChainedCarryForwardOptions(options);
+  if (!Array.isArray(trustedLineage) || trustedLineage.length < 5 ||
+      new Set(trustedLineage).size !== trustedLineage.length ||
+      trustedLineage[0] !== READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT ||
+      trustedLineage.at(-1) !== options.operationsCommit ||
+      !trustedLineage.includes(ROLLBACK_APPLICATION_TRANSITION_SOURCE_OPERATIONS_COMMIT) ||
+      !trustedLineage.includes(ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT) ||
+      !trustedLineage.includes(options.sourceOperationsCommit)) {
+    throw new Error("Trusted transition-derived readiness authority lineage is invalid.");
+  }
+  for (const commit of trustedLineage) validateOperationsCommit(commit);
+  if (sourceEvidence.identity !== options.sourceReadinessSha256) {
+    throw new Error("Transition-derived source environment-readiness identity differs.");
+  }
+  validateEnvironmentReadinessRecord(
+    sourceEvidence.record,
+    options.sourceOperationsCommit
+  );
+  const applicationTransitionReport =
+    validateEnvironmentApplicationTransitionReportAnchor(
+      applicationTransitionReportEvidence.record
+    );
+  if (applicationTransitionReportEvidence.identity !==
+      sha256(applicationTransitionReportEvidence.bytes)) {
+    throw new Error("Environment application-transition report identity differs.");
+  }
+  validateApplicationTransitionSourceReadiness(
+    applicationTransitionSourceReadinessEvidence.record
+  );
+  if (applicationTransitionSourceReadinessEvidence.identity !==
+        sha256(applicationTransitionSourceReadinessEvidence.bytes) ||
+      applicationTransitionSourceReadinessEvidence.identity !==
+        applicationTransitionReport.sourceReadinessSha256) {
+    throw new Error("Environment application-transition source readiness differs.");
+  }
+  validateEnvironmentReadinessRecord(
+    applicationTransitionReadinessEvidence.record,
+    ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT
+  );
+  if (applicationTransitionReadinessEvidence.identity !==
+        sha256(applicationTransitionReadinessEvidence.bytes) ||
+      applicationTransitionReadinessEvidence.identity !==
+        applicationTransitionReport.transitionedReadinessSha256) {
+    throw new Error("Environment application-transition readiness anchor differs.");
+  }
+  const transitionIndex = trustedLineage.indexOf(
+    ROLLBACK_APPLICATION_TRANSITION_SOURCE_OPERATIONS_COMMIT
+  );
+  const sourceIndex = trustedLineage.indexOf(options.sourceOperationsCommit);
+  const expectedSourceLineage = trustedLineage.slice(transitionIndex, sourceIndex + 1);
+  if (JSON.stringify(applicationTransitionReport.lineage) !== JSON.stringify(
+    trustedLineage.slice(
+      transitionIndex,
+      trustedLineage.indexOf(ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT) + 1
+    )
+  )) {
+    throw new Error("Environment application-transition protected lineage differs.");
+  }
+  if (options.sourceOperationsCommit ===
+      ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT) {
+    if (priorLineageReportEvidence.identity !==
+        applicationTransitionReportEvidence.identity ||
+        !priorLineageReportEvidence.bytes.equals(
+          applicationTransitionReportEvidence.bytes
+        ) ||
+        sourceEvidence.identity !== applicationTransitionReadinessEvidence.identity) {
+      throw new Error("Initial transition-derived readiness source differs.");
+    }
+  } else {
+    const prior = validateTransitionDerivedEnvironmentReadinessCarryForwardReport(
+      priorLineageReportEvidence.record
+    );
+    if (priorLineageReportEvidence.identity !==
+          sha256(priorLineageReportEvidence.bytes) ||
+        prior.operationsCommit !== options.sourceOperationsCommit ||
+        prior.carriedForwardReadinessSha256 !== sourceEvidence.identity ||
+        prior.applicationTransitionReportSha256 !==
+          applicationTransitionReportEvidence.identity ||
+        prior.applicationTransitionSourceReadinessSha256 !==
+          applicationTransitionSourceReadinessEvidence.identity ||
+        prior.applicationTransitionReadinessSha256 !==
+          applicationTransitionReadinessEvidence.identity ||
+        JSON.stringify(prior.lineage) !== JSON.stringify(expectedSourceLineage)) {
+      throw new Error("Prior transition-derived readiness lineage report differs.");
+    }
+  }
+  const candidate = createEnvironmentReadiness(options.operationsCommit);
+  if (classifyEnvironmentReadinessDelta(sourceEvidence.record, candidate) !==
+      IDENTITY_ONLY_READINESS_DELTA) {
+    throw new Error(
+      "Transition-derived environment-readiness carry-forward has an unexpected semantic delta."
+    );
+  }
+  const readinessPayload = Buffer.from(
+    `${JSON.stringify(candidate, null, 2)}\n`,
+    "utf8"
+  );
+  if (readinessPayload.length !== sourceEvidence.bytes.length) {
+    throw new Error(
+      "Transition-derived environment-readiness exchange size differs."
+    );
+  }
+  const readinessIdentity = sha256(readinessPayload);
+  const report = {
+    schemaVersion:
+      TRANSITION_DERIVED_CHAINED_ENVIRONMENT_READINESS_CARRY_FORWARD_SCHEMA,
+    carryForward: options.carryForward,
+    semanticDelta: IDENTITY_ONLY_READINESS_DELTA,
+    sourceOperationsCommit: options.sourceOperationsCommit,
+    operationsCommit: options.operationsCommit,
+    lineage: trustedLineage.slice(transitionIndex),
+    sourceReadinessSha256: sourceEvidence.identity,
+    carriedForwardReadinessSha256: readinessIdentity,
+    sourceLineageReportSha256: priorLineageReportEvidence.identity,
+    applicationTransitionReportSha256: applicationTransitionReportEvidence.identity,
+    applicationTransitionSourceReadinessSha256:
+      applicationTransitionSourceReadinessEvidence.identity,
+    applicationTransitionReadinessSha256:
+      applicationTransitionReadinessEvidence.identity,
+    protectedEnvironmentSemanticsUnchanged: true,
+    sourcePreserved: true,
+    valuesRecorded: false
+  };
+  const reportPayload = Buffer.from(`${JSON.stringify(report, null, 2)}\n`, "utf8");
+  validateTransitionDerivedEnvironmentReadinessCarryForwardReport(report, report);
+  return { candidate, readinessPayload, readinessIdentity, report, reportPayload };
 }
 
 function readProtectedPackIdentityUnbound(target) {
@@ -1055,6 +1376,243 @@ export function publishChainedCarriedForwardEnvironmentReadiness(
   };
 }
 
+export function publishTransitionDerivedCarriedForwardEnvironmentReadiness(
+  options,
+  dependencies = {}
+) {
+  exactOptions(options, [
+    "sourceReadinessSha256",
+    "operationsCommit",
+    "carryForward"
+  ], "transition-derived chained environment-readiness carry-forward invocation");
+  validateOperationsCommit(options.operationsCommit);
+  if (!/^[0-9a-f]{64}$/u.test(options.sourceReadinessSha256 || "") ||
+      options.carryForward !==
+        TRANSITION_DERIVED_CHAINED_IDENTITY_ONLY_ENVIRONMENT_READINESS_CARRY_FORWARD) {
+    throw new Error(
+      "Transition-derived chained environment-readiness carry-forward invocation is invalid."
+    );
+  }
+  const operational = dependencies.operational !== false;
+  const root = operational
+    ? assertOperationalStateRoot(dependencies.stateRoot)
+    : resolve(dependencies.stateRoot);
+  const readEvidence = dependencies.readEvidence ?? readReadinessEvidence;
+  const readSourceEvidence = dependencies.readSourceEvidence ??
+    readReadinessEvidenceUnbound;
+  const readReport = dependencies.readReportEvidence ??
+    readCarryForwardReportEvidence;
+  const readTransitionSource = dependencies.readTransitionSourceEvidence ??
+    readApplicationTransitionSourceReadinessEvidence;
+  const source = readSourceEvidence(readinessPath(root), operational);
+  if (source.identity !== options.sourceReadinessSha256) {
+    throw new Error("Transition-derived source environment-readiness identity differs.");
+  }
+  const resolvedOptions = {
+    sourceOperationsCommit: source.record.operationsCommit,
+    sourceReadinessSha256: options.sourceReadinessSha256,
+    operationsCommit: options.operationsCommit,
+    carryForward: options.carryForward
+  };
+  transitionDerivedChainedCarryForwardOptions(resolvedOptions);
+  const lineage = (dependencies.assertProductionContext ??
+    assertChainedCarryForwardProductionContext)(resolvedOptions);
+  if (!Array.isArray(lineage) || lineage.at(-1) !== options.operationsCommit ||
+      !lineage.includes(source.record.operationsCommit) ||
+      !lineage.includes(ROLLBACK_APPLICATION_TRANSITION_SOURCE_OPERATIONS_COMMIT) ||
+      !lineage.includes(ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT)) {
+    throw new Error(
+      "Transition-derived source readiness authority is not in the trusted lineage."
+    );
+  }
+  const priorReportPath = source.record.operationsCommit ===
+      ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT
+    ? environmentApplicationTransitionReportPath(root)
+    : transitionDerivedEnvironmentReadinessCarryForwardReportPath(
+      root,
+      source.record.operationsCommit
+    );
+  const paths = {
+    stateRoot: root,
+    authority: readinessPath(root),
+    preserved: preservedEnvironmentReadinessPath(
+      root,
+      source.record.operationsCommit
+    ),
+    slot: environmentReadinessExchangeSlotPath(root, options.operationsCommit),
+    report: transitionDerivedEnvironmentReadinessCarryForwardReportPath(
+      root,
+      options.operationsCommit
+    ),
+    priorReport: priorReportPath,
+    applicationTransitionReport: environmentApplicationTransitionReportPath(root),
+    applicationTransitionSourceReadiness: preservedEnvironmentReadinessPath(
+      root,
+      ROLLBACK_APPLICATION_TRANSITION_SOURCE_OPERATIONS_COMMIT
+    ),
+    applicationTransitionReadiness: source.record.operationsCommit ===
+        ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT
+      ? readinessPath(root)
+      : preservedEnvironmentReadinessPath(
+        root,
+        ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT
+      )
+  };
+  for (const target of [paths.preserved, paths.slot, paths.report]) {
+    if ((dependencies.exists ?? existsSync)(target)) {
+      throw new Error(
+        "Transition-derived environment-readiness carry-forward target already exists."
+      );
+    }
+  }
+  const priorReport = readReport(paths.priorReport, operational);
+  const applicationTransitionReport = paths.priorReport ===
+      paths.applicationTransitionReport
+    ? priorReport
+    : readReport(paths.applicationTransitionReport, operational);
+  const applicationTransitionSourceReadiness = readTransitionSource(
+    paths.applicationTransitionSourceReadiness,
+    operational
+  );
+  const applicationTransitionReadiness =
+    paths.applicationTransitionReadiness === paths.authority
+      ? source
+      : readEvidence(
+        paths.applicationTransitionReadiness,
+        ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT,
+        operational
+      );
+  const artifacts =
+    createTransitionDerivedEnvironmentReadinessCarryForwardArtifacts(
+      source,
+      priorReport,
+      applicationTransitionReport,
+      applicationTransitionSourceReadiness,
+      applicationTransitionReadiness,
+      resolvedOptions,
+      lineage
+    );
+  validateCurrentEnvironment(dependencies);
+  const publish = dependencies.publish ?? publishNoReplaceSet;
+  publish([
+    {
+      target: paths.preserved,
+      payload: source.bytes,
+      mode: 0o600,
+      ...(operational ? { uid: 0, gid: 0 } : {})
+    },
+    {
+      target: paths.slot,
+      payload: artifacts.readinessPayload,
+      mode: 0o600,
+      ...(operational ? { uid: 0, gid: 0 } : {})
+    },
+    {
+      target: paths.report,
+      payload: artifacts.reportPayload,
+      mode: 0o600,
+      ...(operational ? { uid: 0, gid: 0 } : {})
+    }
+  ], {
+    enforceMetadata: operational,
+    fsyncDirectories: operational,
+    verifySet() {
+      const unchanged = readEvidence(
+        paths.authority,
+        source.record.operationsCommit,
+        operational
+      );
+      const unchangedPriorReport = readReport(paths.priorReport, operational);
+      const unchangedApplicationTransitionReport = paths.priorReport ===
+          paths.applicationTransitionReport
+        ? unchangedPriorReport
+        : readReport(paths.applicationTransitionReport, operational);
+      const unchangedApplicationTransitionSourceReadiness = readTransitionSource(
+        paths.applicationTransitionSourceReadiness,
+        operational
+      );
+      const unchangedApplicationTransitionReadiness =
+        source.record.operationsCommit ===
+          ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT
+          ? unchanged
+          : readEvidence(
+            paths.applicationTransitionReadiness,
+            ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT,
+            operational
+          );
+      if (unchanged.identity !== source.identity ||
+          unchangedPriorReport.identity !== priorReport.identity ||
+          unchangedApplicationTransitionReport.identity !==
+            applicationTransitionReport.identity ||
+          unchangedApplicationTransitionSourceReadiness.identity !==
+            applicationTransitionSourceReadiness.identity ||
+          unchangedApplicationTransitionReadiness.identity !==
+            applicationTransitionReadiness.identity) {
+        throw new Error(
+          "Transition-derived environment-readiness source evidence changed."
+        );
+      }
+      const preserved = readEvidence(
+        paths.preserved,
+        source.record.operationsCommit,
+        operational
+      );
+      const candidate = readEvidence(
+        paths.slot,
+        options.operationsCommit,
+        operational
+      );
+      if (preserved.identity !== source.identity ||
+          candidate.identity !== artifacts.readinessIdentity ||
+          classifyEnvironmentReadinessDelta(source.record, candidate.record) !==
+            IDENTITY_ONLY_READINESS_DELTA) {
+        throw new Error(
+          "Transition-derived environment-readiness publication differs."
+        );
+      }
+      validateTransitionDerivedEnvironmentReadinessCarryForwardReport(
+        JSON.parse(readFileSync(paths.report, "utf8")),
+        artifacts.report
+      );
+      validateCurrentEnvironment(dependencies);
+      (dependencies.exchange ?? exchangeEnvironmentReadiness)(paths, {
+        source: source.identity,
+        candidate: artifacts.readinessIdentity,
+        size: source.bytes.length
+      }, options.operationsCommit);
+      const current = readEvidence(
+        paths.authority,
+        options.operationsCommit,
+        operational
+      );
+      const oldSlot = readEvidence(
+        paths.slot,
+        source.record.operationsCommit,
+        operational
+      );
+      if (current.identity !== artifacts.readinessIdentity ||
+          oldSlot.identity !== source.identity ||
+          readEvidence(
+            paths.preserved,
+            source.record.operationsCommit,
+            operational
+          ).identity !== source.identity) {
+        throw new Error(
+          "Transition-derived carried-forward environment-readiness verification failed."
+        );
+      }
+      validateCurrentEnvironment(dependencies);
+    }
+  });
+  return {
+    ...paths,
+    sourceReadinessIdentity: source.identity,
+    carriedForwardReadinessIdentity: artifacts.readinessIdentity,
+    semanticDelta: IDENTITY_ONLY_READINESS_DELTA,
+    lineage: artifacts.report.lineage
+  };
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   if (process.getuid?.() !== 0) throw new Error("Environment readiness requires Linux root.");
   const [mode, ...arguments_] = process.argv.slice(2);
@@ -1076,6 +1634,22 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
     }, { stateRoot });
     process.stdout.write(
       `Environment readiness identity-only carried forward source=${result.sourceReadinessIdentity} current=${result.carriedForwardReadinessIdentity} values-recorded=false\n`
+    );
+  } else if (mode === "carry-forward-transition-derived-chained") {
+    const [stateRoot, sourceReadinessSha256, operationsCommit,
+      carryForward, ...extras] = arguments_;
+    if (extras.length || !stateRoot ||
+        !sourceReadinessSha256 || !operationsCommit || !carryForward) {
+      throw new Error("Usage: environment-readiness.mjs carry-forward-transition-derived-chained <state-root> <source-readiness-sha256> <operations-commit> <carry-forward>");
+    }
+    const result =
+      publishTransitionDerivedCarriedForwardEnvironmentReadiness({
+        sourceReadinessSha256,
+        operationsCommit,
+        carryForward
+      }, { stateRoot });
+    process.stdout.write(
+      `Environment readiness transition-derived chained identity-only carried forward source=${result.sourceReadinessIdentity} current=${result.carriedForwardReadinessIdentity} values-recorded=false\n`
     );
   } else if (mode === "carry-forward-chained") {
     const [stateRoot, sourceReadinessSha256, operationsCommit,

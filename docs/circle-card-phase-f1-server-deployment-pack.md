@@ -382,6 +382,36 @@ The transition invokes the atomic helper's existing exact `readiness-exchange` m
 unsupported `environment-readiness-exchange` spelling is not a parser mode and must never be
 used; focused contract coverage binds the Node transition launcher to the Python helper parser.
 
+An operations-authority change after that protected application transition does not turn the
+transition-produced readiness into an ordinary carry-forward source. The original direct and
+chained modes continue to require their ordinary carry-forward reports and therefore fail closed
+when the canonical source is instead bound by
+`phase-f1-environment-readiness-rollback-application-transition-v1`. A separately authorised
+gate uses only the distinct `carry-forward-transition-derived-chained` mode with
+`TRANSITION_DERIVED_CHAINED_IDENTITY_ONLY_ENVIRONMENT_READINESS_CARRY_FORWARD`, the exact
+canonical source-readiness SHA-256 and the current operations authority.
+
+That mode derives every path and authority from protected state. It verifies the exact immutable
+application-transition report at authority
+`2cc489362cbd8ccabdacf2be4660f4e4da939e5d`, the preserved pre-transition readiness at
+`c10abd77ceca632d206b83bcdae3cf8b7db3c9df`, the transitioned readiness identity, the reviewed
+old/new rollback application identities, and the unique protected authority lineage to the
+current pack. For later operations generations it also requires the exact preceding
+`phase-f1-environment-readiness-transition-derived-chained-carry-forward-report-v1`, so the
+transition anchor remains explicit rather than being reinterpreted as an ordinary readiness
+carry-forward. The candidate changes only `operationsCommit`; protected schemas and cross-user
+isolation are revalidated before publication, immediately before atomic exchange and after it.
+
+The canonical source, candidate and closed value-free transition-derived report use the existing
+fsync-backed no-replace set plus exact `readiness-exchange`. The source is preserved at its exact
+source-authority path. Missing or altered application-transition evidence, a wrong old or new
+application identity, an invented lineage, caller paths or fields, semantic drift, unsafe
+metadata, partial publication or uncertain exchange state fails closed. Implementation and
+execution remain separate gates.
+
+After a pack containing this correction becomes authoritative, the exact next gate is
+`SEPARATELY_AUTHORIZED_GIT_AUTHENTICATION_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_ROLLBACK_APPLICATION_IDENTITY_TRANSITION_DERIVED_CHAINED_ENVIRONMENT_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_OFFLINE_NPM_CACHE_READY_EVIDENCE_IDENTITY_ONLY_CARRY_FORWARD_AND_FAILED_ROLLBACK_BUILD_ATTEMPT_PROTECTED_RECOVERY_AND_FRESH_TRUSTED_ROLLBACK_CHECKOUT_AND_IMMUTABLE_BUILD_ONLY_ROLLBACK_REFERENCE_BCN_AND_INDEPENDENT_CIRCLE_CARD_ARTIFACT_PREPARATION_PUBLICATION_AND_RELEASE_INTEGRITY_VERIFICATION_WITHOUT_SELECTOR_PUBLICATION_OR_CANDIDATE_START_UNDER_<CURRENT_OPERATIONS_COMMIT>_AUTHORITY`.
+
 Compare the live PM2/BCN/Next/listener/Nginx/PostgreSQL/systemd baseline after each separately authorised gate. Do not destroy the input if preparation fails, publication is partial or uncertain, environment-only validation fails, release integrity fails, full preflight fails, or live state changes. Preserve the root-only tmpfs evidence for separately approved recovery; a reboot also clears `/run`.
 
 After protected publication and environment-only readiness are conclusively `VERIFIED`, both releases pass integrity, full preflight is conclusively `PASSED`, and the protected-readiness reader independently returns ready, unlink the input:

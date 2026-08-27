@@ -19,30 +19,44 @@ import {
   ENVIRONMENT_READINESS_CARRY_FORWARD_SCHEMA,
   CHAINED_ENVIRONMENT_READINESS_CARRY_FORWARD_SCHEMA,
   CHAINED_IDENTITY_ONLY_ENVIRONMENT_READINESS_CARRY_FORWARD,
+  TRANSITION_DERIVED_CHAINED_ENVIRONMENT_READINESS_CARRY_FORWARD_SCHEMA,
+  TRANSITION_DERIVED_CHAINED_IDENTITY_ONLY_ENVIRONMENT_READINESS_CARRY_FORWARD,
   ENVIRONMENT_READINESS_SCHEMA,
   IDENTITY_ONLY_ENVIRONMENT_READINESS_CARRY_FORWARD,
   IDENTITY_ONLY_READINESS_DELTA,
   READINESS_CARRY_FORWARD_IMMEDIATE_PREDECESSOR,
   READINESS_CARRY_FORWARD_CHAIN_SOURCE,
   READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT,
+  ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT,
+  ROLLBACK_APPLICATION_TRANSITION_SOURCE_OPERATIONS_COMMIT,
   classifyEnvironmentReadinessDelta,
   createChainedEnvironmentReadinessCarryForwardArtifacts,
   createEnvironmentReadinessCarryForwardArtifacts,
   createEnvironmentReadiness,
+  createTransitionDerivedEnvironmentReadinessCarryForwardArtifacts,
   environmentReadinessCarryForwardReportPath,
   environmentReadinessExchangeSlotPath,
   preservedEnvironmentReadinessPath,
   publishCarriedForwardEnvironmentReadiness,
   publishChainedCarriedForwardEnvironmentReadiness,
   publishEnvironmentReadiness,
+  publishTransitionDerivedCarriedForwardEnvironmentReadiness,
   validateChainedEnvironmentReadinessCarryForwardReport,
   validateEnvironmentReadinessCarryForwardReport,
   validateEnvironmentReadinessRecord,
+  validateTransitionDerivedEnvironmentReadinessCarryForwardReport,
   verifyCrossUserIsolation,
   verifyEnvironmentReadiness,
   verifyProtectedAuthorityLineage,
-  resolveProtectedAuthorityLineage
+  resolveProtectedAuthorityLineage,
+  transitionDerivedEnvironmentReadinessCarryForwardReportPath
 } from "./environment-readiness.mjs";
+import {
+  createEnvironmentApplicationTransitionArtifacts
+} from "./environment-application-readiness-transition.mjs";
+import {
+  PREVIOUS_ROLLBACK_APPLICATION_SHA
+} from "./application-identities.mjs";
 import {
   validateProtectedEnvironmentSchema,
   validateRuntimeIdentityPolicy
@@ -152,9 +166,12 @@ function chainedCarryForwardOptions(overrides = {}) {
 }
 
 function chainedInvocationOptions(overrides = {}) {
-  const { sourceOperationsCommit, ...options } =
-    chainedCarryForwardOptions(overrides);
-  return options;
+  const options = chainedCarryForwardOptions(overrides);
+  return {
+    sourceReadinessSha256: options.sourceReadinessSha256,
+    operationsCommit: options.operationsCommit,
+    carryForward: options.carryForward
+  };
 }
 
 function syntheticExchange(paths) {
@@ -162,6 +179,79 @@ function syntheticExchange(paths) {
   const slot = readFileSync(paths.slot);
   writeFileSync(paths.authority, slot);
   writeFileSync(paths.slot, authority);
+}
+
+const TRANSITION_INTERMEDIATE_OPERATIONS_COMMIT = "3".repeat(40);
+const TRANSITION_DERIVED_INTERMEDIATE_OPERATIONS_COMMIT = "4".repeat(40);
+const TRANSITION_DERIVED_TARGET_OPERATIONS_COMMIT = "5".repeat(40);
+const TRANSITION_DERIVED_LINEAGE = Object.freeze([
+  READINESS_CARRY_FORWARD_SOURCE_OPERATIONS_COMMIT,
+  "6".repeat(40),
+  ROLLBACK_APPLICATION_TRANSITION_SOURCE_OPERATIONS_COMMIT,
+  TRANSITION_INTERMEDIATE_OPERATIONS_COMMIT,
+  ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT,
+  TRANSITION_DERIVED_INTERMEDIATE_OPERATIONS_COMMIT,
+  TRANSITION_DERIVED_TARGET_OPERATIONS_COMMIT
+]);
+
+function applicationTransitionFixture() {
+  const sourceRecord = {
+    ...createEnvironmentReadiness(
+      ROLLBACK_APPLICATION_TRANSITION_SOURCE_OPERATIONS_COMMIT
+    ),
+    rollbackApplicationSha: PREVIOUS_ROLLBACK_APPLICATION_SHA
+  };
+  const sourceBytes = Buffer.from(`${JSON.stringify(sourceRecord, null, 2)}\n`);
+  const source = {
+    bytes: sourceBytes,
+    record: sourceRecord,
+    identity: readinessIdentity(sourceBytes)
+  };
+  const transition = createEnvironmentApplicationTransitionArtifacts(
+    source,
+    ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT,
+    [
+      ROLLBACK_APPLICATION_TRANSITION_SOURCE_OPERATIONS_COMMIT,
+      TRANSITION_INTERMEDIATE_OPERATIONS_COMMIT,
+      ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT
+    ]
+  );
+  return { source, transition };
+}
+
+function transitionDerivedInvocationOptions(overrides = {}) {
+  const { transition } = applicationTransitionFixture();
+  return {
+    sourceReadinessSha256: transition.readinessIdentity,
+    operationsCommit: TRANSITION_DERIVED_TARGET_OPERATIONS_COMMIT,
+    carryForward:
+      TRANSITION_DERIVED_CHAINED_IDENTITY_ONLY_ENVIRONMENT_READINESS_CARRY_FORWARD,
+    ...overrides
+  };
+}
+
+function writeApplicationTransitionFixture(root) {
+  const fixture = applicationTransitionFixture();
+  writeFileSync(
+    join(root, "environment-readiness.json"),
+    fixture.transition.readinessPayload,
+    { flag: "wx", mode: 0o600 }
+  );
+  writeFileSync(
+    join(root,
+      `environment-readiness-application-transition-${ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT}.json`),
+    fixture.transition.reportPayload,
+    { flag: "wx", mode: 0o600 }
+  );
+  writeFileSync(
+    preservedEnvironmentReadinessPath(
+      root,
+      ROLLBACK_APPLICATION_TRANSITION_SOURCE_OPERATIONS_COMMIT
+    ),
+    fixture.source.bytes,
+    { flag: "wx", mode: 0o600 }
+  );
+  return fixture;
 }
 
 describe("Phase F1 environment-only readiness", () => {
@@ -1131,6 +1221,183 @@ describe("Phase F1 chained environment-readiness identity-only carry-forward", (
     }
   });
 
+  it("keeps ordinary chained carry-forward closed for application-transition evidence", () => {
+    const root = temporaryRoot();
+    const { transition } = writeApplicationTransitionFixture(root);
+    assert.throws(() => publishChainedCarriedForwardEnvironmentReadiness({
+      sourceReadinessSha256: transition.readinessIdentity,
+      operationsCommit: TRANSITION_DERIVED_TARGET_OPERATIONS_COMMIT,
+      carryForward: CHAINED_IDENTITY_ONLY_ENVIRONMENT_READINESS_CARRY_FORWARD
+    }, {
+      ...testDependencies(),
+      stateRoot: root,
+      assertProductionContext() { return TRANSITION_DERIVED_LINEAGE; },
+      exchange: syntheticExchange
+    }), /ENOENT|no such file/u);
+    assert.equal(
+      JSON.parse(readFileSync(join(root, "environment-readiness.json"), "utf8"))
+        .operationsCommit,
+      ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT
+    );
+  });
+
+  it("publishes a protected transition-derived identity-only readiness candidate", () => {
+    const root = temporaryRoot();
+    const { source, transition } = writeApplicationTransitionFixture(root);
+    const result = publishTransitionDerivedCarriedForwardEnvironmentReadiness(
+      transitionDerivedInvocationOptions(),
+      {
+        ...testDependencies(),
+        stateRoot: root,
+        assertProductionContext() { return TRANSITION_DERIVED_LINEAGE; },
+        exchange: syntheticExchange
+      }
+    );
+    const current = JSON.parse(readFileSync(
+      join(root, "environment-readiness.json"),
+      "utf8"
+    ));
+    assert.equal(current.operationsCommit, TRANSITION_DERIVED_TARGET_OPERATIONS_COMMIT);
+    assert.equal(current.rollbackApplicationSha, transition.candidate.rollbackApplicationSha);
+    assert.equal(
+      classifyEnvironmentReadinessDelta(transition.candidate, current),
+      IDENTITY_ONLY_READINESS_DELTA
+    );
+    assert.deepEqual(
+      readFileSync(preservedEnvironmentReadinessPath(
+        root,
+        ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT
+      )),
+      transition.readinessPayload
+    );
+    assert.deepEqual(
+      readFileSync(preservedEnvironmentReadinessPath(
+        root,
+        ROLLBACK_APPLICATION_TRANSITION_SOURCE_OPERATIONS_COMMIT
+      )),
+      source.bytes
+    );
+    const report = JSON.parse(readFileSync(
+      transitionDerivedEnvironmentReadinessCarryForwardReportPath(
+        root,
+        TRANSITION_DERIVED_TARGET_OPERATIONS_COMMIT
+      ),
+      "utf8"
+    ));
+    assert.equal(
+      validateTransitionDerivedEnvironmentReadinessCarryForwardReport(
+        report,
+        report
+      ),
+      report
+    );
+    assert.equal(
+      report.schemaVersion,
+      TRANSITION_DERIVED_CHAINED_ENVIRONMENT_READINESS_CARRY_FORWARD_SCHEMA
+    );
+    assert.deepEqual(
+      report.lineage,
+      TRANSITION_DERIVED_LINEAGE.slice(2)
+    );
+    assert.equal(
+      report.applicationTransitionReadinessSha256,
+      transition.readinessIdentity
+    );
+    assert.equal(report.protectedEnvironmentSemanticsUnchanged, true);
+    assert.equal(result.semanticDelta, IDENTITY_ONLY_READINESS_DELTA);
+  });
+
+  it("continues from an exact prior transition-derived report", () => {
+    const root = temporaryRoot();
+    writeApplicationTransitionFixture(root);
+    publishTransitionDerivedCarriedForwardEnvironmentReadiness(
+      transitionDerivedInvocationOptions(),
+      {
+        ...testDependencies(),
+        stateRoot: root,
+        assertProductionContext() { return TRANSITION_DERIVED_LINEAGE; },
+        exchange: syntheticExchange
+      }
+    );
+    const authority = join(root, "environment-readiness.json");
+    const sourceBytes = readFileSync(authority);
+    const laterOperationsCommit = "7".repeat(40);
+    const laterLineage = [...TRANSITION_DERIVED_LINEAGE, laterOperationsCommit];
+    const result = publishTransitionDerivedCarriedForwardEnvironmentReadiness({
+      sourceReadinessSha256: readinessIdentity(sourceBytes),
+      operationsCommit: laterOperationsCommit,
+      carryForward:
+        TRANSITION_DERIVED_CHAINED_IDENTITY_ONLY_ENVIRONMENT_READINESS_CARRY_FORWARD
+    }, {
+      ...testDependencies(),
+      stateRoot: root,
+      assertProductionContext() { return laterLineage; },
+      exchange: syntheticExchange
+    });
+    assert.equal(
+      JSON.parse(readFileSync(authority, "utf8")).operationsCommit,
+      laterOperationsCommit
+    );
+    assert.deepEqual(result.lineage, laterLineage.slice(2));
+  });
+
+  it("rejects unrelated transition anchors, caller fields, and semantic drift", () => {
+    const { source, transition } = applicationTransitionFixture();
+    const sourceEvidence = {
+      bytes: transition.readinessPayload,
+      record: transition.candidate,
+      identity: transition.readinessIdentity
+    };
+    const transitionReportEvidence = {
+      bytes: transition.reportPayload,
+      record: transition.report,
+      identity: readinessIdentity(transition.reportPayload)
+    };
+    const options = {
+      sourceOperationsCommit: ROLLBACK_APPLICATION_TRANSITION_OPERATIONS_COMMIT,
+      ...transitionDerivedInvocationOptions()
+    };
+    const create = (overrides = {}) =>
+      createTransitionDerivedEnvironmentReadinessCarryForwardArtifacts(
+        overrides.sourceEvidence ?? sourceEvidence,
+        overrides.priorReport ?? transitionReportEvidence,
+        overrides.transitionReport ?? transitionReportEvidence,
+        overrides.transitionSource ?? source,
+        overrides.transitionReadiness ?? sourceEvidence,
+        overrides.options ?? options,
+        overrides.lineage ?? TRANSITION_DERIVED_LINEAGE
+      );
+    const artifacts = create();
+    assert.equal(
+      validateTransitionDerivedEnvironmentReadinessCarryForwardReport(
+        artifacts.report,
+        artifacts.report
+      ),
+      artifacts.report
+    );
+    assert.throws(() => create({
+      transitionReport: {
+        ...transitionReportEvidence,
+        record: { ...transition.report, valuesRecorded: true }
+      }
+    }), /anchor report is invalid/u);
+    assert.throws(() => create({
+      transitionSource: { ...source, identity: "e".repeat(64) }
+    }), /source readiness differs/u);
+    assert.throws(() => create({
+      sourceEvidence: {
+        ...sourceEvidence,
+        record: { ...sourceEvidence.record, ready: false }
+      }
+    }), /identity or validation state/u);
+    assert.throws(() => create({
+      options: { ...options, sourcePath: "/tmp/untrusted.json" }
+    }), /unknown or missing fields/u);
+    assert.throws(() => create({
+      lineage: [...TRANSITION_DERIVED_LINEAGE].reverse()
+    }), /lineage is invalid/u);
+  });
+
   it("retains the direct predecessor mechanism and exposes no generic rebinder", () => {
     const source = readFileSync(
       new URL("environment-readiness.mjs", import.meta.url),
@@ -1138,6 +1405,10 @@ describe("Phase F1 chained environment-readiness identity-only carry-forward", (
     );
     assert.match(source, /mode === "carry-forward"/u);
     assert.match(source, /mode === "carry-forward-chained"/u);
+    assert.match(
+      source,
+      /mode === "carry-forward-transition-derived-chained"/u
+    );
     assert.match(
       source,
       /CHAINED_IDENTITY_ONLY_ENVIRONMENT_READINESS_CARRY_FORWARD/u
