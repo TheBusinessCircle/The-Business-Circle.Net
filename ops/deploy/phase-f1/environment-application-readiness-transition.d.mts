@@ -1,0 +1,9 @@
+export const ENVIRONMENT_APPLICATION_TRANSITION: string;
+export const ENVIRONMENT_APPLICATION_TRANSITION_SCHEMA: string;
+export const ENVIRONMENT_APPLICATION_TRANSITION_DELTA: string;
+export const TRANSITION_SOURCE_OPERATIONS_COMMIT: string;
+export function validateSourceEnvironmentReadiness(record: Record<string, unknown>, operationsCommit: string): Record<string, unknown>;
+export function classifyEnvironmentApplicationTransition(source: Record<string, unknown>, candidate: Record<string, unknown>): string;
+export function createEnvironmentApplicationTransitionArtifacts(source: { record: Record<string, unknown>; bytes: Buffer; identity: string }, operationsCommit: string, lineage: string[]): Record<string, unknown>;
+export function validateEnvironmentApplicationTransitionReport(report: Record<string, unknown>, expected?: Record<string, unknown>): Record<string, unknown>;
+export function publishEnvironmentApplicationTransition(options: { sourceReadinessSha256: string; operationsCommit: string; transition: string }, dependencies?: Record<string, unknown>): Record<string, unknown>;

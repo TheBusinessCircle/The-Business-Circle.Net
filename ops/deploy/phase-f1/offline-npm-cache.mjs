@@ -21,7 +21,7 @@ export const OFFLINE_CACHE_ROOT = "/var/cache/thebusinesscircle/phase-f1/npm-off
 export const READINESS_PATH = "/var/lib/thebusinesscircle/deployment-state/offline-npm-cache-readiness.json";
 const AUTHORITY_PATH = "/var/lib/thebusinesscircle/approved-phase-f1-pack.json";
 const DEPLOYMENT_LOG_ROOT = "/var/log/thebusinesscircle/deployments";
-export const ROLLBACK_APPLICATION_SHA = "5d1f81bb05a01b08e1134785c2f86b77c8969fe3";
+export const ROLLBACK_APPLICATION_SHA = "8db8236c16ebb5a02ec5b90f7e5308008cff7086";
 export const FORWARD_APPLICATION_SHA = "b43a1e4e708bc9f02ef83bd63dab1db1f366b32e";
 export const NODE_VERSION = "v22.22.2";
 export const NPM_VERSION = "10.9.7";
@@ -323,6 +323,14 @@ function readinessRecord(workspace, operationsCommit, { offlineResolutionVerifie
   };
 }
 
+export function createOfflineCacheReadinessRecord(
+  workspace,
+  operationsCommit,
+  options = {}
+) {
+  return readinessRecord(workspace, operationsCommit, options);
+}
+
 function writeExclusive(path, record) {
   if (existsSync(path)) throw new Error("Offline npm cache readiness evidence already exists.");
   const parent = realpathSync(dirname(path));
@@ -511,8 +519,8 @@ function firstCacheContentFile(directory = join(OFFLINE_CACHE_ROOT, "_cacache", 
 }
 
 function assertSealedCacheOperationalPolicy(canonicalWorkspace) {
-  if (!pathIsAbsent(join(canonicalWorkspace, "node_modules")) ||
-      !pathIsAbsent(join(canonicalWorkspace, ".next"))) {
+  if (canonicalWorkspace && (!pathIsAbsent(join(canonicalWorkspace, "node_modules")) ||
+      !pathIsAbsent(join(canonicalWorkspace, ".next")))) {
     throw new Error("Offline npm cache workspace is not disposable and clean.");
   }
   const promotionPrefix = ".npm-offline-v1.promotion.";
@@ -538,8 +546,35 @@ function assertSealedCacheOperationalPolicy(canonicalWorkspace) {
   return canonicalWorkspace;
 }
 
-function assertReadyCarryForwardOperationalState(workspace) {
+export function assertReadyCarryForwardOperationalState(workspace) {
   return assertSealedCacheOperationalPolicy(verifyWorkspace(workspace).canonical);
+}
+
+export function validateSealedReadyCacheState(current, expected) {
+  exactKeys(current, ["cacheInventorySha256", "fileCount"],
+    "Current sealed READY cache state");
+  exactKeys(expected, ["cacheFileCount", "cacheInventorySha256"],
+    "Sealed READY cache transition state");
+  if (!Number.isSafeInteger(current.fileCount) || current.fileCount <= 0 ||
+      !/^[0-9a-f]{64}$/u.test(current.cacheInventorySha256 || "") ||
+      !Number.isSafeInteger(expected.cacheFileCount) || expected.cacheFileCount <= 0 ||
+      !/^[0-9a-f]{64}$/u.test(expected.cacheInventorySha256 || "") ||
+      current.fileCount !== expected.cacheFileCount ||
+      current.cacheInventorySha256 !== expected.cacheInventorySha256) {
+    throw new Error("Sealed READY cache transition state is invalid.");
+  }
+  return current;
+}
+
+export function assertSealedReadyCacheOperationalState(expected) {
+  runtimeVersions();
+  const current = inventory(OFFLINE_CACHE_ROOT, {
+    operational: true,
+    expectedGid: buildGroupId()
+  });
+  validateSealedReadyCacheState(current, expected);
+  assertSealedCacheOperationalPolicy(null);
+  return current;
 }
 
 export function verifyOfflineCacheForForwardBuild(workspace, operationsCommit, options = {}) {
@@ -802,7 +837,7 @@ export function validateFailedCachePreparationLog(body, identity, trustedLineage
   const manifestSha256 = /^Pack manifest SHA-256: ([0-9a-f]{64})$/mu.exec(body)?.[1];
   const valid = /^Operation: prepare-offline-npm-cache$/mu.test(body) &&
     /^Forward application SHA: b43a1e4e708bc9f02ef83bd63dab1db1f366b32e$/mu.test(body) &&
-    /^Rollback application SHA: 5d1f81bb05a01b08e1134785c2f86b77c8969fe3$/mu.test(body) &&
+    /^Rollback application SHA: 8db8236c16ebb5a02ec5b90f7e5308008cff7086$/mu.test(body) &&
     body.includes("Offline npm cache is incomplete for the approved lockfile.") &&
     !body.includes("OFFLINE_NPM_CACHE_READY") &&
     operationsCommit === identity.operationsCommit &&

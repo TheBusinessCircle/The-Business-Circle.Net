@@ -6,7 +6,7 @@ import { publishNoReplaceSet } from "./atomic-no-replace.mjs";
 import { verifyForwardBuildReleaseIntegrity } from "./build-release-integrity.mjs";
 
 const FORWARD_SHA = "b43a1e4e708bc9f02ef83bd63dab1db1f366b32e";
-const ROLLBACK_SHA = "5d1f81bb05a01b08e1134785c2f86b77c8969fe3";
+const ROLLBACK_SHA = "8db8236c16ebb5a02ec5b90f7e5308008cff7086";
 const STATE_ROOT = "/var/lib/thebusinesscircle/deployment-state";
 const ARTIFACT_ROOT = `/var/lib/thebusinesscircle/artifacts/${FORWARD_SHA}-${ROLLBACK_SHA}`;
 const sha256 = value => createHash("sha256").update(value).digest("hex");

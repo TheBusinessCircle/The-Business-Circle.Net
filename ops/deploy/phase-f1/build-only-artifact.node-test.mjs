@@ -6,7 +6,7 @@ import { validateSelectorPublication } from "./candidate-selector.mjs";
 
 const operationsCommit = "a".repeat(40), digest = value => createHash("sha256").update(value).digest("hex");
 const contracts = {
-  "rollback-reference": { sha: "5d1f81bb05a01b08e1134785c2f86b77c8969fe3", path: "/var/www/rollbacks/5d1f81bb05a01b08e1134785c2f86b77c8969fe3", names: ["rollback-bcn.manifest", "rollback-release.manifest"], brand: "bcn", origin: "https://thebusinesscircle.net" },
+  "rollback-reference": { sha: "8db8236c16ebb5a02ec5b90f7e5308008cff7086", path: "/var/www/rollbacks/8db8236c16ebb5a02ec5b90f7e5308008cff7086", names: ["rollback-bcn.manifest", "rollback-release.manifest"], brand: "bcn", origin: "https://thebusinesscircle.net" },
   bcn: { sha: "b43a1e4e708bc9f02ef83bd63dab1db1f366b32e", path: "/var/www/releases/b43a1e4e708bc9f02ef83bd63dab1db1f366b32e/.runtime/bcn", names: ["runtime-bcn.manifest", "forward-release.manifest"], brand: "bcn", origin: "https://thebusinesscircle.net" },
   "circle-card": { sha: "b43a1e4e708bc9f02ef83bd63dab1db1f366b32e", path: "/var/www/releases/b43a1e4e708bc9f02ef83bd63dab1db1f366b32e/.runtime/circle-card", names: ["runtime-circle-card.manifest", "forward-release.manifest"], brand: "circle-card", origin: "https://circlecard.co.uk" }
 };

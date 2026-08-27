@@ -19,6 +19,7 @@ export function packagePlatformApplicable(entry: Record<string, unknown>, target
 export function packageIntegrityContract(lockfile: Record<string, unknown>, targetPlatform: TargetPlatform): { totalLockfileIntegrityCount: number; requiredTargetIntegrities: string[]; optionalInapplicableIntegrities: string[] };
 export function evaluateOfflineCache(cacheRoot: string, lockfilePath: string, options?: { operational?: boolean; expectedGid?: number | null; enforceMetadata?: boolean; targetPlatform?: TargetPlatform }): OfflineCacheEvaluation;
 export function publishOfflineCacheReadiness(workspace: string, operationsCommit: string, options?: { offlineResolutionVerified?: boolean }): OfflineCacheReadiness;
+export function createOfflineCacheReadinessRecord(workspace: string, operationsCommit: string, options?: { offlineResolutionVerified?: boolean }): OfflineCacheReadiness;
 export function verifyOfflineCacheReadiness(workspace: string, operationsCommit: string): OfflineCacheReadiness;
 export function verifyOfflineCacheForForwardBuild(workspace: string, operationsCommit: string, options?: Record<string, unknown>): { cacheRoot: string; applicationSha: string; operationsCommit: string; lockfileSha256: string; cacheInventorySha256: string; requiredTargetIntegrityCount: number; missingRequiredTargetIntegrityCount: 0; offlineResolutionRequired: true; ready: true; valueMaterialRecorded: false };
 export function validateOfflineCacheReadiness(record: OfflineCacheReadiness, operationsCommit: string, expected?: OfflineCacheReadiness): OfflineCacheReadiness;
@@ -29,6 +30,9 @@ export function offlineCacheReadinessCarryForwardReportPath(stateRoot: string, o
 export function validateOfflineCacheReadinessCarryForwardReport(report: Record<string, unknown>, expected?: Record<string, unknown>): Record<string, unknown>;
 export function createOfflineCacheReadinessCarryForwardArtifacts(source: { record: OfflineCacheReadiness; bytes: Buffer; identity: string }, candidate: OfflineCacheReadiness, operationsCommit: string, lineage: string[]): Record<string, unknown>;
 export function publishCarriedForwardOfflineCacheReadiness(options: { workspace: string; sourceReadinessSha256: string; operationsCommit: string; carryForward: string }, dependencies?: Record<string, unknown>): Record<string, unknown>;
+export function assertReadyCarryForwardOperationalState(workspace: string): string;
+export function validateSealedReadyCacheState(current: { fileCount: number; cacheInventorySha256: string }, expected: { cacheFileCount: number; cacheInventorySha256: string }): { fileCount: number; cacheInventorySha256: string };
+export function assertSealedReadyCacheOperationalState(expected: { cacheFileCount: number; cacheInventorySha256: string }): { fileCount: number; cacheInventorySha256: string };
 export function classifySealedNotReadyCache(workspace: string, operationsCommit: string): Record<string, unknown>;
 export function validateFailedCachePreparationLog(body: string, identity: Record<string, unknown>, trustedLineage: string[]): string;
 export function validateSealedNotReadyRecoveryContract(record: Record<string, unknown>): string;

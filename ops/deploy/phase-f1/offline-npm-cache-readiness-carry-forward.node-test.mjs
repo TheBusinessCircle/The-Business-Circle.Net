@@ -30,7 +30,7 @@ const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const readiness = (operationsCommit = SOURCE_COMMIT, overrides = {}) => ({
   schemaVersion: "phase-f1-offline-npm-cache-readiness-v2",
   operationsCommit,
-  applicationSha: "5d1f81bb05a01b08e1134785c2f86b77c8969fe3",
+  applicationSha: "8db8236c16ebb5a02ec5b90f7e5308008cff7086",
   cacheRoot: "/var/cache/thebusinesscircle/phase-f1/npm-offline-v1",
   nodeVersion: "v22.22.2",
   npmVersion: "10.9.7",

@@ -1349,6 +1349,38 @@ describe("Phase F1 database, pack, Nginx and release gates", () => {
     expect(command).toContain("forwardBuildRole(role)");
   });
 
+  it("binds the reviewed rollback identity through dedicated protected readiness transitions", () => {
+    const applications = source("application-identities.mjs");
+    const environmentTransition = source("environment-application-readiness-transition.mjs");
+    const cacheTransition = source("offline-npm-cache-application-transition.mjs");
+    const environmentReadiness = source("environment-readiness.mjs");
+    const cacheReadiness = source("offline-npm-cache.mjs");
+    const documentation = readFileSync(
+      join(root, "docs", "circle-card-phase-f1-server-deployment-pack.md"),
+      "utf8",
+    );
+    expect(applications).toContain("5d1f81bb05a01b08e1134785c2f86b77c8969fe3");
+    expect(applications).toContain("8db8236c16ebb5a02ec5b90f7e5308008cff7086");
+    expect(applications).toContain("verifyReviewedRollbackApplicationTransition");
+    expect(applications).toContain("https://fonts.gstatic.com/s/sora/phase-e3-sora.woff2");
+    expect(applications).toContain("https://fonts.gstatic.com/s/plusjakartasans/phase-e3-jakarta.woff2");
+    expect(environmentTransition).toContain(
+      "REVIEWED_ROLLBACK_APPLICATION_IDENTITY_ENVIRONMENT_READINESS_TRANSITION",
+    );
+    expect(environmentTransition).toContain("ROLLBACK_APPLICATION_IDENTITY_ONLY");
+    expect(environmentTransition).toContain("publishNoReplaceSet");
+    expect(environmentTransition).toContain("environment-readiness-exchange");
+    expect(cacheTransition).toContain(
+      "REVIEWED_ROLLBACK_APPLICATION_IDENTITY_OFFLINE_CACHE_READY_TRANSITION",
+    );
+    expect(cacheTransition).toContain("assertSealedReadyCacheOperationalState");
+    expect(cacheTransition).toContain("offline-npm-cache-readiness-exchange");
+    expect(cacheTransition).not.toContain("approved-rollback-workspace");
+    expect(environmentReadiness).toContain("UNEXPECTED_SEMANTIC_DELTA");
+    expect(cacheReadiness).toContain("UNEXPECTED_SEMANTIC_DELTA");
+    expect(documentation).toContain("Reviewed rollback-application identity transition");
+  });
+
   it("separates explicit offline build-dependency installation from production build semantics", () => {
     const rollbackPackage = JSON.parse(
       readCommittedBlob(root, rollbackSha, "package.json").toString("utf8"),

@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import {
   APPLICATION_IDENTITIES,
   FORWARD_APPLICATION_SHA,
+  PREVIOUS_ROLLBACK_APPLICATION_SHA,
   ROLLBACK_APPLICATION_SHA,
   verifyApplicationCommit
 } from "./application-identities.mjs";
@@ -59,6 +60,8 @@ const FORBIDDEN_OUTPUTS = [
 ];
 const sha256 = value => createHash("sha256").update(value).digest("hex");
 const FIXTURE_INVENTORY_FORMAT = "phase-f1-failed-fixture-residue-inventory-v1";
+const ROLLBACK_APPLICATION_TRANSITION_SOURCE_OPERATIONS_COMMIT =
+  "c10abd77ceca632d206b83bcdae3cf8b7db3c9df";
 
 function exactKeys(value, expected, label) {
   if (!value || Array.isArray(value) || typeof value !== "object" ||
@@ -105,13 +108,29 @@ function protectedJsonIfPresent(path, label, enforceMetadata) {
   }
 }
 
-function validateApplicationIdentity(record) {
+function supportedRecoveryApplication(applicationSha, sourceOperationsCommit) {
+  return applicationSha === ROLLBACK_APPLICATION_SHA ||
+    (applicationSha === PREVIOUS_ROLLBACK_APPLICATION_SHA &&
+      sourceOperationsCommit === ROLLBACK_APPLICATION_TRANSITION_SOURCE_OPERATIONS_COMMIT);
+}
+
+function rollbackIdentitiesFor(applicationSha) {
+  return {
+    ...APPLICATION_IDENTITIES,
+    rollback: {
+      ...APPLICATION_IDENTITIES.rollback,
+      sha: applicationSha
+    }
+  };
+}
+
+function validateApplicationIdentity(record, applicationSha) {
   exactKeys(record, [
     "applicationSha", "candidateFileSet", "candidateRawDiffSha256",
     "fileHashes", "parentSha", "reviewBaseSha", "role"
   ], "Rollback application identity evidence");
   const expected = APPLICATION_IDENTITIES.rollback;
-  if (record.role !== "rollback" || record.applicationSha !== ROLLBACK_APPLICATION_SHA ||
+  if (record.role !== "rollback" || record.applicationSha !== applicationSha ||
       record.parentSha !== expected.parentSha ||
       record.reviewBaseSha !== (expected.reviewBaseSha ?? expected.parentSha) ||
       JSON.stringify(record.candidateFileSet) !==
@@ -131,18 +150,24 @@ function validateApplicationIdentity(record) {
   return record;
 }
 
-function validateFailedAttempt(record, sourceOperationsCommit, buildRoot = BUILD_ROOT) {
+function validateFailedAttempt(
+  record,
+  sourceOperationsCommit,
+  applicationSha,
+  buildRoot = BUILD_ROOT
+) {
   exactKeys(record, [
     "applicationSha", "attemptId", "format", "operationsCommit", "path", "role", "status"
   ], "Failed rollback build attempt");
   if (record.format !== ATTEMPT_FORMAT || record.role !== "rollback" ||
-      record.applicationSha !== ROLLBACK_APPLICATION_SHA ||
+      !supportedRecoveryApplication(applicationSha, sourceOperationsCommit) ||
+      record.applicationSha !== applicationSha ||
       record.operationsCommit !== sourceOperationsCommit || record.status !== "failed" ||
       !/^[0-9a-f]{24}$/u.test(record.attemptId || "") ||
       resolve(record.path || "") !== record.path ||
       dirname(record.path) !== buildRoot ||
       !new RegExp(
-        `^rollback-${ROLLBACK_APPLICATION_SHA}-\\d{8}T\\d{6}\\.\\d{9}Z-[0-9a-f]{16}$`, "u"
+        `^rollback-${applicationSha}-\\d{8}T\\d{6}\\.\\d{9}Z-[0-9a-f]{16}$`, "u"
       ).test(basename(record.path))) {
     throw new Error("Rollback build attempt is not the supported current-authority FAILED state.");
   }
@@ -315,15 +340,18 @@ function candidatePortsBound() {
   return output.split("\n").some((line) => /:(3100|3200|3300)\s/u.test(line));
 }
 
-function artifactStatePresent(stateRoot) {
+function artifactStatePresent(stateRoot, applicationSha) {
   if (FORBIDDEN_OUTPUTS.some((name) => existsSync(join(stateRoot, name)))) return true;
-  const artifactRoot = `/var/lib/thebusinesscircle/artifacts/${FORWARD_APPLICATION_SHA}-${ROLLBACK_APPLICATION_SHA}`;
-  return existsSync(`/var/www/rollbacks/${ROLLBACK_APPLICATION_SHA}`) || existsSync(artifactRoot);
+  const applicationShas = new Set([applicationSha, ROLLBACK_APPLICATION_SHA]);
+  return [...applicationShas].some((sha) =>
+    existsSync(`/var/www/rollbacks/${sha}`) ||
+    existsSync(`/var/lib/thebusinesscircle/artifacts/${FORWARD_APPLICATION_SHA}-${sha}`)
+  );
 }
 
-function fixtureResidue(buildRoot, workspaceBasename) {
-  const fixed = `rollback-fixture-${ROLLBACK_APPLICATION_SHA}-${workspaceBasename}`;
-  const legacy = new RegExp(`^rollback-fixture-${ROLLBACK_APPLICATION_SHA}-[0-9a-f]{16}$`, "u");
+function fixtureResidue(buildRoot, workspaceBasename, applicationSha) {
+  const fixed = `rollback-fixture-${applicationSha}-${workspaceBasename}`;
+  const legacy = new RegExp(`^rollback-fixture-${applicationSha}-[0-9a-f]{16}$`, "u");
   const matches = readdirSync(buildRoot, { withFileTypes: true })
     .filter((entry) => entry.name === fixed || legacy.test(entry.name))
     .map((entry) => join(buildRoot, entry.name));
@@ -343,7 +371,8 @@ export function validateFailedRollbackRecoveryFacts(facts, { enforceMetadata = t
     (facts.fixtureResidueState === NONEMPTY_PARTIAL_FIXTURE_RESIDUE &&
       facts.fixtureEmpty === false && Number.isSafeInteger(facts.fixtureResidueEntryCount) &&
       facts.fixtureResidueEntryCount > 0);
-  if (facts.status !== "failed" || facts.applicationSha !== ROLLBACK_APPLICATION_SHA ||
+  if (facts.status !== "failed" ||
+      !supportedRecoveryApplication(facts.applicationSha, facts.operationsCommit) ||
       facts.role !== "rollback" || facts.workspaceCanonical !== true ||
       facts.workspaceParentExact !== true || facts.workspaceDirectory !== true ||
       facts.workspaceSymlink !== false || facts.workspaceSameFilesystem !== true ||
@@ -373,7 +402,7 @@ function operationalFacts(attempt, application, attemptIdentity, options, depend
   const workspace = realpathSync(requestedWorkspace);
   const workspaceStats = lstatSync(workspace);
   const buildStats = lstatSync(buildRoot);
-  const residue = fixtureResidue(buildRoot, basename(workspace));
+  const residue = fixtureResidue(buildRoot, basename(workspace), attempt.applicationSha);
   const canonicalResidue = realpathSync(residue);
   const residueStats = lstatSync(canonicalResidue);
   const expectedUid = options.expectedUid ?? (options.enforceMetadata ?
@@ -382,7 +411,7 @@ function operationalFacts(attempt, application, attemptIdentity, options, depend
     numericIdentity("group", "phase-f1-build") : workspaceStats.gid);
   const verifyWorkspace = dependencies.verifyWorkspace ?? ((path, expected) => {
     const verified = verifyApplicationCommit(
-      path, "rollback", APPLICATION_IDENTITIES, gitAsBuildUser
+      path, "rollback", rollbackIdentitiesFor(attempt.applicationSha), gitAsBuildUser
     );
     if (JSON.stringify(verified) !== JSON.stringify(expected)) {
       throw new Error("Failed rollback workspace application identity differs.");
@@ -448,7 +477,7 @@ function operationalFacts(attempt, application, attemptIdentity, options, depend
     fixtureResidueEntryCount: residueInventory.entryCount,
     fixtureResidueInventorySha256: residueInventory.inventorySha256,
     artifactStatePresent: dependencies.artifactStatePresent ??
-      artifactStatePresent(options.stateRoot),
+      artifactStatePresent(options.stateRoot, attempt.applicationSha),
     candidatePortsBound: dependencies.candidatePortsBound ?? candidatePortsBound(),
     workspace,
     workspaceStats,
@@ -483,7 +512,7 @@ function makePlan({ operationsCommit, attempt, application, recheck, facts, hist
     classification: FAILED_ROLLBACK_CLASSIFICATION,
     operationsCommit,
     sourceOperationsCommit: attempt.record.operationsCommit,
-    applicationSha: ROLLBACK_APPLICATION_SHA,
+    applicationSha: attempt.record.applicationSha,
     attemptId: attempt.record.attemptId,
     applicationIdentitySha256: application.identity,
     buildAttemptSha256: attempt.identity,
@@ -590,8 +619,9 @@ function unlinkExact(evidence, enforceMetadata, unlink, sync) {
   sync(dirname(evidence.path));
 }
 
-function globalBoundariesSafe(stateRoot, dependencies) {
-  const artifacts = dependencies.artifactStatePresent ?? artifactStatePresent(stateRoot);
+function globalBoundariesSafe(stateRoot, applicationSha, dependencies) {
+  const artifacts = dependencies.artifactStatePresent ??
+    artifactStatePresent(stateRoot, applicationSha);
   const ports = dependencies.candidatePortsBound ?? candidatePortsBound();
   if (artifacts || ports) {
     throw new Error("Failed rollback recovery runtime or artifact boundary is not clean.");
@@ -628,9 +658,15 @@ export function recoverFailedRollbackAttempt(options, dependencies = {}) {
     if (!application || !attempt || !recheck) {
       throw new Error("Failed rollback recovery evidence set is incomplete.");
     }
-    validateApplicationIdentity(application.record);
-    validateApplicationIdentity(recheck.record);
     commit(attempt.record.operationsCommit, "Failed rollback attempt source authority");
+    if (!supportedRecoveryApplication(
+      attempt.record.applicationSha,
+      attempt.record.operationsCommit
+    )) {
+      throw new Error("Failed rollback application transition source is unsupported.");
+    }
+    validateApplicationIdentity(application.record, attempt.record.applicationSha);
+    validateApplicationIdentity(recheck.record, attempt.record.applicationSha);
     const resolveLineage = dependencies.resolveLineage ?? resolveProtectedAuthorityLineage;
     const lineage = resolveLineage(options.operationsCommit);
     if (!Array.isArray(lineage) || new Set(lineage).size !== lineage.length ||
@@ -638,7 +674,12 @@ export function recoverFailedRollbackAttempt(options, dependencies = {}) {
         !lineage.includes(attempt.record.operationsCommit)) {
       throw new Error("Failed rollback attempt source authority is not on the protected lineage.");
     }
-    validateFailedAttempt(attempt.record, attempt.record.operationsCommit, buildRoot);
+    validateFailedAttempt(
+      attempt.record,
+      attempt.record.operationsCommit,
+      attempt.record.applicationSha,
+      buildRoot
+    );
     if (attempt.identity !== options.buildAttemptSha256 ||
         !application.bytes.equals(recheck.bytes)) {
       throw new Error("Failed rollback recovery evidence identity differs.");
@@ -683,7 +724,7 @@ export function recoverFailedRollbackAttempt(options, dependencies = {}) {
     classification: FAILED_ROLLBACK_CLASSIFICATION,
     operationsCommit: options.operationsCommit,
     sourceOperationsCommit: plan.sourceOperationsCommit,
-    applicationSha: ROLLBACK_APPLICATION_SHA,
+    applicationSha: plan.applicationSha,
     buildAttemptSha256: options.buildAttemptSha256,
     applicationHistoryName: expectedHistory.application,
     buildAttemptHistoryName: expectedHistory.attempt,
@@ -692,6 +733,9 @@ export function recoverFailedRollbackAttempt(options, dependencies = {}) {
     result: "PREPARED",
     valueMaterialRecorded: false
   };
+  if (!supportedRecoveryApplication(plan.applicationSha, plan.sourceOperationsCommit)) {
+    throw new Error("Planned failed rollback application transition source is unsupported.");
+  }
   validatePlan(plan, expectedPlan);
   for (const [value, label] of [
     [plan.applicationIdentitySha256, "Planned application identity"],
@@ -739,9 +783,14 @@ export function recoverFailedRollbackAttempt(options, dependencies = {}) {
       !application.bytes.equals(recheck.bytes)) {
     throw new Error("Failed rollback recovery source evidence is absent or changed.");
   }
-  validateApplicationIdentity(application.record);
-  validateApplicationIdentity(recheck.record);
-  validateFailedAttempt(attempt.record, plan.sourceOperationsCommit, buildRoot);
+  validateApplicationIdentity(application.record, plan.applicationSha);
+  validateApplicationIdentity(recheck.record, plan.applicationSha);
+  validateFailedAttempt(
+    attempt.record,
+    plan.sourceOperationsCommit,
+    plan.applicationSha,
+    buildRoot
+  );
   if (attempt.record.attemptId !== plan.attemptId ||
       basename(attempt.record.path) !== plan.workspaceBasename) {
     throw new Error("Failed rollback recovery evidence no longer matches its plan.");
@@ -769,7 +818,7 @@ export function recoverFailedRollbackAttempt(options, dependencies = {}) {
     throw new Error("Failed rollback audit history is not byte-identical.");
   }
 
-  globalBoundariesSafe(stateRoot, dependencies);
+  globalBoundariesSafe(stateRoot, plan.applicationSha, dependencies);
   const remove = dependencies.remove ?? ((path) => rmSync(path, {
     recursive: true, force: false, maxRetries: 0
   }));
@@ -811,7 +860,7 @@ export function recoverFailedRollbackAttempt(options, dependencies = {}) {
         throw new Error("Protected failed fixture residue changed before cleanup.");
       }
     }
-    globalBoundariesSafe(stateRoot, dependencies);
+    globalBoundariesSafe(stateRoot, plan.applicationSha, dependencies);
     remove(canonical);
     if (existsSync(canonical)) throw new Error(`Protected ${label} cleanup was incomplete.`);
     sync(buildRoot);

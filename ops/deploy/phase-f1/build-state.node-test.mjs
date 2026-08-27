@@ -215,7 +215,7 @@ describe("Phase F1 offline npm cache readiness", () => {
     const log = [
       "Operation: prepare-offline-npm-cache",
       "Forward application SHA: b43a1e4e708bc9f02ef83bd63dab1db1f366b32e",
-      "Rollback application SHA: 5d1f81bb05a01b08e1134785c2f86b77c8969fe3",
+      "Rollback application SHA: 8db8236c16ebb5a02ec5b90f7e5308008cff7086",
       `Operations commit: ${commit}`,
       `Pack archive SHA-256: ${identity.archiveSha256}`,
       `Pack manifest SHA-256: ${identity.manifestSha256}`,

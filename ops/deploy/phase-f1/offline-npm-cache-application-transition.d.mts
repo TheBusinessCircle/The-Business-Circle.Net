@@ -1,0 +1,11 @@
+import type { OfflineCacheReadiness } from "./offline-npm-cache.mjs";
+export const OFFLINE_CACHE_APPLICATION_TRANSITION: string;
+export const OFFLINE_CACHE_APPLICATION_TRANSITION_SCHEMA: string;
+export const OFFLINE_CACHE_APPLICATION_TRANSITION_DELTA: string;
+export const TRANSITION_SOURCE_OPERATIONS_COMMIT: string;
+export function validateSourceOfflineCacheReadiness(record: OfflineCacheReadiness, operationsCommit: string): OfflineCacheReadiness;
+export function classifyOfflineCacheApplicationTransition(source: OfflineCacheReadiness, candidate: OfflineCacheReadiness): string;
+export function createOfflineCacheApplicationTransitionRecord(source: OfflineCacheReadiness, operationsCommit: string): OfflineCacheReadiness;
+export function createOfflineCacheApplicationTransitionArtifacts(source: { record: OfflineCacheReadiness; bytes: Buffer; identity: string }, candidate: OfflineCacheReadiness, operationsCommit: string, lineage: string[]): Record<string, unknown>;
+export function validateOfflineCacheApplicationTransitionReport(report: Record<string, unknown>, expected?: Record<string, unknown>): Record<string, unknown>;
+export function publishOfflineCacheApplicationTransition(options: { sourceReadinessSha256: string; operationsCommit: string; transition: string }, dependencies?: Record<string, unknown>): Record<string, unknown>;

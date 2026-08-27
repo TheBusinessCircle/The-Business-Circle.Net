@@ -16,6 +16,7 @@ import { join } from "node:path";
 import { afterEach, describe, it } from "node:test";
 import {
   APPLICATION_IDENTITIES,
+  PREVIOUS_ROLLBACK_APPLICATION_SHA,
   ROLLBACK_APPLICATION_SHA
 } from "./application-identities.mjs";
 import {
@@ -32,11 +33,11 @@ const operationsCommit = "a".repeat(40);
 const roots = [];
 const sha256 = value => createHash("sha256").update(value).digest("hex");
 
-function applicationIdentity() {
+function applicationIdentity(applicationSha = ROLLBACK_APPLICATION_SHA) {
   const expected = APPLICATION_IDENTITIES.rollback;
   return {
     role: "rollback",
-    applicationSha: ROLLBACK_APPLICATION_SHA,
+    applicationSha,
     parentSha: expected.parentSha,
     reviewBaseSha: expected.reviewBaseSha ?? expected.parentSha,
     candidateFileSet: expected.files.map(({ path }) => path),
@@ -57,6 +58,7 @@ function fixture({
   status = "failed",
   outside = false,
   sourceOperationsCommit = operationsCommit,
+  applicationSha = ROLLBACK_APPLICATION_SHA,
   partialFixture = false
 } = {}) {
   const root = mkdtempSync(join(tmpdir(), "phase-f1-failed-rollback-"));
@@ -66,7 +68,7 @@ function fixture({
   mkdirSync(buildRoot);
   mkdirSync(stateRoot);
   const workspaceName =
-    `rollback-${ROLLBACK_APPLICATION_SHA}-20260826T094420.056360625Z-5d081b4f7eafbc7e`;
+    `rollback-${applicationSha}-20260826T094420.056360625Z-5d081b4f7eafbc7e`;
   const parent = outside ? join(root, "outside") : buildRoot;
   if (outside) mkdirSync(parent);
   const workspace = join(parent, workspaceName);
@@ -75,7 +77,7 @@ function fixture({
   mkdirSync(join(workspace, "node_modules"));
   const residue = join(
     buildRoot,
-    `rollback-fixture-${ROLLBACK_APPLICATION_SHA}-${workspaceName}`
+    `rollback-fixture-${applicationSha}-${workspaceName}`
   );
   mkdirSync(residue, { mode: 0o750 });
   chmodSync(residue, 0o750);
@@ -85,11 +87,11 @@ function fixture({
     writeFileSync(join(residue, "fixture", "package.json"), "{\"private\":true}\n");
     writeFileSync(join(residue, "fixture", "infra", "partial.txt"), "partial\n");
   }
-  const application = applicationIdentity();
+  const application = applicationIdentity(applicationSha);
   const attempt = {
     format: "phase-f1-build-attempt-v2",
     role: "rollback",
-    applicationSha: ROLLBACK_APPLICATION_SHA,
+    applicationSha,
     operationsCommit: sourceOperationsCommit,
     path: workspace,
     attemptId: "1".repeat(24),
@@ -298,6 +300,33 @@ describe("Phase F1 failed current-authority rollback attempt recovery", () => {
       resolveLineage: () => ["c".repeat(40), operationsCommit]
     })), /not on the protected lineage/u);
     assert.equal(existsSync(unrelated.workspace), true);
+  });
+
+  it("recovers only the exact preserved c10 attempt from the previous reviewed rollback identity", () => {
+    const sourceOperationsCommit =
+      "c10abd77ceca632d206b83bcdae3cf8b7db3c9df";
+    const transitioned = fixture({
+      sourceOperationsCommit,
+      applicationSha: PREVIOUS_ROLLBACK_APPLICATION_SHA,
+      partialFixture: true
+    });
+    const result = recoverFailedRollbackAttempt(options(transitioned), dependencies({
+      resolveLineage: () => [sourceOperationsCommit, operationsCommit]
+    }));
+    assert.equal(result.canonicalRetryState, "READY");
+    assert.equal(existsSync(transitioned.workspace), false);
+    assert.equal(existsSync(transitioned.residue), false);
+
+    const arbitrarySource = fixture({
+      sourceOperationsCommit: "b".repeat(40),
+      applicationSha: PREVIOUS_ROLLBACK_APPLICATION_SHA,
+      partialFixture: true
+    });
+    assert.throws(() => recoverFailedRollbackAttempt(
+      options(arbitrarySource),
+      dependencies({ resolveLineage: () => ["b".repeat(40), operationsCommit] })
+    ), /application transition source is unsupported/u);
+    assert.equal(existsSync(arbitrarySource.workspace), true);
   });
 
   it("resumes safely after protected history publication and partial exact cleanup", () => {

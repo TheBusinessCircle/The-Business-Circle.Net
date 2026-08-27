@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 import { AGGREGATE_SCHEMA } from "./candidate-aggregate.mjs";
 import { verifyInstalledPack } from "./pack-layout.mjs";
 const FORWARD_SHA = "b43a1e4e708bc9f02ef83bd63dab1db1f366b32e";
-const ROLLBACK_SHA = "5d1f81bb05a01b08e1134785c2f86b77c8969fe3";
+const ROLLBACK_SHA = "8db8236c16ebb5a02ec5b90f7e5308008cff7086";
 const HISTORICAL_SHA = "5fa2bbf6ac7d39aa14636882bbae2d2713faf11a";
 const sha = (value) => createHash("sha256").update(value).digest("hex");
 function protectedFile(path) { const s = lstatSync(path); if (!s.isFile() || s.isSymbolicLink() || s.nlink !== 1 || s.uid !== 0 || (s.mode & 0o022)) throw new Error("Unsafe protected identity file."); }

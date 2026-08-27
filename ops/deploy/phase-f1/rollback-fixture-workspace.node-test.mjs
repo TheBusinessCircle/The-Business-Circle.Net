@@ -74,7 +74,7 @@ process.stdout.write("1 passed\\n");
     const gidResult = spawnSync("/usr/bin/id", ["-g", "phase-f1-build"], { encoding: "utf8" });
     assert.equal(uidResult.status, 0); assert.equal(gidResult.status, 0);
     const uid = Number(uidResult.stdout.trim()), gid = Number(gidResult.stdout.trim());
-    const root = mkdtempSync(join(buildRoot, "rollback-5d1f81bb05a01b08e1134785c2f86b77c8969fe3-cwd-test-")); roots.push(root);
+    const root = mkdtempSync(join(buildRoot, "rollback-8db8236c16ebb5a02ec5b90f7e5308008cff7086-cwd-test-")); roots.push(root);
     const unrelated = mkdtempSync(join(tmpdir(), "phase-f1-sudo-caller-")); roots.push(unrelated);
     writeFileSync(join(root, "package.json"), '{"name":"trusted-workspace"}\n');
     writeFileSync(join(root, "package-lock.json"), '{"name":"trusted-workspace","lockfileVersion":3}\n');

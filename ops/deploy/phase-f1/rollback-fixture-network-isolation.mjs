@@ -15,7 +15,7 @@ import {
 import { dirname, basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const ROLLBACK_SHA = "5d1f81bb05a01b08e1134785c2f86b77c8969fe3";
+const ROLLBACK_SHA = "8db8236c16ebb5a02ec5b90f7e5308008cff7086";
 const BUILD_ROOT = "/var/www/builds";
 const STATE_ROOT = "/var/lib/thebusinesscircle/deployment-state";
 const AUTHORITY = "/var/lib/thebusinesscircle/approved-phase-f1-pack.json";

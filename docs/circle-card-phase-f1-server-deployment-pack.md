@@ -9,7 +9,7 @@ The four identities are separate and must never be substituted:
 | Identity | Exact value | Purpose |
 | --- | --- | --- |
 | Historical production baseline | `5fa2bbf6ac7d39aa14636882bbae2d2713faf11a` | Records the currently deployed application, establishes the rollback candidate parent, and preserves historical live evidence. It is not built as the immutable rollback artifact. |
-| Approved rollback application candidate | `5d1f81bb05a01b08e1134785c2f86b77c8969fe3` | Historical BCN behavior plus the reviewed Phase E3 immutable-runtime correction. It is the only rollback build, probe, selector, and proof source. |
+| Approved rollback application candidate | `8db8236c16ebb5a02ec5b90f7e5308008cff7086` | Historical BCN behavior plus the reviewed Phase E3 immutable-runtime correction. It is the only rollback build, probe, selector, and proof source. |
 | Approved forward application | `b43a1e4e708bc9f02ef83bd63dab1db1f366b32e` | The only source for forward BCN and Circle Card artifacts. Its exact parent is the machine-readiness correction `6949bb2b7ef0ce28e5983751f3c8a10accde99b3`, and its cumulative reviewed base is the immutable-runtime baseline `2c83694de301b0244c5586c1598aceb10fa2214b`. |
 | Operations-pack commit | recorded after review | Identifies these scripts and this runbook. It is never an application build source. |
 
@@ -26,9 +26,9 @@ The rollback application source review is complete. Linux-isolated fixture gener
 ## Release and evidence layout
 
 ```text
-/var/www/builds/rollback-5d1f81bb05a01b08e1134785c2f86b77c8969fe3-<unique>/
+/var/www/builds/rollback-8db8236c16ebb5a02ec5b90f7e5308008cff7086-<unique>/
 /var/www/builds/forward-b43a1e4e708bc9f02ef83bd63dab1db1f366b32e-<unique>/
-/var/www/rollbacks/5d1f81bb05a01b08e1134785c2f86b77c8969fe3/
+/var/www/rollbacks/8db8236c16ebb5a02ec5b90f7e5308008cff7086/
 /var/www/releases/b43a1e4e708bc9f02ef83bd63dab1db1f366b32e/
 /var/www/current-bcn -> verified rollback or forward artifact
 /var/www/current-bcn-rollback-probe -> verified rollback artifact
@@ -36,7 +36,7 @@ The rollback application source review is complete. Linux-isolated fixture gener
 /var/www/shared/public/uploads/
 /var/www/shared/private/<authority-specific-subtrees>/
 /var/www/shared/generated/community-source-previews/
-/var/lib/thebusinesscircle/artifacts/b43a1e4e708bc9f02ef83bd63dab1db1f366b32e-5d1f81bb05a01b08e1134785c2f86b77c8969fe3/
+/var/lib/thebusinesscircle/artifacts/b43a1e4e708bc9f02ef83bd63dab1db1f366b32e-8db8236c16ebb5a02ec5b90f7e5308008cff7086/
 /var/lib/thebusinesscircle/deployment-state/
 /var/lib/thebusinesscircle/boot-eligibility/bcn.json
 /opt/thebusinesscircle/deployment-packs/<exact-operations-commit>/
@@ -341,6 +341,43 @@ The canonical source readiness must validate as `PASSED` under the authority emb
 
 Implementation and execution remain separate gates. After a new pack containing the chained mechanism becomes authoritative, the exact next gate is `SEPARATELY_AUTHORIZED_CHAINED_ENVIRONMENT_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_FRESH_TRUSTED_ROLLBACK_CHECKOUT_AND_OFFLINE_NPM_CACHE_POPULATION_UNDER_<CURRENT_OPERATIONS_COMMIT>_AUTHORITY`. It carries readiness forward first, creates a new checkout path using the pinned Git transport trust, and only then populates and verifies the dedicated offline cache. It does not reuse a failed checkout.
 
+#### Reviewed rollback-application identity transition
+
+The reviewed rollback application correction changes the approved rollback identity from
+`5d1f81bb05a01b08e1134785c2f86b77c8969fe3` to
+`8db8236c16ebb5a02ec5b90f7e5308008cff7086`. Both candidates have the exact historical parent
+`5fa2bbf6ac7d39aa14636882bbae2d2713faf11a`. Before the operations pack is published,
+`application-identities.mjs review-rollback-transition <repository>` proves that the transition
+modifies only `src/config/rollback-immutable-runtime-cache.test.ts`, replaces exactly the two
+reviewed relative mocked-font WOFF2 URLs with their fixed absolute `fonts.gstatic.com` mock URLs,
+and preserves the exact `package.json` and `package-lock.json` blobs. Any other parent, file,
+blob, line, dependency or caller-selected application identity fails closed.
+
+This is not an operations-authority-only transition. Ordinary direct and chained environment
+readiness carry-forward continue to reject the changed rollback application identity. After the
+new operations pack becomes authoritative and Git-authentication readiness has been carried
+forward, a separately authorised execution invokes only:
+
+```bash
+/usr/bin/node "${PACK}/environment-application-readiness-transition.mjs" \
+  transition-rollback-application \
+  "${SOURCE_ENVIRONMENT_READINESS_SHA256}" \
+  "${OPS_COMMIT}" \
+  REVIEWED_ROLLBACK_APPLICATION_IDENTITY_ENVIRONMENT_READINESS_TRANSITION
+```
+
+The source must be the exact protected canonical readiness object from operations authority
+`c10abd77ceca632d206b83bcdae3cf8b7db3c9df`, and that authority must occur on the unique verified
+protected lineage to the current authority. The source validates only with the previous rollback
+identity; the candidate validates only with the new reviewed identity. Forward and historical
+application identities, readiness state, all closed environment-validation results and
+`releaseIntegrity=NOT_EVALUATED` remain identical. Protected BCN, Circle Card and build schemas
+plus cross-user isolation are revalidated before publication, immediately before exchange and
+after exchange. The prior readiness bytes are preserved, and the closed value-free transition
+report and exact exchange slot are published with fsync-backed no-replace semantics before the
+dedicated atomic readiness exchange. Protected selection and acquisition evidence is not edited,
+copied or relabelled by this transition.
+
 Compare the live PM2/BCN/Next/listener/Nginx/PostgreSQL/systemd baseline after each separately authorised gate. Do not destroy the input if preparation fails, publication is partial or uncertain, environment-only validation fails, release integrity fails, full preflight fails, or live state changes. Preserve the root-only tmpfs evidence for separately approved recovery; a reboot also clears `/run`.
 
 After protected publication and environment-only readiness are conclusively `VERIFIED`, both releases pass integrity, full preflight is conclusively `PASSED`, and the protected-readiness reader independently returns ready, unlink the input:
@@ -403,7 +440,7 @@ separately authorised network-enabled operation:
 
 ```bash
 /usr/bin/bash "${PACK}/prepare-offline-npm-cache.sh" \
-  5d1f81bb05a01b08e1134785c2f86b77c8969fe3
+  8db8236c16ebb5a02ec5b90f7e5308008cff7086
 ```
 
 That operation requires the current prepared rollback attempt without consuming it, exact
@@ -486,8 +523,37 @@ policy are verified around the exchange. Partial state, unsafe metadata, a linke
 identity or size, failed exchange or uncertain post-exchange state fails closed. Implementation
 and production execution remain separate gates.
 
+When READY evidence is bound to the previous reviewed rollback application identity, ordinary
+READY carry-forward also rejects the application change. After the protected environment
+application transition passes, the separately authorised cache transition is invoked only as:
+
+```bash
+/usr/bin/node "${PACK}/offline-npm-cache-application-transition.mjs" \
+  transition-ready-rollback-application \
+  "${SOURCE_OFFLINE_CACHE_READINESS_SHA256}" \
+  "${OPS_COMMIT}" \
+  REVIEWED_ROLLBACK_APPLICATION_IDENTITY_OFFLINE_CACHE_READY_TRANSITION
+```
+
+No workspace, cache path, lockfile, source authority, lineage or application identity is caller
+selectable. The exact source READY object must be the protected canonical evidence from
+`c10abd77ceca632d206b83bcdae3cf8b7db3c9df`; the candidate changes only operations authority and
+the reviewed rollback identity. Because the reviewed application transition proves that the
+package and lockfile Git blobs are unchanged, the original offline-resolution proof remains valid
+only if the sealed cache inventory and file count are still exact. The operation re-hashes the
+complete sealed cache inventory, verifies exact Node/npm versions, safe cache metadata, no active
+writer or promotion residue, build-user read/non-write policy and runtime-user mutation isolation.
+It does not install, remove or fetch packages. Lockfile identity, platform classifier, all
+integrity counts including missing-required zero, offline-resolution state and every other READY
+semantic field remain byte-identical. The source bytes, candidate and closed value-free report use
+the same protected no-replace plus atomic exchange lifecycle as READY carry-forward.
+
+The preserved failed rollback attempt and its nonempty partial fixture residue are audit state and
+are not recovered by either application transition. Recovery remains a later explicit operation
+under the current pack.
+
 After a pack containing this mechanism becomes authoritative, the exact next gate is
-`SEPARATELY_AUTHORIZED_GIT_AUTHENTICATION_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_CHAINED_ENVIRONMENT_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_OFFLINE_NPM_CACHE_READY_EVIDENCE_IDENTITY_ONLY_CARRY_FORWARD_AND_IMMUTABLE_BUILD_ONLY_ROLLBACK_REFERENCE_BCN_AND_INDEPENDENT_CIRCLE_CARD_ARTIFACT_PREPARATION_PUBLICATION_AND_RELEASE_INTEGRITY_VERIFICATION_WITHOUT_SELECTOR_PUBLICATION_OR_CANDIDATE_START_UNDER_<CURRENT_OPERATIONS_COMMIT>_AUTHORITY`.
+`SEPARATELY_AUTHORIZED_GIT_AUTHENTICATION_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_ROLLBACK_APPLICATION_IDENTITY_BOUND_ENVIRONMENT_READINESS_PROTECTED_TRANSITION_AND_OFFLINE_NPM_CACHE_READY_EVIDENCE_PROTECTED_TRANSITION_AND_FAILED_ROLLBACK_BUILD_ATTEMPT_PROTECTED_RECOVERY_AND_FRESH_TRUSTED_ROLLBACK_CHECKOUT_AT_8db8236c16ebb5a02ec5b90f7e5308008cff7086_AND_IMMUTABLE_BUILD_ONLY_ROLLBACK_REFERENCE_BCN_AND_INDEPENDENT_CIRCLE_CARD_ARTIFACT_PREPARATION_PUBLICATION_AND_RELEASE_INTEGRITY_VERIFICATION_WITHOUT_SELECTOR_PUBLICATION_OR_CANDIDATE_START_UNDER_<CURRENT_OPERATIONS_COMMIT>_AUTHORITY`.
 
 The rollback fixture refuses to consume the build attempt unless that current-authority
 readiness evidence verifies. Its outer dependency install explicitly runs
@@ -608,7 +674,7 @@ Implementation and production recovery remain separate gates. After a corrected 
 authoritative, the exact next gate is
 `SEPARATELY_AUTHORIZED_GIT_AUTHENTICATION_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_CHAINED_ENVIRONMENT_READINESS_IDENTITY_ONLY_CARRY_FORWARD_AND_OFFLINE_NPM_CACHE_READY_EVIDENCE_IDENTITY_ONLY_CARRY_FORWARD_AND_FAILED_ROLLBACK_BUILD_ATTEMPT_PROTECTED_RECOVERY_AND_FRESH_TRUSTED_ROLLBACK_CHECKOUT_AND_IMMUTABLE_BUILD_ONLY_ROLLBACK_REFERENCE_BCN_AND_INDEPENDENT_CIRCLE_CARD_ARTIFACT_PREPARATION_PUBLICATION_AND_RELEASE_INTEGRITY_VERIFICATION_WITHOUT_SELECTOR_PUBLICATION_OR_CANDIDATE_START_UNDER_<CURRENT_OPERATIONS_COMMIT>_AUTHORITY`.
 
-The rollback build must run the committed-candidate flow in `src/config/rollback-immutable-runtime-cache.test.ts` from exact SHA `5d1f81bb05a01b08e1134785c2f86b77c8969fe3`. Final fixture generation cannot run from an uncommitted review diff. Provenance must bind the actual candidate SHA, historical parent, exact three-file set, raw Git diff digest, reviewed-file hashes, package identities, Next.js `15.5.15`, `BUILD_ID`, and recomputed full artifact manifest. It must record a synthetic build, absent production authority, enforced Linux loopback-only/no-route network isolation, and historical BCN identity. Forward Circle Card identity is rejected.
+The rollback build must run the committed-candidate flow in `src/config/rollback-immutable-runtime-cache.test.ts` from exact SHA `8db8236c16ebb5a02ec5b90f7e5308008cff7086`. Final fixture generation cannot run from an uncommitted review diff. Provenance must bind the actual candidate SHA, historical parent, exact three-file set, raw Git diff digest, reviewed-file hashes, package identities, Next.js `15.5.15`, `BUILD_ID`, and recomputed full artifact manifest. It must record a synthetic build, absent production authority, enforced Linux loopback-only/no-route network isolation, and historical BCN identity. Forward Circle Card identity is rejected.
 
 A skipped fixture-generation or real-server test is incomplete evidence and blocks cutover. The rollback proof cryptographically binds:
 
@@ -695,7 +761,7 @@ The Circle HTTP raw-target map rejects repeated separators, case variants, encod
 1. Commit and independently publish the reviewed Phase F1 operations archive.
 2. Install it only after external bootstrap, archive, manifest, and operations-commit verification.
 3. Prepare protected environments and one canonical database identity.
-4. Create a fresh rollback checkout at `5d1f81bb05a01b08e1134785c2f86b77c8969fe3`.
+4. Create a fresh rollback checkout at `8db8236c16ebb5a02ec5b90f7e5308008cff7086`.
 5. In a separately authorised network-enabled gate, populate and seal the fixed offline npm cache from the exact rollback lockfile; then run committed-candidate provenance and the isolated Linux rollback build offline.
 6. Construct and rehearse the immutable rollback artifact privately.
 7. Create a separate fresh forward checkout at `b43a1e4e708bc9f02ef83bd63dab1db1f366b32e`.

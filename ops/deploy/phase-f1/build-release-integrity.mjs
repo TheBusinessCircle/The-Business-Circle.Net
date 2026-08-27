@@ -8,7 +8,7 @@ import { FORWARD_APPLICATION_SHA, FORWARD_BUILD_ROLES, verifyForwardBuildRoleRec
 
 export const BUILD_RELEASE_INTEGRITY_SCHEMA = "phase-f1-forward-build-release-integrity-v1";
 const RELEASE_ROOT = `/var/www/releases/${FORWARD_APPLICATION_SHA}`;
-const ARTIFACT_ROOT = "/var/lib/thebusinesscircle/artifacts/b43a1e4e708bc9f02ef83bd63dab1db1f366b32e-5d1f81bb05a01b08e1134785c2f86b77c8969fe3";
+const ARTIFACT_ROOT = "/var/lib/thebusinesscircle/artifacts/b43a1e4e708bc9f02ef83bd63dab1db1f366b32e-8db8236c16ebb5a02ec5b90f7e5308008cff7086";
 const SELECTORS = Object.freeze(["/var/www/current-bcn", "/var/www/current-circle-card", "/var/www/current-bcn-rollback-probe"]);
 const sha256 = value => createHash("sha256").update(value).digest("hex");
 

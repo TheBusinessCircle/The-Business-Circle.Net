@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { verifyBuildOnlyArtifactEvidence } from "./build-only-artifact.mjs";
 
 const FORWARD_SHA = "b43a1e4e708bc9f02ef83bd63dab1db1f366b32e";
-const ROLLBACK_SHA = "5d1f81bb05a01b08e1134785c2f86b77c8969fe3";
+const ROLLBACK_SHA = "8db8236c16ebb5a02ec5b90f7e5308008cff7086";
 const CONTRACTS = Object.freeze({
   "rollback-probe": Object.freeze({ role: "rollback-reference", selector: "/var/www/current-bcn-rollback-probe", target: `/var/www/rollbacks/${ROLLBACK_SHA}`, evidencePath: `/var/www/rollbacks/${ROLLBACK_SHA}` }),
   "circle-card": Object.freeze({ role: "circle-card", selector: "/var/www/current-circle-card", target: `/var/www/releases/${FORWARD_SHA}`, evidencePath: `/var/www/releases/${FORWARD_SHA}/.runtime/circle-card` })
