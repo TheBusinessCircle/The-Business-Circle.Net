@@ -582,13 +582,22 @@ SHA-256; every path, application identity, authority, fixture residue and cleanu
 internally. `failed-rollback-attempt-recovery.mjs` requires the closed v2 attempt to be exactly
 `failed`, verifies its embedded authority on the protected authority lineage, re-verifies the exact
 rollback commit as the build user, and accepts only a canonical build-user-owned workspace with
-installed `node_modules`, absent `.next`, and one empty exact fixture residue. It rejects mounts,
-symlinks, active process references, selector references, candidate listeners, published artifacts,
-post-build evidence and any release-integrity or build-only success evidence.
+installed `node_modules` and absent `.next`. The one exact fixture residue may be empty or may have
+the closed `NONEMPTY_PARTIAL_BUILD` shape: one top-level `fixture` directory, no completed fixture
+provenance, and a recursively verified tree containing only same-filesystem build-user-owned
+directories, single-link regular files, and relative non-escaping symlinks. The verifier never
+follows symlinks, rejects nested mounts, special files, hard links, unsafe names and ownership or
+device changes, and binds the sorted full-tree metadata and content inventory into the protected
+recovery intent. It also rejects active process references, selector references, candidate
+listeners, published artifacts, post-build evidence and any release-integrity or build-only success
+evidence.
 
 Recovery first publishes a no-replace intent and byte-identical histories for the application
 identity, failed attempt and application recheck. Only then may it remove the two exact
-inode-revalidated disposable directories and unlink the three exact canonical evidence slots.
+inode-revalidated disposable directories. A nonempty fixture residue is fully re-inventoried and
+must remain byte-for-byte and metadata-identical to the protected intent immediately before its
+single recursive removal; the removal primitive does not follow symlinks. Only then may recovery
+unlink the three exact canonical evidence slots.
 Every parent is fsynced and a closed value-free report publishes only after the canonical retry
 state is `READY`. If interrupted, the protected intent and inode identities permit only resumption
 of the same cleanup; substitution or contradictory state fails closed. The offline cache, protected

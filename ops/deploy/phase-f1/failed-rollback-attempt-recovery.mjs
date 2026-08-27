@@ -13,7 +13,7 @@ import {
   rmSync,
   unlinkSync
 } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   APPLICATION_IDENTITIES,
@@ -30,9 +30,11 @@ export const FAILED_ROLLBACK_ATTEMPT_RECOVERY =
 export const FAILED_ROLLBACK_CLASSIFICATION =
   "FAILED_BEFORE_IMMUTABLE_ARTIFACT_PUBLICATION";
 export const RECOVERY_PLAN_SCHEMA =
-  "phase-f1-failed-rollback-attempt-recovery-plan-v1";
+  "phase-f1-failed-rollback-attempt-recovery-plan-v2";
 export const RECOVERY_REPORT_SCHEMA =
-  "phase-f1-failed-rollback-attempt-recovery-report-v1";
+  "phase-f1-failed-rollback-attempt-recovery-report-v2";
+export const EMPTY_FIXTURE_RESIDUE = "EMPTY";
+export const NONEMPTY_PARTIAL_FIXTURE_RESIDUE = "NONEMPTY_PARTIAL_BUILD";
 
 const STATE_ROOT = "/var/lib/thebusinesscircle/deployment-state";
 const BUILD_ROOT = "/var/www/builds";
@@ -56,6 +58,7 @@ const FORBIDDEN_OUTPUTS = [
   "circle-card-build-only-artifact.json"
 ];
 const sha256 = value => createHash("sha256").update(value).digest("hex");
+const FIXTURE_INVENTORY_FORMAT = "phase-f1-failed-fixture-residue-inventory-v1";
 
 function exactKeys(value, expected, label) {
   if (!value || Array.isArray(value) || typeof value !== "object" ||
@@ -150,6 +153,121 @@ function pathInside(path, root) {
   return path === root || path.startsWith(`${root}/`);
 }
 
+function pathAtOrInside(path, root) {
+  const rel = relative(root, path);
+  return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+}
+
+function mountPath(value) {
+  return value.replace(/\\([0-7]{3})/gu, (_, octal) =>
+    String.fromCodePoint(Number.parseInt(octal, 8)));
+}
+
+function mountAtOrBelow(target, mountInfoPath = "/proc/self/mountinfo") {
+  const canonical = resolve(target);
+  return readFileSync(mountInfoPath, "utf8").split("\n").some((line) => {
+    if (!line) return false;
+    const fields = line.split(" ");
+    return fields.length > 5 && pathAtOrInside(mountPath(fields[4]), canonical);
+  });
+}
+
+function safeFixtureName(name) {
+  return name && name !== "." && name !== ".." && !/[\u0000-\u001f\u007f]/u.test(name);
+}
+
+function inventoryRow(hash, row) {
+  hash.update(`${JSON.stringify(row)}\n`);
+}
+
+export function inspectFailedFixtureResidue(
+  residue, { expectedUid, expectedGid, expectedDev } = {}
+) {
+  const root = resolve(residue);
+  const rootStats = lstatSync(root);
+  if (!rootStats.isDirectory() || rootStats.isSymbolicLink() || realpathSync(root) !== root) {
+    throw new Error("Failed rollback fixture residue root is unsafe.");
+  }
+  const uid = expectedUid ?? rootStats.uid;
+  const gid = expectedGid ?? rootStats.gid;
+  const dev = expectedDev ?? rootStats.dev;
+  if (rootStats.uid !== uid || rootStats.gid !== gid || rootStats.dev !== dev) {
+    throw new Error("Failed rollback fixture residue root metadata is unsafe.");
+  }
+  const top = readdirSync(root).sort((left, right) => Buffer.from(left).compare(Buffer.from(right)));
+  const hash = createHash("sha256");
+  hash.update(`${FIXTURE_INVENTORY_FORMAT}\n`);
+  if (top.length === 0) {
+    return {
+      state: EMPTY_FIXTURE_RESIDUE,
+      entryCount: 0,
+      inventorySha256: hash.digest("hex")
+    };
+  }
+  if (top.length !== 1 || top[0] !== "fixture") {
+    throw new Error("Nonempty failed fixture residue has an unsupported top-level shape.");
+  }
+
+  let entryCount = 0;
+  const visit = (directory) => {
+    const names = readdirSync(directory)
+      .sort((left, right) => Buffer.from(left).compare(Buffer.from(right)));
+    for (const name of names) {
+      if (!safeFixtureName(name)) {
+        throw new Error("Failed fixture residue contains an unsafe path name.");
+      }
+      const path = join(directory, name);
+      const stats = lstatSync(path);
+      const rel = relative(root, path).split(sep).join("/");
+      if (!pathAtOrInside(path, root) || stats.dev !== dev || stats.uid !== uid || stats.gid !== gid ||
+          (stats.mode & 0o6000) !== 0) {
+        throw new Error("Failed fixture residue entry metadata is unsafe.");
+      }
+      let type;
+      let payload;
+      if (stats.isDirectory() && !stats.isSymbolicLink()) {
+        type = "directory";
+        payload = null;
+      } else if (stats.isFile() && !stats.isSymbolicLink() && stats.nlink === 1) {
+        type = "file";
+        payload = sha256(readFileSync(path));
+      } else if (stats.isSymbolicLink() && stats.nlink === 1) {
+        type = "symlink";
+        payload = readlinkSync(path);
+        if (isAbsolute(payload) || /[\u0000-\u001f\u007f]/u.test(payload) ||
+            !pathAtOrInside(resolve(dirname(path), payload), root)) {
+          throw new Error("Failed fixture residue symlink is unsafe.");
+        }
+      } else {
+        throw new Error("Failed fixture residue contains an unsupported file type or hard link.");
+      }
+      entryCount += 1;
+      inventoryRow(hash, {
+        path: rel,
+        type,
+        mode: stats.mode & 0o7777,
+        uid: stats.uid,
+        gid: stats.gid,
+        nlink: stats.nlink,
+        size: stats.size,
+        dev: `${stats.dev}`,
+        ino: `${stats.ino}`,
+        payload
+      });
+      if (type === "directory") visit(path);
+    }
+  };
+  visit(root);
+  if (existsSync(join(root, "fixture", ".phase-e3-production-fixture.json"))) {
+    throw new Error("Completed fixture provenance cannot be recovered as partial residue.");
+  }
+  return {
+    state: NONEMPTY_PARTIAL_FIXTURE_RESIDUE,
+    entryCount,
+    inventorySha256: hash.digest("hex")
+  };
+}
+
 function hasActiveReference(target, processRoot = "/proc") {
   for (const entry of readdirSync(processRoot, { withFileTypes: true })) {
     if (!entry.isDirectory() || !/^\d+$/u.test(entry.name)) continue;
@@ -218,6 +336,13 @@ function fixtureResidue(buildRoot, workspaceBasename) {
 export function validateFailedRollbackRecoveryFacts(facts, { enforceMetadata = true } = {}) {
   commit(facts.operationsCommit, "Recovery operations authority");
   digest(facts.attemptIdentity, "Failed attempt identity");
+  digest(facts.fixtureResidueInventorySha256, "Failed fixture residue inventory");
+  const fixtureStateValid =
+    (facts.fixtureResidueState === EMPTY_FIXTURE_RESIDUE && facts.fixtureEmpty === true &&
+      facts.fixtureResidueEntryCount === 0) ||
+    (facts.fixtureResidueState === NONEMPTY_PARTIAL_FIXTURE_RESIDUE &&
+      facts.fixtureEmpty === false && Number.isSafeInteger(facts.fixtureResidueEntryCount) &&
+      facts.fixtureResidueEntryCount > 0);
   if (facts.status !== "failed" || facts.applicationSha !== ROLLBACK_APPLICATION_SHA ||
       facts.role !== "rollback" || facts.workspaceCanonical !== true ||
       facts.workspaceParentExact !== true || facts.workspaceDirectory !== true ||
@@ -229,7 +354,8 @@ export function validateFailedRollbackRecoveryFacts(facts, { enforceMetadata = t
       facts.fixtureParentExact !== true || facts.fixtureDirectory !== true ||
       facts.fixtureSymlink !== false || facts.fixtureSameFilesystem !== true ||
       facts.fixtureMountpoint !== false || facts.fixtureActiveReference !== false ||
-      facts.fixtureSelectorReference !== false || facts.fixtureEmpty !== true ||
+      facts.fixtureNestedMount !== false || facts.fixtureSelectorReference !== false ||
+      facts.fixtureTreeSafe !== true || !fixtureStateValid ||
       facts.artifactStatePresent !== false || facts.candidatePortsBound !== false ||
       (enforceMetadata && (
         facts.workspaceUid !== facts.expectedUid || facts.workspaceGid !== facts.expectedGid ||
@@ -263,6 +389,17 @@ function operationalFacts(attempt, application, attemptIdentity, options, depend
     }
   });
   verifyWorkspace(workspace, application);
+  const residueMountpoint = dependencies.fixtureMountpoint ??
+    commandPasses("/usr/bin/findmnt", ["--mountpoint", canonicalResidue]);
+  const residueNestedMount = dependencies.fixtureNestedMount ??
+    mountAtOrBelow(canonicalResidue, options.mountInfoPath);
+  if (residueMountpoint || residueNestedMount) {
+    throw new Error("Failed rollback fixture residue contains a mount boundary.");
+  }
+  const residueInventory = (dependencies.inspectFixtureResidue ?? inspectFailedFixtureResidue)(
+    canonicalResidue,
+    { expectedUid, expectedGid, expectedDev: buildStats.dev }
+  );
   const facts = {
     operationsCommit: attempt.operationsCommit,
     attemptIdentity,
@@ -299,13 +436,17 @@ function operationalFacts(attempt, application, attemptIdentity, options, depend
     fixtureGid: residueStats.gid,
     fixtureMode: residueStats.mode & 0o777,
     fixtureSameFilesystem: residueStats.dev === buildStats.dev,
-    fixtureMountpoint: dependencies.fixtureMountpoint ??
-      commandPasses("/usr/bin/findmnt", ["--mountpoint", canonicalResidue]),
+    fixtureMountpoint: residueMountpoint,
+    fixtureNestedMount: residueNestedMount,
     fixtureActiveReference: dependencies.fixtureActiveReference ??
       hasActiveReference(canonicalResidue, options.processRoot),
     fixtureSelectorReference: dependencies.fixtureSelectorReference ??
       selectorReferences(canonicalResidue, options.selectors),
-    fixtureEmpty: readdirSync(canonicalResidue).length === 0,
+    fixtureEmpty: residueInventory.entryCount === 0,
+    fixtureTreeSafe: true,
+    fixtureResidueState: residueInventory.state,
+    fixtureResidueEntryCount: residueInventory.entryCount,
+    fixtureResidueInventorySha256: residueInventory.inventorySha256,
     artifactStatePresent: dependencies.artifactStatePresent ??
       artifactStatePresent(options.stateRoot),
     candidatePortsBound: dependencies.candidatePortsBound ?? candidatePortsBound(),
@@ -351,6 +492,12 @@ function makePlan({ operationsCommit, attempt, application, recheck, facts, hist
     workspaceInode: `${facts.workspaceStats.dev}:${facts.workspaceStats.ino}`,
     fixtureResidueBasename: basename(facts.residue),
     fixtureResidueInode: `${facts.residueStats.dev}:${facts.residueStats.ino}`,
+    fixtureResidueUid: facts.fixtureUid,
+    fixtureResidueGid: facts.fixtureGid,
+    fixtureResidueMode: facts.fixtureMode,
+    fixtureResidueState: facts.fixtureResidueState,
+    fixtureResidueEntryCount: facts.fixtureResidueEntryCount,
+    fixtureResidueInventorySha256: facts.fixtureResidueInventorySha256,
     applicationHistoryName: history.application,
     buildAttemptHistoryName: history.attempt,
     recheckHistoryName: history.recheck,
@@ -381,6 +528,9 @@ function makeReport(plan) {
     recheckIdentitySha256: plan.recheckIdentitySha256,
     workspaceBasename: plan.workspaceBasename,
     fixtureResidueBasename: plan.fixtureResidueBasename,
+    fixtureResidueState: plan.fixtureResidueState,
+    fixtureResidueEntryCount: plan.fixtureResidueEntryCount,
+    fixtureResidueInventorySha256: plan.fixtureResidueInventorySha256,
     applicationHistoryName: plan.applicationHistoryName,
     buildAttemptHistoryName: plan.buildAttemptHistoryName,
     recheckHistoryName: plan.recheckHistoryName,
@@ -502,7 +652,8 @@ export function recoverFailedRollbackAttempt(options, dependencies = {}) {
         expectedUid: options.expectedUid,
         expectedGid: options.expectedGid,
         processRoot: options.processRoot,
-        selectors: options.selectors
+        selectors: options.selectors,
+        mountInfoPath: options.mountInfoPath
       },
       dependencies
     );
@@ -545,11 +696,23 @@ export function recoverFailedRollbackAttempt(options, dependencies = {}) {
   for (const [value, label] of [
     [plan.applicationIdentitySha256, "Planned application identity"],
     [plan.buildAttemptSha256, "Planned build attempt identity"],
-    [plan.recheckIdentitySha256, "Planned recheck identity"]
+    [plan.recheckIdentitySha256, "Planned recheck identity"],
+    [plan.fixtureResidueInventorySha256, "Planned fixture residue inventory"]
   ]) digest(value, label);
   if (!/^[0-9a-f]{24}$/u.test(plan.attemptId || "") ||
       !/^\d+:\d+$/u.test(plan.workspaceInode || "") ||
       !/^\d+:\d+$/u.test(plan.fixtureResidueInode || "") ||
+      !Number.isSafeInteger(plan.fixtureResidueUid) || plan.fixtureResidueUid < 0 ||
+      !Number.isSafeInteger(plan.fixtureResidueGid) || plan.fixtureResidueGid < 0 ||
+      !Number.isSafeInteger(plan.fixtureResidueMode) || plan.fixtureResidueMode < 0 ||
+        plan.fixtureResidueMode > 0o777 ||
+      !Number.isSafeInteger(plan.fixtureResidueEntryCount) || plan.fixtureResidueEntryCount < 0 ||
+      ![EMPTY_FIXTURE_RESIDUE, NONEMPTY_PARTIAL_FIXTURE_RESIDUE]
+        .includes(plan.fixtureResidueState) ||
+      (plan.fixtureResidueState === EMPTY_FIXTURE_RESIDUE &&
+        plan.fixtureResidueEntryCount !== 0) ||
+      (plan.fixtureResidueState === NONEMPTY_PARTIAL_FIXTURE_RESIDUE &&
+        plan.fixtureResidueEntryCount === 0) ||
       basename(plan.workspaceBasename || "") !== plan.workspaceBasename ||
       basename(plan.fixtureResidueBasename || "") !== plan.fixtureResidueBasename) {
     throw new Error("Failed rollback recovery plan path identity is unsafe.");
@@ -613,9 +776,9 @@ export function recoverFailedRollbackAttempt(options, dependencies = {}) {
   const sync = dependencies.fsyncDirectory ?? fsyncDirectory;
   const workspace = join(buildRoot, plan.workspaceBasename);
   const residue = join(buildRoot, plan.fixtureResidueBasename);
-  for (const [target, inode, label] of [
-    [workspace, plan.workspaceInode, "failed workspace"],
-    [residue, plan.fixtureResidueInode, "failed fixture residue"]
+  for (const [target, inode, label, isResidue] of [
+    [workspace, plan.workspaceInode, "failed workspace", false],
+    [residue, plan.fixtureResidueInode, "failed fixture residue", true]
   ]) {
     if (!existsSync(target)) continue;
     const canonical = realpathSync(target);
@@ -623,9 +786,30 @@ export function recoverFailedRollbackAttempt(options, dependencies = {}) {
     if (canonical !== target || dirname(canonical) !== buildRoot ||
         !stats.isDirectory() || stats.isSymbolicLink() || `${stats.dev}:${stats.ino}` !== inode ||
         commandPasses("/usr/bin/findmnt", ["--mountpoint", canonical]) ||
+        (isResidue && (dependencies.fixtureNestedMount ??
+          mountAtOrBelow(canonical, options.mountInfoPath))) ||
         (dependencies.activeReference ?? hasActiveReference)(canonical, options.processRoot) ||
         selectorReferences(canonical, options.selectors)) {
       throw new Error(`Protected ${label} changed before cleanup.`);
+    }
+    if (isResidue) {
+      if (stats.uid !== plan.fixtureResidueUid || stats.gid !== plan.fixtureResidueGid ||
+          (stats.mode & 0o777) !== plan.fixtureResidueMode) {
+        throw new Error("Protected failed fixture residue metadata changed before cleanup.");
+      }
+      const inventory = (dependencies.inspectFixtureResidue ?? inspectFailedFixtureResidue)(
+        canonical,
+        {
+          expectedUid: plan.fixtureResidueUid,
+          expectedGid: plan.fixtureResidueGid,
+          expectedDev: stats.dev
+        }
+      );
+      if (inventory.state !== plan.fixtureResidueState ||
+          inventory.entryCount !== plan.fixtureResidueEntryCount ||
+          inventory.inventorySha256 !== plan.fixtureResidueInventorySha256) {
+        throw new Error("Protected failed fixture residue changed before cleanup.");
+      }
     }
     globalBoundariesSafe(stateRoot, dependencies);
     remove(canonical);

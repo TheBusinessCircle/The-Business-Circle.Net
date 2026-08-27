@@ -6,7 +6,9 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
+  linkSync,
   writeFileSync
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -19,6 +21,9 @@ import {
 import {
   FAILED_ROLLBACK_ATTEMPT_RECOVERY,
   FAILED_ROLLBACK_CLASSIFICATION,
+  EMPTY_FIXTURE_RESIDUE,
+  NONEMPTY_PARTIAL_FIXTURE_RESIDUE,
+  inspectFailedFixtureResidue,
   recoverFailedRollbackAttempt,
   validateFailedRollbackRecoveryFacts
 } from "./failed-rollback-attempt-recovery.mjs";
@@ -48,7 +53,12 @@ function writeJson(path, value) {
   chmodSync(path, 0o600);
 }
 
-function fixture({ status = "failed", outside = false, sourceOperationsCommit = operationsCommit } = {}) {
+function fixture({
+  status = "failed",
+  outside = false,
+  sourceOperationsCommit = operationsCommit,
+  partialFixture = false
+} = {}) {
   const root = mkdtempSync(join(tmpdir(), "phase-f1-failed-rollback-"));
   roots.push(root);
   const buildRoot = join(root, "builds");
@@ -69,6 +79,12 @@ function fixture({ status = "failed", outside = false, sourceOperationsCommit = 
   );
   mkdirSync(residue, { mode: 0o750 });
   chmodSync(residue, 0o750);
+  if (partialFixture) {
+    mkdirSync(join(residue, "fixture"), { mode: 0o700 });
+    mkdirSync(join(residue, "fixture", "infra"), { mode: 0o775 });
+    writeFileSync(join(residue, "fixture", "package.json"), "{\"private\":true}\n");
+    writeFileSync(join(residue, "fixture", "infra", "partial.txt"), "partial\n");
+  }
   const application = applicationIdentity();
   const attempt = {
     format: "phase-f1-build-attempt-v2",
@@ -99,6 +115,7 @@ function dependencies(overrides = {}) {
     workspaceActiveReference: false,
     workspaceSelectorReference: false,
     fixtureMountpoint: false,
+    fixtureNestedMount: false,
     fixtureActiveReference: false,
     fixtureSelectorReference: false,
     artifactStatePresent: false,
@@ -157,6 +174,11 @@ const validFacts = (overrides = {}) => ({
   fixtureActiveReference: false,
   fixtureSelectorReference: false,
   fixtureEmpty: true,
+  fixtureTreeSafe: true,
+  fixtureNestedMount: false,
+  fixtureResidueState: EMPTY_FIXTURE_RESIDUE,
+  fixtureResidueEntryCount: 0,
+  fixtureResidueInventorySha256: "d".repeat(64),
   artifactStatePresent: false,
   candidatePortsBound: false,
   ...overrides
@@ -183,7 +205,9 @@ describe("Phase F1 failed current-authority rollback attempt recovery", () => {
       { nextOutputAbsent: false }, { fixtureCanonical: false },
       { fixtureParentExact: false }, { fixtureSymlink: true },
       { fixtureActiveReference: true }, { fixtureSelectorReference: true },
-      { fixtureEmpty: false }, { artifactStatePresent: true },
+      { fixtureNestedMount: true }, { fixtureTreeSafe: false },
+      { fixtureEmpty: false }, { fixtureResidueEntryCount: 1 },
+      { fixtureResidueState: "ARBITRARY" }, { artifactStatePresent: true },
       { candidatePortsBound: true }, { workspaceMode: 0o777 }, { fixtureMode: 0o777 }
     ]) {
       assert.throws(
@@ -191,6 +215,59 @@ describe("Phase F1 failed current-authority rollback attempt recovery", () => {
         /exact protected recovery target/u
       );
     }
+  });
+
+  it("classifies and inventories only empty or exact nonempty partial fixture residue", () => {
+    const empty = fixture();
+    const emptyInventory = inspectFailedFixtureResidue(empty.residue);
+    assert.equal(emptyInventory.state, EMPTY_FIXTURE_RESIDUE);
+    assert.equal(emptyInventory.entryCount, 0);
+
+    const partial = fixture({ partialFixture: true });
+    const inventory = inspectFailedFixtureResidue(partial.residue);
+    assert.equal(inventory.state, NONEMPTY_PARTIAL_FIXTURE_RESIDUE);
+    assert.equal(inventory.entryCount, 4);
+    assert.match(inventory.inventorySha256, /^[0-9a-f]{64}$/u);
+    assert.equal(validateFailedRollbackRecoveryFacts(validFacts({
+      fixtureEmpty: false,
+      fixtureResidueState: NONEMPTY_PARTIAL_FIXTURE_RESIDUE,
+      fixtureResidueEntryCount: inventory.entryCount,
+      fixtureResidueInventorySha256: inventory.inventorySha256
+    })), FAILED_ROLLBACK_CLASSIFICATION);
+
+    const unsupported = fixture();
+    mkdirSync(join(unsupported.residue, "arbitrary"));
+    assert.throws(() => inspectFailedFixtureResidue(unsupported.residue),
+      /unsupported top-level shape/u);
+
+    const completed = fixture({ partialFixture: true });
+    writeFileSync(join(completed.residue, "fixture", ".phase-e3-production-fixture.json"), "{}\n");
+    assert.throws(() => inspectFailedFixtureResidue(completed.residue),
+      /Completed fixture provenance/u);
+
+    const hardLinked = fixture({ partialFixture: true });
+    linkSync(
+      join(hardLinked.residue, "fixture", "package.json"),
+      join(hardLinked.residue, "fixture", "package-copy.json")
+    );
+    assert.throws(() => inspectFailedFixtureResidue(hardLinked.residue),
+      /unsupported file type or hard link/u);
+  });
+
+  it("recovers an exact nonempty partial fixture tree and preserves its inventory in evidence", () => {
+    const value = fixture({ partialFixture: true });
+    const result = recoverFailedRollbackAttempt(options(value), dependencies());
+    assert.equal(result.canonicalRetryState, "READY");
+    assert.equal(existsSync(value.workspace), false);
+    assert.equal(existsSync(value.residue), false);
+    const reports = readdirSync(value.stateRoot)
+      .filter((name) => name.startsWith("rollback-failed-attempt-recovery-") &&
+        !name.includes("-plan-"));
+    assert.equal(reports.length, 1);
+    const report = JSON.parse(readFileSync(join(value.stateRoot, reports[0]), "utf8"));
+    assert.equal(report.fixtureResidueState, NONEMPTY_PARTIAL_FIXTURE_RESIDUE);
+    assert.ok(report.fixtureResidueEntryCount > 0);
+    assert.match(report.fixtureResidueInventorySha256, /^[0-9a-f]{64}$/u);
   });
 
   it("archives byte-identical audit evidence, removes only exact disposable state and is idempotent", () => {
@@ -240,6 +317,36 @@ describe("Phase F1 failed current-authority rollback attempt recovery", () => {
     assert.equal(resumed.canonicalRetryState, "READY");
     assert.equal(existsSync(value.residue), false);
     assert.equal(existsSync(value.attemptPath), false);
+  });
+
+  it("fails closed if protected nonempty residue changes or gains a nested mount", () => {
+    const changed = fixture({ partialFixture: true });
+    let removals = 0;
+    assert.throws(() => recoverFailedRollbackAttempt(options(changed), dependencies({
+      remove(path) {
+        removals += 1;
+        if (removals === 2) throw new Error("synthetic interruption");
+        rmSync(path, { recursive: true, force: false });
+      }
+    })), /synthetic interruption/u);
+    writeFileSync(join(changed.residue, "fixture", "infra", "partial.txt"), "changed\n");
+    assert.throws(() => recoverFailedRollbackAttempt(options(changed), dependencies()),
+      /residue changed before cleanup/u);
+    assert.equal(existsSync(changed.residue), true);
+
+    const mounted = fixture({ partialFixture: true });
+    removals = 0;
+    assert.throws(() => recoverFailedRollbackAttempt(options(mounted), dependencies({
+      remove(path) {
+        removals += 1;
+        if (removals === 2) throw new Error("synthetic interruption");
+        rmSync(path, { recursive: true, force: false });
+      }
+    })), /synthetic interruption/u);
+    assert.throws(() => recoverFailedRollbackAttempt(options(mounted), dependencies({
+      fixtureNestedMount: true
+    })), /changed before cleanup/u);
+    assert.equal(existsSync(mounted.residue), true);
   });
 
   it("rejects the wrong attempt identity, successful state, arbitrary workspace and published artifact", () => {
