@@ -60,6 +60,10 @@ const FORBIDDEN_OUTPUTS = [
 ];
 const sha256 = value => createHash("sha256").update(value).digest("hex");
 const FIXTURE_INVENTORY_FORMAT = "phase-f1-failed-fixture-residue-inventory-v1";
+const TRUSTED_ESBUILD_HARDLINK_PATHS = Object.freeze([
+  "fixture/node_modules/@esbuild/linux-x64/bin/esbuild",
+  "fixture/node_modules/esbuild/bin/esbuild"
+]);
 const ROLLBACK_APPLICATION_TRANSITION_SOURCE_OPERATIONS_COMMIT =
   "c10abd77ceca632d206b83bcdae3cf8b7db3c9df";
 
@@ -234,6 +238,7 @@ export function inspectFailedFixtureResidue(
   }
 
   let entryCount = 0;
+  const hardlinkGroups = new Map();
   const visit = (directory) => {
     const names = readdirSync(directory)
       .sort((left, right) => Buffer.from(left).compare(Buffer.from(right)));
@@ -253,9 +258,24 @@ export function inspectFailedFixtureResidue(
       if (stats.isDirectory() && !stats.isSymbolicLink()) {
         type = "directory";
         payload = null;
-      } else if (stats.isFile() && !stats.isSymbolicLink() && stats.nlink === 1) {
+      } else if (stats.isFile() && !stats.isSymbolicLink() && stats.nlink >= 1) {
         type = "file";
         payload = sha256(readFileSync(path));
+        if (stats.nlink > 1) {
+          const identity = `${stats.dev}:${stats.ino}`;
+          const group = hardlinkGroups.get(identity) ?? {
+            paths: [],
+            nlink: stats.nlink,
+            dev: stats.dev,
+            ino: stats.ino
+          };
+          if (group.nlink !== stats.nlink || group.dev !== stats.dev ||
+              group.ino !== stats.ino) {
+            throw new Error("Failed fixture residue hard-link identity changed during inventory.");
+          }
+          group.paths.push(rel);
+          hardlinkGroups.set(identity, group);
+        }
       } else if (stats.isSymbolicLink() && stats.nlink === 1) {
         type = "symlink";
         payload = readlinkSync(path);
@@ -283,6 +303,21 @@ export function inspectFailedFixtureResidue(
     }
   };
   visit(root);
+  const groups = [...hardlinkGroups.values()].map((group) => ({
+    ...group,
+    paths: group.paths.sort((left, right) =>
+      Buffer.from(left).compare(Buffer.from(right)))
+  }));
+  if (groups.length !== 0) {
+    const expected = [...TRUSTED_ESBUILD_HARDLINK_PATHS].sort((left, right) =>
+      Buffer.from(left).compare(Buffer.from(right)));
+    const trusted = groups.length === 1 && groups[0].nlink === expected.length &&
+      groups[0].paths.length === expected.length &&
+      JSON.stringify(groups[0].paths) === JSON.stringify(expected);
+    if (!trusted) {
+      throw new Error("Failed fixture residue contains an unsupported file type or hard link.");
+    }
+  }
   if (existsSync(join(root, "fixture", ".phase-e3-production-fixture.json"))) {
     throw new Error("Completed fixture provenance cannot be recovered as partial residue.");
   }

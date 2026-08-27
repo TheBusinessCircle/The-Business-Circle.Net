@@ -655,12 +655,17 @@ rollback commit as the build user, and accepts only a canonical build-user-owned
 installed `node_modules` and absent `.next`. The one exact fixture residue may be empty or may have
 the closed `NONEMPTY_PARTIAL_BUILD` shape: one top-level `fixture` directory, no completed fixture
 provenance, and a recursively verified tree containing only same-filesystem build-user-owned
-directories, single-link regular files, and relative non-escaping symlinks. The verifier never
-follows symlinks, rejects nested mounts, special files, hard links, unsafe names and ownership or
-device changes, and binds the sorted full-tree metadata and content inventory into the protected
-recovery intent. It also rejects active process references, selector references, candidate
-listeners, published artifacts, post-build evidence and any release-integrity or build-only success
-evidence.
+directories, regular files, and relative non-escaping symlinks. Regular files remain single-link
+except for the exact internal npm-installed esbuild pair
+`fixture/node_modules/@esbuild/linux-x64/bin/esbuild` and
+`fixture/node_modules/esbuild/bin/esbuild`: those two fixed paths may share one inode only when
+both report link count two, proving every link is inside the protected residue. The verifier never
+follows symlinks and rejects nested mounts, special files, every other hard link, an additional or
+external link to the esbuild inode, unsafe names and ownership or device changes. The sorted
+full-tree metadata and content inventory binds both esbuild paths, their shared inode and link count
+into the protected recovery intent. It also rejects active process references, selector references,
+candidate listeners, published artifacts, post-build evidence and any release-integrity or
+build-only success evidence.
 
 Recovery first publishes a no-replace intent and byte-identical histories for the application
 identity, failed attempt and application recheck. Only then may it remove the two exact

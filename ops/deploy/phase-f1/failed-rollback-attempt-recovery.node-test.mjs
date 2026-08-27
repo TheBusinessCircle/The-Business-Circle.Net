@@ -110,6 +110,20 @@ function fixture({
   };
 }
 
+function addTrustedEsbuildHardlinkPair(value) {
+  const scoped = join(
+    value.residue, "fixture", "node_modules", "@esbuild", "linux-x64", "bin"
+  );
+  const publicBin = join(value.residue, "fixture", "node_modules", "esbuild", "bin");
+  mkdirSync(scoped, { recursive: true });
+  mkdirSync(publicBin, { recursive: true });
+  const source = join(scoped, "esbuild");
+  const target = join(publicBin, "esbuild");
+  writeFileSync(source, "synthetic trusted esbuild binary\n");
+  linkSync(source, target);
+  return { source, target };
+}
+
 function dependencies(overrides = {}) {
   return {
     verifyWorkspace: () => true,
@@ -254,10 +268,23 @@ describe("Phase F1 failed current-authority rollback attempt recovery", () => {
     );
     assert.throws(() => inspectFailedFixtureResidue(hardLinked.residue),
       /unsupported file type or hard link/u);
+
+    const trustedHardLinked = fixture({ partialFixture: true });
+    addTrustedEsbuildHardlinkPair(trustedHardLinked);
+    const trustedInventory = inspectFailedFixtureResidue(trustedHardLinked.residue);
+    assert.equal(trustedInventory.state, NONEMPTY_PARTIAL_FIXTURE_RESIDUE);
+    assert.ok(trustedInventory.entryCount > inventory.entryCount);
+
+    const externallyLinked = fixture({ partialFixture: true });
+    const trustedPair = addTrustedEsbuildHardlinkPair(externallyLinked);
+    linkSync(trustedPair.source, join(externallyLinked.root, "external-esbuild-link"));
+    assert.throws(() => inspectFailedFixtureResidue(externallyLinked.residue),
+      /unsupported file type or hard link/u);
   });
 
   it("recovers an exact nonempty partial fixture tree and preserves its inventory in evidence", () => {
     const value = fixture({ partialFixture: true });
+    addTrustedEsbuildHardlinkPair(value);
     const result = recoverFailedRollbackAttempt(options(value), dependencies());
     assert.equal(result.canonicalRetryState, "READY");
     assert.equal(existsSync(value.workspace), false);
