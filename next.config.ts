@@ -150,6 +150,10 @@ const PAGE_ROUTE_SOURCE =
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  cacheMaxMemorySize: 52_428_800,
+  experimental: {
+    isrFlushToDisk: false
+  },
   images: {
     remotePatterns: [
       {
