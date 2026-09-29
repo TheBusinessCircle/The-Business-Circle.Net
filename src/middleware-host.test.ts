@@ -222,7 +222,8 @@ describe("middleware runtime host gate", () => {
     ["POST", "/api/circle-card/upload"],
     ["POST", "/api/circle-card/upload?next=%2Fapi%2Fcommunity%2Fposts"],
     ["POST", "/api/stripe/circle-card/checkout"],
-    ["POST", "/api/stripe/circle-card/portal"]
+    ["POST", "/api/stripe/circle-card/portal"],
+    ["POST", "/api/stripe/webhook"]
   ])("allows the reviewed Circle endpoint %s %s through host enforcement", (method, path) => {
     useCircleCardRuntime();
 
@@ -242,7 +243,6 @@ describe("middleware runtime host gate", () => {
     ["POST", "/api/founder-services/requests"],
     ["GET", "/api/admin/live-summary"],
     ["POST", "/api/stripe/checkout"],
-    ["POST", "/api/stripe/webhook"],
     ["POST", "/api/internal/circle-card/activation-reminders/run"],
     ["GET", "/API/COMMUNITY/POSTS"],
     ["POST", "/api/community/posts?next=%2Fapi%2Fcircle-card%2Fupload"]

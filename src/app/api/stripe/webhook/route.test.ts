@@ -4,6 +4,7 @@ const constructStripeWebhookEventMock = vi.hoisted(() => vi.fn());
 const processFounderStripeWebhookEventMock = vi.hoisted(() => vi.fn());
 const processStripeWebhookEventMock = vi.hoisted(() => vi.fn());
 const processCircleCardStripeWebhookEventMock = vi.hoisted(() => vi.fn());
+const classifyCircleCardStripeEventOwnershipMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/server/stripe", () => ({
   constructStripeWebhookEvent: constructStripeWebhookEventMock
@@ -16,6 +17,9 @@ vi.mock("@/server/subscriptions", () => ({
 }));
 vi.mock("@/server/circle-card", () => ({
   processCircleCardStripeWebhookEvent: processCircleCardStripeWebhookEventMock
+}));
+vi.mock("@/server/stripe/circle-card-webhook-ownership", () => ({
+  classifyCircleCardStripeEventOwnership: classifyCircleCardStripeEventOwnershipMock
 }));
 
 import { POST } from "@/app/api/stripe/webhook/route";
@@ -62,6 +66,7 @@ describe("Stripe webhook route", () => {
     vi.stubEnv("STRIPE_WEBHOOK_SECRET", SECRET_CANARY);
     constructStripeWebhookEventMock.mockReturnValue(signedEvent());
     processCircleCardStripeWebhookEventMock.mockResolvedValue(false);
+    classifyCircleCardStripeEventOwnershipMock.mockResolvedValue("circle-card");
     processStripeWebhookEventMock.mockResolvedValue(undefined);
     processFounderStripeWebhookEventMock.mockResolvedValue(undefined);
   });
@@ -148,6 +153,46 @@ describe("Stripe webhook route", () => {
 
     expect(response.status).toBe(200);
     expect(processCircleCardStripeWebhookEventMock).toHaveBeenCalledWith(signedEvent());
+    expect(processStripeWebhookEventMock).not.toHaveBeenCalled();
+    expect(processFounderStripeWebhookEventMock).not.toHaveBeenCalled();
+  });
+
+  it("lets the Circle runtime process only a proven Circle event", async () => {
+    vi.stubEnv("APP_BRAND", "circle-card");
+    processCircleCardStripeWebhookEventMock.mockResolvedValue(true);
+
+    const response = await POST(webhookRequest());
+
+    expect(response.status).toBe(200);
+    expect(classifyCircleCardStripeEventOwnershipMock).toHaveBeenCalledWith(signedEvent());
+    expect(processCircleCardStripeWebhookEventMock).toHaveBeenCalledWith(signedEvent());
+    expect(processStripeWebhookEventMock).not.toHaveBeenCalled();
+    expect(processFounderStripeWebhookEventMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["bcn", "founder-service", "ambiguous", "unsupported"])(
+    "acknowledges %s on the Circle endpoint without any product processing",
+    async (ownership) => {
+      vi.stubEnv("APP_BRAND", "circle-card");
+      classifyCircleCardStripeEventOwnershipMock.mockResolvedValue(ownership);
+
+      const response = await POST(webhookRequest());
+
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe("ignored");
+      expect(processCircleCardStripeWebhookEventMock).not.toHaveBeenCalled();
+      expect(processStripeWebhookEventMock).not.toHaveBeenCalled();
+      expect(processFounderStripeWebhookEventMock).not.toHaveBeenCalled();
+    }
+  );
+
+  it("returns a retryable failure if proven Circle ownership contradicts its processor", async () => {
+    vi.stubEnv("APP_BRAND", "circle-card");
+    processCircleCardStripeWebhookEventMock.mockResolvedValue(false);
+
+    const response = await POST(webhookRequest());
+
+    expect(response.status).toBe(500);
     expect(processStripeWebhookEventMock).not.toHaveBeenCalled();
     expect(processFounderStripeWebhookEventMock).not.toHaveBeenCalled();
   });

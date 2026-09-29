@@ -591,6 +591,30 @@ describe("subscription service", () => {
     ).resolves.toBe("acquired");
   });
 
+  it("rejects reuse of a Stripe event identity for another event type", async () => {
+    vi.mocked(db.stripeWebhookEvent.create).mockRejectedValueOnce({ code: "P2002" });
+    vi.mocked(db.stripeWebhookEvent.findUnique).mockResolvedValueOnce({
+      id: "evt_identity_conflict",
+      type: "invoice.paid",
+      status: "PROCESSED",
+      processingStartedAt: new Date(),
+      processedAt: new Date(),
+      attemptCount: 1,
+      lastError: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    await expect(
+      acquireWebhookProcessingLease({
+        id: "evt_identity_conflict",
+        type: "customer.subscription.updated"
+      } as Stripe.Event)
+    ).rejects.toThrow("stripe-webhook-event-identity-conflict");
+
+    expect(db.stripeWebhookEvent.updateMany).not.toHaveBeenCalled();
+  });
+
   it("ignores subscription events whose price is not a managed BCN membership price", async () => {
     isKnownManagedMembershipStripePriceIdMock.mockResolvedValueOnce(false);
     pendingRegistrationUpdateMock.mockClear();

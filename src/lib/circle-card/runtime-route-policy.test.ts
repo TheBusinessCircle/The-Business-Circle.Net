@@ -93,6 +93,7 @@ describe("Circle Card customer runtime route policy", () => {
     "/api/circle-card/upload",
     "/api/stripe/circle-card/checkout",
     "/api/stripe/circle-card/portal",
+    "/api/stripe/webhook",
     "/card/example",
     "/r/referral-code",
     "/robots.txt",
@@ -130,7 +131,6 @@ describe("Circle Card customer runtime route policy", () => {
   });
 
   it.each([
-    "/api/stripe/webhook",
     "/api/webhooks/resend/inbound",
     "/api/cron/intelligence-refresh",
     "/api/internal/circle-card/weekly-summary/run",
@@ -162,6 +162,21 @@ describe("Circle Card customer runtime route policy", () => {
       action: "reject",
       status: 404,
       reason: "bcn-process-owned-endpoint"
+    });
+  });
+
+  it.each([
+    "/API/STRIPE/WEBHOOK",
+    "//api//stripe//webhook",
+    "/safe/../api/stripe/webhook",
+    "/api%2Fstripe%2Fwebhook",
+    "/api/stripe/webhook/",
+    "/api\\stripe\\webhook"
+  ])("rejects a non-canonical Circle webhook path %s", (pathname) => {
+    expect(evaluateCustomerRuntimeRoute("circle-card", pathname, "POST")).toEqual({
+      action: "reject",
+      status: 404,
+      reason: "api-not-allowlisted"
     });
   });
 

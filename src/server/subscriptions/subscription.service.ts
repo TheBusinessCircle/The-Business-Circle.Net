@@ -2256,6 +2256,7 @@ export async function acquireWebhookProcessingLease(
       id: event.id
     },
     select: {
+      type: true,
       status: true,
       processingStartedAt: true
     }
@@ -2263,6 +2264,10 @@ export async function acquireWebhookProcessingLease(
 
   if (!existing) {
     return "busy";
+  }
+
+  if (existing.type !== event.type) {
+    throw new Error("stripe-webhook-event-identity-conflict");
   }
 
   if (existing.status === StripeWebhookEventStatus.PROCESSED) {

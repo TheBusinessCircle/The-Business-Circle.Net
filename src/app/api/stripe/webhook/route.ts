@@ -1,8 +1,8 @@
 import { constructStripeWebhookEvent } from "@/server/stripe";
-import { processFounderStripeWebhookEvent } from "@/server/founder";
-import { processStripeWebhookEvent } from "@/server/subscriptions";
 import { processCircleCardStripeWebhookEvent } from "@/server/circle-card";
 import { logServerError } from "@/lib/security/logging";
+import { getRuntimeBrand } from "@/config/runtime-brand";
+import { classifyCircleCardStripeEventOwnership } from "@/server/stripe/circle-card-webhook-ownership";
 
 export const runtime = "nodejs";
 
@@ -34,11 +34,32 @@ export async function POST(request: Request) {
   }
 
   try {
+    if (getRuntimeBrand().key === "circle-card") {
+      const ownership = await classifyCircleCardStripeEventOwnership(event);
+      if (ownership !== "circle-card") {
+        // This endpoint intentionally owns only Circle Card mutations. Acknowledge
+        // signed non-owned/ambiguous events so Stripe does not retry forever; do
+        // not lease the event or invoke any product handler.
+        return new Response("ignored", { status: 200 });
+      }
+
+      const handledByCircleCard = await processCircleCardStripeWebhookEvent(event);
+      if (!handledByCircleCard) {
+        throw new Error("circle-card-webhook-ownership-invariant-failed");
+      }
+      return new Response("ok", { status: 200 });
+    }
+
     const handledByCircleCard = await processCircleCardStripeWebhookEvent(event);
     if (handledByCircleCard) {
       return new Response("ok", { status: 200 });
     }
 
+    const [{ processStripeWebhookEvent }, { processFounderStripeWebhookEvent }] =
+      await Promise.all([
+        import("@/server/subscriptions"),
+        import("@/server/founder")
+      ]);
     await processStripeWebhookEvent(event);
     await processFounderStripeWebhookEvent(event);
   } catch {

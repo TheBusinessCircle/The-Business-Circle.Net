@@ -1546,6 +1546,27 @@ describe("Circle Card billing lifecycle service", () => {
     expect(markProcessedMock).not.toHaveBeenCalled();
   });
 
+  it("does not duplicate referral conversion on a replayed paid invoice", async () => {
+    subscriptionFindUniqueMock.mockResolvedValue(storedRow());
+    referralFindUniqueMock.mockResolvedValue({
+      id: "referral-1",
+      referrerUserId: "referrer-1",
+      convertedToProAt: null
+    });
+    acquireLeaseMock.mockResolvedValueOnce("acquired").mockResolvedValueOnce("processed");
+    const delivered = event("invoice.paid", paidInvoice(), { id: "evt_referral_paid" });
+
+    await expect(processCircleCardStripeWebhookEvent(delivered)).resolves.toBe(true);
+    await expect(processCircleCardStripeWebhookEvent(delivered)).resolves.toBe(true);
+
+    expect(referralUpdateManyMock).toHaveBeenCalledOnce();
+    expect(referralUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ convertedToProAt: null })
+      })
+    );
+  });
+
   it("allows only one concurrent delivery of the same event to mutate lifecycle state", async () => {
     subscriptionFindUniqueMock.mockResolvedValue(storedRow());
     acquireLeaseMock

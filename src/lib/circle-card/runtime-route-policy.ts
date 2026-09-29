@@ -13,7 +13,6 @@ export type RuntimeRouteDecision =
     };
 
 const BCN_PROCESS_OWNED_API_PREFIXES = [
-  "/api/stripe/webhook",
   "/api/webhooks/resend/inbound",
   "/api/cron",
   "/api/internal"
@@ -40,7 +39,8 @@ const CIRCLE_CARD_EXACT_API_PATHS = new Set([
   "/api/circle-card/referral-attribution/signup",
   "/api/circle-card/upload",
   "/api/stripe/circle-card/checkout",
-  "/api/stripe/circle-card/portal"
+  "/api/stripe/circle-card/portal",
+  "/api/stripe/webhook"
 ]);
 
 const CIRCLE_CARD_DYNAMIC_API_PATTERNS = [
