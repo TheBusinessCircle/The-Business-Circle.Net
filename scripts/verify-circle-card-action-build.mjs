@@ -1,7 +1,15 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-const serverRoot = join(process.cwd(), ".next", "server");
+const runtimeDistDir = process.env.NEXT_RUNTIME_DIST_DIR?.trim() || ".next";
+if (runtimeDistDir !== ".next" && runtimeDistDir !== ".runtime/circle-card") {
+  throw new Error("Unexpected Circle Card Next runtime dist dir.");
+}
+if (process.env.APP_BRAND === "circle-card" && runtimeDistDir !== ".runtime/circle-card") {
+  throw new Error("Circle Card production verification requires the Circle runtime dist dir.");
+}
+
+const serverRoot = join(process.cwd(), runtimeDistDir, "server");
 const manifestPath = join(serverRoot, "server-reference-manifest.json");
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 const approvedExports = [
