@@ -117,15 +117,20 @@ export async function POST(request: NextRequest) {
 
   try {
     const payload = await request.json();
-
-    if (
+    const runtimeBrand = getRuntimeAuthenticationBrand().key;
+    const isCircleCardRegistration =
       typeof payload === "object" &&
       payload !== null &&
-      isCircleCardRegistrationSource((payload as { source?: string }).source)
-    ) {
+      isCircleCardRegistrationSource((payload as { source?: string }).source);
+
+    if (runtimeBrand === "circle-card" && !isCircleCardRegistration) {
+      return NextResponse.json({ error: "Not Found" }, { status: 404, headers });
+    }
+
+    if (isCircleCardRegistration) {
       const result = await createCircleCardFreeRegistration(
         payload,
-        getRuntimeAuthenticationBrand().key
+        runtimeBrand
       );
       const response = NextResponse.json(
         {

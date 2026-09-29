@@ -6,7 +6,10 @@ export type RuntimeRouteDecision =
   | {
       action: "reject";
       status: 404;
-      reason: "bcn-customer-surface" | "bcn-process-owned-endpoint";
+      reason:
+        | "bcn-customer-surface"
+        | "bcn-process-owned-endpoint"
+        | "api-not-allowlisted";
     };
 
 const BCN_PROCESS_OWNED_API_PREFIXES = [
@@ -14,6 +17,35 @@ const BCN_PROCESS_OWNED_API_PREFIXES = [
   "/api/webhooks/resend/inbound",
   "/api/cron",
   "/api/internal"
+] as const;
+
+const CIRCLE_CARD_EXACT_API_PATHS = new Set([
+  "/api/analytics/collect",
+  "/api/register",
+  "/api/auth/callback/credentials",
+  "/api/auth/csrf",
+  "/api/auth/error",
+  "/api/auth/forgot-password",
+  "/api/auth/providers",
+  "/api/auth/reset-password",
+  "/api/auth/session",
+  "/api/auth/signin",
+  "/api/auth/signin/credentials",
+  "/api/auth/signout",
+  "/api/auth/verify-email",
+  "/api/circle-card/analytics",
+  "/api/circle-card/business-card-scan",
+  "/api/circle-card/link-access",
+  "/api/circle-card/referral-attribution",
+  "/api/circle-card/referral-attribution/signup",
+  "/api/circle-card/upload",
+  "/api/stripe/circle-card/checkout",
+  "/api/stripe/circle-card/portal"
+]);
+
+const CIRCLE_CARD_DYNAMIC_API_PATTERNS = [
+  /^\/api\/circle-card\/link-file\/[^/]+$/,
+  /^\/api\/circle-card\/public-image\/[^/]+$/
 ] as const;
 
 const CIRCLE_CARD_AUTH_PATHS = new Set([
@@ -55,8 +87,7 @@ const CIRCLE_CARD_PATH_PREFIXES = [
   "/circle-card",
   "/dashboard/circle-card",
   "/card",
-  "/r",
-  "/testimonial"
+  "/r"
 ] as const;
 
 const CIRCLE_CARD_PUBLIC_ASSET_PREFIXES = [
@@ -95,6 +126,25 @@ function normalizePathForOwnership(pathname: string) {
   return `/${segments.join("/")}`.toLowerCase();
 }
 
+function isCanonicalApiPath(pathname: string) {
+  return pathname === normalizePathForOwnership(pathname);
+}
+
+function isApiLikePath(pathname: string) {
+  return startsWithPath(normalizePathForOwnership(pathname), "/api");
+}
+
+function isAllowedCircleCardApiPath(pathname: string) {
+  if (!isCanonicalApiPath(pathname)) {
+    return false;
+  }
+
+  return (
+    CIRCLE_CARD_EXACT_API_PATHS.has(pathname) ||
+    CIRCLE_CARD_DYNAMIC_API_PATTERNS.some((pattern) => pattern.test(pathname))
+  );
+}
+
 export function isBcnProcessOwnedRuntimePath(pathname: string) {
   const normalizedPathname = normalizePathForOwnership(pathname);
   return BCN_PROCESS_OWNED_API_PREFIXES.some((prefix) =>
@@ -123,6 +173,16 @@ export function evaluateCustomerRuntimeRoute(
     };
   }
 
+  if (isApiLikePath(pathname)) {
+    return isAllowedCircleCardApiPath(pathname)
+      ? { action: "allow" }
+      : {
+          action: "reject",
+          status: 404,
+          reason: "api-not-allowlisted"
+        };
+  }
+
   if (BCN_BRANDED_EXACT_PATHS.has(pathname)) {
     return {
       action: "reject",
@@ -132,7 +192,6 @@ export function evaluateCustomerRuntimeRoute(
   }
 
   if (
-    startsWithPath(pathname, "/api") ||
     startsWithPath(pathname, "/_next") ||
     CIRCLE_CARD_AUTH_PATHS.has(pathname) ||
     CIRCLE_CARD_LEGAL_PATHS.has(pathname) ||

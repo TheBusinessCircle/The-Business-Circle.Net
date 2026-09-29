@@ -29,6 +29,22 @@ function restoreEnvironmentValue(name: string, value: string | undefined) {
   process.env[name] = value;
 }
 
+function useCircleCardRuntime() {
+  process.env.APP_BRAND = "circle-card";
+  process.env.APP_URL = "https://circlecard.co.uk";
+  process.env.AUTH_URL = "https://circlecard.co.uk";
+}
+
+function circleCardRequest(pathname: string, method = "GET") {
+  return new NextRequest(`https://circlecard.co.uk${pathname}`, {
+    method,
+    headers: {
+      host: "circlecard.co.uk",
+      "x-forwarded-host": "circlecard.co.uk"
+    }
+  });
+}
+
 describe("middleware runtime host gate", () => {
   beforeEach(() => {
     setNodeEnv("production");
@@ -119,9 +135,7 @@ describe("middleware runtime host gate", () => {
   );
 
   it("rejects BCN-owned jobs on Circle Card before authentication", () => {
-    process.env.APP_BRAND = "circle-card";
-    process.env.APP_URL = "https://circlecard.co.uk";
-    process.env.AUTH_URL = "https://circlecard.co.uk";
+    useCircleCardRuntime();
     const request = new NextRequest(
       "https://circlecard.co.uk/api/internal/circle-card/weekly-summary/run",
       {
@@ -140,9 +154,7 @@ describe("middleware runtime host gate", () => {
   });
 
   it("rejects a BCN-owned local source passed through the image optimiser", () => {
-    process.env.APP_BRAND = "circle-card";
-    process.env.APP_URL = "https://circlecard.co.uk";
-    process.env.AUTH_URL = "https://circlecard.co.uk";
+    useCircleCardRuntime();
     const request = new NextRequest(
       "https://circlecard.co.uk/_next/image?url=%2Fapi%2Finternal%2Fcircle-card%2Fweekly-summary%2Frun&w=64&q=75",
       {
@@ -160,9 +172,7 @@ describe("middleware runtime host gate", () => {
   });
 
   it("uses the trusted Circle Card origin for denied-page redirects behind a proxy", () => {
-    process.env.APP_BRAND = "circle-card";
-    process.env.APP_URL = "https://circlecard.co.uk";
-    process.env.AUTH_URL = "https://circlecard.co.uk";
+    useCircleCardRuntime();
     const request = new NextRequest("http://127.0.0.1:3200/membership", {
       headers: {
         host: "circlecard.co.uk",
@@ -179,9 +189,7 @@ describe("middleware runtime host gate", () => {
   });
 
   it("canonicalizes a safe trailing-slash page from the trusted brand registry", () => {
-    process.env.APP_BRAND = "circle-card";
-    process.env.APP_URL = "https://circlecard.co.uk";
-    process.env.AUTH_URL = "https://circlecard.co.uk";
+    useCircleCardRuntime();
     const request = new NextRequest("https://circlecard.co.uk/pro/?source=smoke", {
       headers: {
         host: "circlecard.co.uk",
@@ -195,6 +203,75 @@ describe("middleware runtime host gate", () => {
     expect(response.headers.get("location")).toBe(
       "https://circlecard.co.uk/pro?source=smoke"
     );
+  });
+
+  it.each([
+    ["GET", "/api/auth/session"],
+    ["GET", "/api/auth/csrf"],
+    ["POST", "/api/auth/callback/credentials"],
+    ["POST", "/api/auth/signout"],
+    ["POST", "/api/register"],
+    ["POST", "/api/analytics/collect"],
+    ["POST", "/api/circle-card/analytics"],
+    ["POST", "/api/circle-card/business-card-scan"],
+    ["POST", "/api/circle-card/link-access"],
+    ["GET", "/api/circle-card/link-file/document.pdf"],
+    ["GET", "/api/circle-card/public-image/profile.png"],
+    ["POST", "/api/circle-card/referral-attribution"],
+    ["POST", "/api/circle-card/referral-attribution/signup"],
+    ["POST", "/api/circle-card/upload"],
+    ["POST", "/api/circle-card/upload?next=%2Fapi%2Fcommunity%2Fposts"],
+    ["POST", "/api/stripe/circle-card/checkout"],
+    ["POST", "/api/stripe/circle-card/portal"]
+  ])("allows the reviewed Circle endpoint %s %s through host enforcement", (method, path) => {
+    useCircleCardRuntime();
+
+    const response = middleware(circleCardRequest(path, method), {} as NextFetchEvent) as Response;
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(authenticatedMiddlewareMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["POST", "/api/community/posts"],
+    ["POST", "/api/channels/general/messages"],
+    ["POST", "/api/messages/threads/thread-1/messages"],
+    ["POST", "/api/calls/room-1/token"],
+    ["GET", "/api/resources"],
+    ["POST", "/api/founder-services/requests"],
+    ["GET", "/api/admin/live-summary"],
+    ["POST", "/api/stripe/checkout"],
+    ["POST", "/api/stripe/webhook"],
+    ["POST", "/api/internal/circle-card/activation-reminders/run"],
+    ["GET", "/API/COMMUNITY/POSTS"],
+    ["POST", "/api/community/posts?next=%2Fapi%2Fcircle-card%2Fupload"]
+  ])("rejects the BCN endpoint %s %s before authentication", (method, path) => {
+    useCircleCardRuntime();
+
+    const response = middleware(circleCardRequest(path, method), {} as NextFetchEvent) as Response;
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get("location")).toBeNull();
+    expect(authenticatedMiddlewareMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the Circle testimonial workspace and redirects the BCN testimonial page", () => {
+    useCircleCardRuntime();
+
+    const circleResponse = middleware(
+      circleCardRequest("/app/testimonial"),
+      {} as NextFetchEvent
+    );
+    const legacyResponse = middleware(
+      circleCardRequest("/testimonial"),
+      {} as NextFetchEvent
+    ) as Response;
+
+    expect(circleResponse).toBeUndefined();
+    expect(authenticatedMiddlewareMock).toHaveBeenCalledOnce();
+    expect(legacyResponse.status).toBe(307);
+    expect(legacyResponse.headers.get("location")).toBe("https://circlecard.co.uk/");
   });
 
   it.each([

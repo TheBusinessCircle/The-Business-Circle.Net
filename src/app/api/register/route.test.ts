@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { TERMS_LABEL, TERMS_VERSION } from "@/config/legal";
 
@@ -71,6 +71,10 @@ describe("register route", () => {
       attributed: false,
       reason: "missing-referrer"
     });
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("returns a clear validation error when Terms are not accepted", async () => {
@@ -234,6 +238,76 @@ describe("register route", () => {
     );
     expect(createPendingRegistrationMock).not.toHaveBeenCalled();
     expect(createStripeCheckoutSessionForPendingRegistrationMock).not.toHaveBeenCalled();
+  });
+
+  it("allows only Circle Card registration on the Circle runtime", async () => {
+    vi.stubEnv("APP_BRAND", "circle-card");
+    createCircleCardFreeRegistrationMock.mockResolvedValueOnce({
+      user: {
+        id: "user_circle_runtime",
+        email: "circle-runtime@example.com",
+        name: "Circle Runtime User"
+      },
+      redirectTo: "/app/onboarding"
+    });
+
+    const response = await POST(
+      new NextRequest("https://circlecard.co.uk/api/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "https://circlecard.co.uk"
+        },
+        body: JSON.stringify({
+          source: "circle-card",
+          name: "Circle Runtime User",
+          email: "circle-runtime@example.com",
+          password: "ValidPassword1!",
+          acceptedTerms: true,
+          minimumAgeConfirmed: true
+        })
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(createCircleCardFreeRegistrationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ source: "circle-card" }),
+      "circle-card"
+    );
+    expect(createPendingRegistrationMock).not.toHaveBeenCalled();
+    expect(createStripeCheckoutSessionForPendingRegistrationMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["missing source", {}],
+    ["explicit BCN source", { source: "bcn" }],
+    ["stored spin source", { source: "circle-card-spin" }],
+    ["case variation", { source: "CIRCLE-CARD" }],
+    ["whitespace variation", { source: "circle-card " }],
+    ["null payload", null]
+  ])("rejects the BCN registration branch on Circle runtime for %s", async (_label, body) => {
+    vi.stubEnv("APP_BRAND", "circle-card");
+
+    const response = await POST(
+      new NextRequest(
+        "https://circlecard.co.uk/api/register?source=circle-card&next=%2Fmembership",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Origin: "https://circlecard.co.uk"
+          },
+          body: JSON.stringify(body)
+        }
+      )
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ error: "Not Found" });
+    expect(createCircleCardFreeRegistrationMock).not.toHaveBeenCalled();
+    expect(createPendingRegistrationMock).not.toHaveBeenCalled();
+    expect(createStripeCheckoutSessionForPendingRegistrationMock).not.toHaveBeenCalled();
+    expect(getBillingConfigurationErrorMessageMock).not.toHaveBeenCalled();
   });
 
   it("uses a source-card fallback when the Spin cookie write has not completed", async () => {

@@ -31,6 +31,22 @@ describe("Circle Card customer runtime route policy", () => {
     expect(evaluateCustomerRuntimeRoute("circle-card", pathname)).toEqual({ action: "allow" });
   });
 
+  it("keeps the Circle testimonial workspace but rejects the legacy BCN testimonial page", () => {
+    expect(evaluateCustomerRuntimeRoute("circle-card", "/app/testimonial")).toEqual({
+      action: "allow"
+    });
+    expect(evaluateCustomerRuntimeRoute("circle-card", "/testimonial")).toEqual({
+      action: "redirect",
+      destination: "/",
+      reason: "bcn-customer-surface"
+    });
+    expect(evaluateCustomerRuntimeRoute("circle-card", "/testimonial", "POST")).toEqual({
+      action: "reject",
+      status: 404,
+      reason: "bcn-customer-surface"
+    });
+  });
+
   it.each([
     "/admin",
     "/community",
@@ -55,9 +71,28 @@ describe("Circle Card customer runtime route policy", () => {
     "/forgot-password",
     "/reset-password",
     "/api/auth/session",
+    "/api/auth/csrf",
+    "/api/auth/providers",
+    "/api/auth/signin",
+    "/api/auth/signin/credentials",
+    "/api/auth/signout",
+    "/api/auth/error",
+    "/api/auth/forgot-password",
+    "/api/auth/reset-password",
     "/api/auth/verify-email",
-    "/api/circle-card/cards",
     "/api/auth/callback/credentials",
+    "/api/analytics/collect",
+    "/api/register",
+    "/api/circle-card/analytics",
+    "/api/circle-card/business-card-scan",
+    "/api/circle-card/link-access",
+    "/api/circle-card/link-file/1700000000000-deadbeef.pdf",
+    "/api/circle-card/public-image/user-profile-photo-1700000000000-deadbeef.png",
+    "/api/circle-card/referral-attribution",
+    "/api/circle-card/referral-attribution/signup",
+    "/api/circle-card/upload",
+    "/api/stripe/circle-card/checkout",
+    "/api/stripe/circle-card/portal",
     "/card/example",
     "/r/referral-code",
     "/robots.txt",
@@ -65,6 +100,33 @@ describe("Circle Card customer runtime route policy", () => {
     "/circle-card-icon-192.png"
   ])("keeps required auth, API and public card path %s reachable", (pathname) => {
     expect(evaluateCustomerRuntimeRoute("circle-card", pathname)).toEqual({ action: "allow" });
+  });
+
+  it.each([
+    "/api/admin/live-summary",
+    "/api/community/posts/post-1",
+    "/api/community/realtime/token",
+    "/api/channels/general/messages",
+    "/api/messages/requests",
+    "/api/messages/threads/thread-1/messages",
+    "/api/calls/room-1/token",
+    "/api/intelligence/preview-image",
+    "/api/founder-services/requests",
+    "/api/profile",
+    "/api/contact",
+    "/api/register/status",
+    "/api/auth/not-a-reviewed-route",
+    "/api/stripe/checkout",
+    "/api/stripe/portal",
+    "/api/testimonials/google-intent",
+    "/api/wins/attachments/attachment-1",
+    "/api/circle-card/not-a-reviewed-route"
+  ])("rejects the non-allowlisted API %s on the Circle runtime", (pathname) => {
+    expect(evaluateCustomerRuntimeRoute("circle-card", pathname, "POST")).toEqual({
+      action: "reject",
+      status: 404,
+      reason: "api-not-allowlisted"
+    });
   });
 
   it.each([
@@ -103,10 +165,42 @@ describe("Circle Card customer runtime route policy", () => {
     });
   });
 
-  it("keeps extension-ending shared APIs reachable without weakening job ownership", () => {
+  it("does not allow unreviewed extension-ending Circle namespace APIs", () => {
     expect(
       evaluateCustomerRuntimeRoute("circle-card", "/api/circle-card/export.csv", "GET")
-    ).toEqual({ action: "allow" });
+    ).toEqual({
+      action: "reject",
+      status: 404,
+      reason: "api-not-allowlisted"
+    });
+  });
+
+  it.each([
+    "/API/CIRCLE-CARD/UPLOAD",
+    "//api//circle-card//upload",
+    "/api/circle-card/../community/posts",
+    "/api%2Fcircle-card%2Fupload",
+    "/api%252Fcircle-card%252Fupload",
+    "/api\\circle-card\\upload",
+    "/api/circle-card/upload/",
+    "/api/circle-card/upload?next=/api/community/posts"
+  ])("fails closed for malformed or non-canonical API path %s", (pathname) => {
+    expect(evaluateCustomerRuntimeRoute("circle-card", pathname, "POST").action).toBe(
+      "reject"
+    );
+  });
+
+  it.each([
+    "/api/circle-card/link-file",
+    "/api/circle-card/link-file/one/two.pdf",
+    "/api/circle-card/public-image",
+    "/api/circle-card/public-image/one/two.png"
+  ])("rejects paths outside the reviewed dynamic Circle route shape: %s", (pathname) => {
+    expect(evaluateCustomerRuntimeRoute("circle-card", pathname)).toEqual({
+      action: "reject",
+      status: 404,
+      reason: "api-not-allowlisted"
+    });
   });
 
   it.each(["/manifest.webmanifest", "/opengraph-image"])(
@@ -148,8 +242,21 @@ describe("Circle Card customer runtime route policy", () => {
     }
   );
 
-  it("continues to allow shared API mutations for endpoint-level authorisation", () => {
-    expect(evaluateCustomerRuntimeRoute("circle-card", "/api/circle-card/cards", "POST"))
+  it.each(["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])(
+    "rejects non-allowlisted API routes for the alternate method %s",
+    (method) => {
+      expect(
+        evaluateCustomerRuntimeRoute("circle-card", "/api/community/posts/post-1", method)
+      ).toEqual({
+        action: "reject",
+        status: 404,
+        reason: "api-not-allowlisted"
+      });
+    }
+  );
+
+  it("continues to allow reviewed Circle API mutations for endpoint-level authorisation", () => {
+    expect(evaluateCustomerRuntimeRoute("circle-card", "/api/circle-card/upload", "POST"))
       .toEqual({ action: "allow" });
   });
 });
