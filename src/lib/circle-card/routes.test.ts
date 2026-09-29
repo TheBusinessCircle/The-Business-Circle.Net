@@ -71,6 +71,7 @@ describe("Circle Card runtime routes", () => {
     "/admin",
     "/membership",
     "/messages",
+    "/testimonial",
     "//attacker.example",
     "https://attacker.example",
     "/%2f%2fattacker.example",

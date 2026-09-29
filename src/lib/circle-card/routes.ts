@@ -122,7 +122,7 @@ export function resolveCircleCardAuthReturnPath(
     "/teams",
     "/community-standards"
   ]);
-  const allowedPrefixes = ["/app", "/card", "/r", "/testimonial"];
+  const allowedPrefixes = ["/app", "/card", "/r"];
   const allowed =
     allowedExactPaths.has(pathname) ||
     allowedPrefixes.some(

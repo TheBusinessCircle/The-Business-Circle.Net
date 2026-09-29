@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { buildAuthProviders } from "@/lib/auth/providers";
 import { safeAuthLogger } from "@/lib/auth/logger";
 import { normalizeEmail } from "@/lib/auth/utils";
+import { resolveRuntimeAuthenticationRedirect } from "@/lib/auth/redirect";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
 const authSecret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
 
@@ -30,6 +31,7 @@ export const authConfig = {
   },
   providers: buildAuthProviders(),
   callbacks: {
+    redirect: resolveRuntimeAuthenticationRedirect,
     async signIn({ user, account }) {
       const dbUser = user.id
         ? await prisma.user.findUnique({
