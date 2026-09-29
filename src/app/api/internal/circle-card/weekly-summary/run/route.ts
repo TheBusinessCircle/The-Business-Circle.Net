@@ -1,38 +1,28 @@
 import { NextResponse } from "next/server";
-import { isAuthorizedInternalAutomationRequest } from "@/lib/internal-route-auth";
+import { authorizeCircleCardSchedulerRequest } from "@/lib/circle-card/scheduler-auth";
+import { logServerError } from "@/lib/security/logging";
 import { sendDueCircleCardWeeklySummaries } from "@/server/circle-card/activation.service";
 
-function isAuthorized(request: Request) {
-  const cronSecret = process.env.CRON_SECRET?.trim();
-  const circleCardSecret = process.env.CIRCLE_CARD_ACTIVATION_SECRET?.trim();
+export const runtime = "nodejs";
 
-  if (!cronSecret && !circleCardSecret) {
-    return false;
+export async function POST(request: Request) {
+  const authorization = authorizeCircleCardSchedulerRequest(request);
+  if (authorization === "invalid-runtime-brand") {
+    return NextResponse.json({ ok: false, error: "Not found." }, { status: 404 });
   }
-
-  return isAuthorizedInternalAutomationRequest(request, {
-    bearerSecrets: [cronSecret ?? "", circleCardSecret ?? ""],
-    headerSecrets: circleCardSecret
-      ? [
-          {
-            headerName: "x-circle-card-secret",
-            secret: circleCardSecret
-          }
-        ]
-      : [],
-    allowQuerySecret: true
-  });
-}
-
-async function runWeeklySummaries(request: Request) {
-  if (!isAuthorized(request)) {
+  if (authorization === "not-configured") {
+    return NextResponse.json(
+      { ok: false, error: "Circle Card scheduler is not configured." },
+      { status: 503 }
+    );
+  }
+  if (authorization !== "authorized") {
     return NextResponse.json(
       {
         ok: false,
         authorized: false,
         status: "unauthorized",
-        error: "Unauthorized.",
-        message: "Provide CRON_SECRET via Bearer token, supported header, or ?secret= query parameter."
+        error: "Unauthorized."
       },
       { status: 401 }
     );
@@ -41,20 +31,25 @@ async function runWeeklySummaries(request: Request) {
   const url = new URL(request.url);
   const limitParam = Number.parseInt(url.searchParams.get("limit") ?? "", 10);
   const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 100) : 50;
-  const result = await sendDueCircleCardWeeklySummaries({ limit });
-
-  return NextResponse.json({
-    ok: true,
-    authorized: true,
-    status: "completed",
-    ...result
-  });
-}
-
-export async function GET(request: Request) {
-  return runWeeklySummaries(request);
-}
-
-export async function POST(request: Request) {
-  return runWeeklySummaries(request);
+  try {
+    const result = await sendDueCircleCardWeeklySummaries({ limit });
+    if (result.failed > 0) {
+      return NextResponse.json(
+        { ok: false, authorized: true, status: "partial-failure", ...result },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({
+      ok: true,
+      authorized: true,
+      status: "completed",
+      ...result
+    });
+  } catch {
+    logServerError(
+      "circle-card-weekly-summary-job-failed",
+      new Error("Circle Card weekly summary job failed.")
+    );
+    return NextResponse.json({ ok: false, error: "Job failed." }, { status: 500 });
+  }
 }

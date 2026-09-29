@@ -133,8 +133,6 @@ describe("Circle Card customer runtime route policy", () => {
   it.each([
     "/api/webhooks/resend/inbound",
     "/api/cron/intelligence-refresh",
-    "/api/internal/circle-card/weekly-summary/run",
-    "/api/internal/circle-card/activation-reminders/run",
     "/api/internal/community/prompts/run",
     "/api/internal/resources/publish/run"
   ])("reserves BCN-owned endpoint %s for the BCN process", (pathname) => {
@@ -149,13 +147,37 @@ describe("Circle Card customer runtime route policy", () => {
   });
 
   it.each([
+    "/api/internal/circle-card/activation-reminders/run",
+    "/api/internal/circle-card/weekly-summary/run"
+  ])("allows only POST for the reviewed Circle scheduler endpoint %s", (pathname) => {
+    expect(evaluateCustomerRuntimeRoute("circle-card", pathname, "POST")).toEqual({
+      action: "allow"
+    });
+
+    for (const method of ["GET", "HEAD", "PUT", "PATCH", "DELETE", "OPTIONS"]) {
+      expect(evaluateCustomerRuntimeRoute("circle-card", pathname, method)).toEqual({
+        action: "reject",
+        status: 404,
+        reason: "api-not-allowlisted"
+      });
+    }
+
+    expect(evaluateCustomerRuntimeRoute("bcn", pathname, "POST")).toEqual({
+      action: "reject",
+      status: 404,
+      reason: "api-not-allowlisted"
+    });
+  });
+
+  it.each([
     "/API/INTERNAL/circle-card/weekly-summary/run",
     "//api//internal//circle-card/weekly-summary/run",
     "/safe/../api/internal/circle-card/weekly-summary/run",
     "/api%2Finternal%2Fcircle-card%2Fweekly-summary%2Frun",
     "/api%252Finternal%252Fcircle-card%252Fweekly-summary%252Frun",
     "/api\\internal\\circle-card\\weekly-summary\\run",
-    "/api/cron/../internal/circle-card/weekly-summary/run/"
+    "/api/cron/../internal/circle-card/weekly-summary/run/",
+    "/api/internal/circle-card/weekly-summary/run/unexpected"
   ])("normalizes disguised BCN-owned endpoint %s before ownership checks", (pathname) => {
     expect(isBcnProcessOwnedRuntimePath(pathname)).toBe(true);
     expect(evaluateCustomerRuntimeRoute("circle-card", pathname, "POST")).toEqual({

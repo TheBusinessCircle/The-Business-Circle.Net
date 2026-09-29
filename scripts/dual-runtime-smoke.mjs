@@ -345,11 +345,9 @@ async function expectResponse(input) {
 }
 
 function smokeChecks() {
-  const circleOwnedPaths = [
-    "/api/stripe/webhook",
+  const bcnOwnedPaths = [
     "/api/webhooks/resend/inbound",
-    "/api/cron/intelligence-refresh",
-    "/api/internal/circle-card/weekly-summary/run"
+    "/api/cron/intelligence-refresh"
   ];
   const deniedMethods = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"];
 
@@ -366,7 +364,7 @@ function smokeChecks() {
     { name: "BCN legal canonical", port: bcnPort, host: "thebusinesscircle.net", path: "/privacy-policy", statuses: [200], contains: "https://thebusinesscircle.net/privacy-policy", notContains: "https://circlecard.co.uk/privacy-policy" },
     { name: "BCN webhook remains present", port: bcnPort, host: "thebusinesscircle.net", path: "/api/stripe/webhook", method: "POST", statuses: [400] },
     { name: "BCN cron remains credential protected", port: bcnPort, host: "thebusinesscircle.net", path: "/api/cron/intelligence-refresh", statuses: [401] },
-    { name: "BCN internal route remains credential protected", port: bcnPort, host: "thebusinesscircle.net", path: "/api/internal/circle-card/weekly-summary/run", statuses: [401] },
+    { name: "BCN cannot own the Circle weekly scheduler route", port: bcnPort, host: "thebusinesscircle.net", path: "/api/internal/circle-card/weekly-summary/run", method: "POST", statuses: [404] },
     { name: "BCN inbound webhook remains signature protected", port: bcnPort, host: "thebusinesscircle.net", path: "/api/webhooks/resend/inbound", method: "POST", statuses: [400] },
     { name: "Circle Card home", port: circleCardPort, host: "circlecard.co.uk", path: "/", statuses: [200], contains: "Circle Card" },
     { name: "Circle Card Pro", port: circleCardPort, host: "circlecard.co.uk", path: "/pro", statuses: [200], contains: "Circle Card Pro" },
@@ -393,7 +391,14 @@ function smokeChecks() {
     { name: "Circle Card denies BCN page HEAD", port: circleCardPort, host: "circlecard.co.uk", path: "/membership", method: "HEAD", statuses: [307], location: "https://circlecard.co.uk/" },
     { name: "Circle Card denies BCN dashboard", port: circleCardPort, host: "circlecard.co.uk", path: "/dashboard", statuses: [307], location: "https://circlecard.co.uk/" },
     ...["POST", "PUT", "PATCH", "DELETE"].map((method) => ({ name: `Circle Card denies BCN ${method}`, port: circleCardPort, host: "circlecard.co.uk", path: "/membership", method, statuses: [404] })),
-    ...circleOwnedPaths.flatMap((path) => deniedMethods.map((method) => ({ name: `Circle Card denies ${method} ${path}`, port: circleCardPort, host: "circlecard.co.uk", path, method, statuses: [404] }))),
+    { name: "Circle Card webhook remains signature protected", port: circleCardPort, host: "circlecard.co.uk", path: "/api/stripe/webhook", method: "POST", statuses: [400] },
+    { name: "Circle Card activation scheduler remains credential protected", port: circleCardPort, host: "circlecard.co.uk", path: "/api/internal/circle-card/activation-reminders/run", method: "POST", statuses: [401, 503] },
+    { name: "Circle Card weekly scheduler remains credential protected", port: circleCardPort, host: "circlecard.co.uk", path: "/api/internal/circle-card/weekly-summary/run", method: "POST", statuses: [401, 503] },
+    ...["GET", "HEAD", "PUT", "PATCH", "DELETE", "OPTIONS"].flatMap((method) => [
+      { name: `Circle Card denies ${method} activation scheduler`, port: circleCardPort, host: "circlecard.co.uk", path: "/api/internal/circle-card/activation-reminders/run", method, statuses: [404] },
+      { name: `Circle Card denies ${method} weekly scheduler`, port: circleCardPort, host: "circlecard.co.uk", path: "/api/internal/circle-card/weekly-summary/run", method, statuses: [404] }
+    ]),
+    ...bcnOwnedPaths.flatMap((path) => deniedMethods.map((method) => ({ name: `Circle Card denies ${method} ${path}`, port: circleCardPort, host: "circlecard.co.uk", path, method, statuses: [404] }))),
     { name: "Circle Card denies trailing-slash webhook", port: circleCardPort, host: "circlecard.co.uk", path: "/api/stripe/webhook/", method: "POST", statuses: [404] },
     { name: "Next normalizes duplicate-slash owner route before application logic", port: circleCardPort, host: "circlecard.co.uk", path: "//api//internal//circle-card//weekly-summary//run", method: "POST", statuses: [308] },
     { name: "Circle Card denies encoded internal route", port: circleCardPort, host: "circlecard.co.uk", path: "/api%2Finternal%2Fcircle-card%2Fweekly-summary%2Frun", method: "POST", statuses: [400, 404] },

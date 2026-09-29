@@ -67,6 +67,18 @@ function bcnRuntimeFixture(): NodeJS.ProcessEnv {
   };
 }
 
+function circleCardRuntimeFixture(): NodeJS.ProcessEnv {
+  return {
+    ...bcnRuntimeFixture(),
+    APP_BRAND: "circle-card",
+    APP_URL: "https://circlecard.co.uk",
+    AUTH_URL: "https://circlecard.co.uk",
+    NEXTAUTH_URL: "https://circlecard.co.uk",
+    NEXT_RUNTIME_DIST_DIR: ".runtime/circle-card",
+    CIRCLE_CARD_SCHEDULER_SECRET: `local-contract-circle-scheduler-${ZERO_CREDENTIAL}`
+  };
+}
+
 describe("production environment validation boundaries", () => {
   it("validates the BCN runtime without tooling-only variables", () => {
     const environment = bcnRuntimeFixture();
@@ -87,6 +99,18 @@ describe("production environment validation boundaries", () => {
     };
 
     expect(validateProductionRuntimeEnvironment(environment)).toEqual([]);
+  });
+
+  it("requires a strong Circle-owned scheduler credential on the Circle runtime", () => {
+    expect(validateProductionRuntimeEnvironment(circleCardRuntimeFixture())).toEqual([]);
+
+    const missing = circleCardRuntimeFixture();
+    delete missing.CIRCLE_CARD_SCHEDULER_SECRET;
+    expect(validateProductionRuntimeEnvironment(missing)).toContainEqual({
+      severity: "error",
+      message:
+        "CIRCLE_CARD_SCHEDULER_SECRET is required and must be strong on the Circle Card runtime."
+    });
   });
 
   it("requires tooling values only in the explicit tooling context", () => {

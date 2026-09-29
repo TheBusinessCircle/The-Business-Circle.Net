@@ -5325,7 +5325,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     platformOwnerDiagnostics,
     appUrlConfigured: Boolean(process.env.APP_URL?.trim()),
     nextAuthUrlConfigured: Boolean(process.env.NEXTAUTH_URL?.trim()),
-    cronSecretConfigured: Boolean(process.env.CRON_SECRET?.trim()),
+    cronSecretConfigured: Boolean(process.env.CIRCLE_CARD_SCHEDULER_SECRET?.trim()),
     resendConfigured: Boolean(
       process.env.CIRCLE_CARD_RESEND_API_KEY?.trim() &&
       process.env.CIRCLE_CARD_RESEND_FROM_EMAIL?.trim() &&
@@ -5346,7 +5346,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
   const platformOwnerPerformanceInspector = buildCircleCardPlatformOwnerPerformanceInspector({
     appUrlConfigured: Boolean(process.env.APP_URL?.trim()),
     nextAuthUrlConfigured: Boolean(process.env.NEXTAUTH_URL?.trim()),
-    cronSecretConfigured: Boolean(process.env.CRON_SECRET?.trim()),
+    cronSecretConfigured: Boolean(process.env.CIRCLE_CARD_SCHEDULER_SECRET?.trim()),
     resendConfigured: Boolean(
       process.env.CIRCLE_CARD_RESEND_API_KEY?.trim() &&
       process.env.CIRCLE_CARD_RESEND_FROM_EMAIL?.trim() &&

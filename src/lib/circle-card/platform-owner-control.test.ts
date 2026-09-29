@@ -228,7 +228,8 @@ describe("Circle Card platform owner control centre", () => {
     expect(inspector).toHaveLength(3);
     expect(performanceGroup?.items.find((item) => item.id === "weekly-email-runner-status")).toMatchObject({
       status: "warning",
-      message: "Weekly email route exists, but CRON_SECRET and/or Resend config is missing."
+      message:
+        "Weekly email route exists, but CIRCLE_CARD_SCHEDULER_SECRET and/or Resend config is missing."
     });
     expect(healthGroup?.items.find((item) => item.id === "circle-card-billing-flag")).toMatchObject({
       status: "not-active",

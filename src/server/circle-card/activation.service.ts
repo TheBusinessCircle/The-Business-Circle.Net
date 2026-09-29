@@ -356,6 +356,7 @@ export async function sendDueCircleCardActivationReminders(input: { limit?: numb
   let sent = 0;
   let skipped = 0;
   let completed = 0;
+  let failed = 0;
 
   for (const lead of leads) {
     const stage = nextDueReminderStage(lead.createdAt, lead.metadata, now);
@@ -421,6 +422,7 @@ export async function sendDueCircleCardActivationReminders(input: { limit?: numb
       });
     } else {
       skipped += 1;
+      failed += 1;
       if (!result.skipped) {
         logServerWarning("circle-card-activation-reminder-email-failed", {
           reason: result.reason
@@ -433,7 +435,8 @@ export async function sendDueCircleCardActivationReminders(input: { limit?: numb
     checked: leads.length,
     sent,
     skipped,
-    completed
+    completed,
+    failed
   };
 }
 
@@ -637,6 +640,7 @@ export async function sendDueCircleCardWeeklySummaries(input: { limit?: number }
   let checked = 0;
   let sent = 0;
   let skipped = 0;
+  let failed = 0;
 
   for (const lead of leads) {
     if (!lead.userId || seenUserIds.has(lead.userId)) {
@@ -668,6 +672,7 @@ export async function sendDueCircleCardWeeklySummaries(input: { limit?: number }
 
     if (!result.sent) {
       skipped += 1;
+      failed += 1;
       if (!result.skipped) {
         logServerWarning("circle-card-weekly-summary-email-failed", {
           reason: result.reason
@@ -708,7 +713,8 @@ export async function sendDueCircleCardWeeklySummaries(input: { limit?: number }
     weekKey,
     checked,
     sent,
-    skipped
+    skipped,
+    failed
   };
 }
 

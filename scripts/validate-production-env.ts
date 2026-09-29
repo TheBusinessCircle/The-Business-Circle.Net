@@ -231,6 +231,7 @@ export function validateProductionRuntimeEnvironment(
   const communityAutomationEnabled = env("BCN_COMMUNITY_AUTOMATION_ENABLED").toLowerCase() !== "false";
   const communityAutomationSecret = env("COMMUNITY_AUTOMATION_SECRET");
   const cronSecret = env("CRON_SECRET");
+  const circleCardSchedulerSecret = env("CIRCLE_CARD_SCHEDULER_SECRET");
   const resendWebhookSecret = env("RESEND_WEBHOOK_SECRET");
   const inboundEmailForwardTo = env("INBOUND_EMAIL_FORWARD_TO");
   const automationAuthorId = env("COMMUNITY_AUTOMATION_AUTHOR_ID");
@@ -328,6 +329,14 @@ export function validateProductionRuntimeEnvironment(
         );
       }
     }
+  }
+
+  if (runtimeBrandKey === "circle-card" && !isStrongValue(circleCardSchedulerSecret)) {
+    addIssue(
+      issues,
+      "error",
+      "CIRCLE_CARD_SCHEDULER_SECRET is required and must be strong on the Circle Card runtime."
+    );
   }
 
   const posthogConfigured = Boolean(posthogKey || posthogHost);

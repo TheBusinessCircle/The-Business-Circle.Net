@@ -134,7 +134,7 @@ describe("middleware runtime host gate", () => {
     }
   );
 
-  it("rejects BCN-owned jobs on Circle Card before authentication", () => {
+  it("allows the exact Circle scheduler endpoint through to route authentication", () => {
     useCircleCardRuntime();
     const request = new NextRequest(
       "https://circlecard.co.uk/api/internal/circle-card/weekly-summary/run",
@@ -149,7 +149,8 @@ describe("middleware runtime host gate", () => {
 
     const response = middleware(request, {} as NextFetchEvent) as Response;
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-middleware-next")).toBe("1");
     expect(authenticatedMiddlewareMock).not.toHaveBeenCalled();
   });
 
@@ -223,7 +224,9 @@ describe("middleware runtime host gate", () => {
     ["POST", "/api/circle-card/upload?next=%2Fapi%2Fcommunity%2Fposts"],
     ["POST", "/api/stripe/circle-card/checkout"],
     ["POST", "/api/stripe/circle-card/portal"],
-    ["POST", "/api/stripe/webhook"]
+    ["POST", "/api/stripe/webhook"],
+    ["POST", "/api/internal/circle-card/activation-reminders/run"],
+    ["POST", "/api/internal/circle-card/weekly-summary/run"]
   ])("allows the reviewed Circle endpoint %s %s through host enforcement", (method, path) => {
     useCircleCardRuntime();
 
@@ -243,7 +246,7 @@ describe("middleware runtime host gate", () => {
     ["POST", "/api/founder-services/requests"],
     ["GET", "/api/admin/live-summary"],
     ["POST", "/api/stripe/checkout"],
-    ["POST", "/api/internal/circle-card/activation-reminders/run"],
+    ["POST", "/api/internal/community/prompts/run"],
     ["GET", "/API/COMMUNITY/POSTS"],
     ["POST", "/api/community/posts?next=%2Fapi%2Fcircle-card%2Fupload"]
   ])("rejects the BCN endpoint %s %s before authentication", (method, path) => {

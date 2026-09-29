@@ -543,8 +543,8 @@ export function buildCircleCardPlatformOwnerLaunchChecklist(
           status: input.cronSecretConfigured && input.resendConfigured ? "ready" : "attention",
           message:
             input.cronSecretConfigured && input.resendConfigured
-              ? "Weekly summary route has CRON_SECRET and Resend email configuration."
-              : "Weekly emails need CRON_SECRET, CIRCLE_CARD_RESEND_API_KEY and the Circle Card Resend identity variables."
+              ? "Weekly summary route has Circle scheduler and Resend email configuration."
+              : "Weekly emails need CIRCLE_CARD_SCHEDULER_SECRET, CIRCLE_CARD_RESEND_API_KEY and the Circle Card Resend identity variables."
         },
         {
           id: "referral-engine",
@@ -723,7 +723,7 @@ export function buildCircleCardPlatformOwnerPerformanceInspector(
           status: weeklyEmailReady ? "good" : "warning",
           message: weeklyEmailReady
             ? "Weekly email route has cron and email configuration."
-            : "Weekly email route exists, but CRON_SECRET and/or Resend config is missing."
+            : "Weekly email route exists, but CIRCLE_CARD_SCHEDULER_SECRET and/or Resend config is missing."
         },
         {
           id: "pwa-manifest-status",
@@ -772,10 +772,10 @@ export function buildCircleCardPlatformOwnerPerformanceInspector(
           message: envMessage("NEXTAUTH_URL", input.nextAuthUrlConfigured)
         },
         {
-          id: "cron-secret",
-          label: "CRON_SECRET configured",
+          id: "circle-scheduler-secret",
+          label: "CIRCLE_CARD_SCHEDULER_SECRET configured",
           status: envStatus(input.cronSecretConfigured),
-          message: envMessage("CRON_SECRET", input.cronSecretConfigured)
+          message: envMessage("CIRCLE_CARD_SCHEDULER_SECRET", input.cronSecretConfigured)
         },
         {
           id: "resend",

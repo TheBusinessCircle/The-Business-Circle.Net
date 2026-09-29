@@ -43,6 +43,11 @@ const CIRCLE_CARD_EXACT_API_PATHS = new Set([
   "/api/stripe/webhook"
 ]);
 
+const CIRCLE_CARD_SCHEDULER_API_PATHS = new Set([
+  "/api/internal/circle-card/activation-reminders/run",
+  "/api/internal/circle-card/weekly-summary/run"
+]);
+
 const CIRCLE_CARD_DYNAMIC_API_PATTERNS = [
   /^\/api\/circle-card\/link-file\/[^/]+$/,
   /^\/api\/circle-card\/public-image\/[^/]+$/
@@ -161,6 +166,19 @@ export function evaluateCustomerRuntimeRoute(
   pathname: string,
   method = "GET"
 ): RuntimeRouteDecision {
+  if (
+    CIRCLE_CARD_SCHEDULER_API_PATHS.has(pathname) &&
+    isCanonicalApiPath(pathname)
+  ) {
+    return runtimeBrand === "circle-card" && method.toUpperCase() === "POST"
+      ? { action: "allow" }
+      : {
+          action: "reject",
+          status: 404,
+          reason: "api-not-allowlisted"
+        };
+  }
+
   if (runtimeBrand === "bcn") {
     return { action: "allow" };
   }

@@ -1,45 +1,39 @@
 import { NextResponse } from "next/server";
-import { isAuthorizedInternalAutomationRequest } from "@/lib/internal-route-auth";
+import { authorizeCircleCardSchedulerRequest } from "@/lib/circle-card/scheduler-auth";
+import { logServerError } from "@/lib/security/logging";
 import { sendDueCircleCardActivationReminders } from "@/server/circle-card";
 
 export const runtime = "nodejs";
 
-function isAuthorized(request: Request) {
-  const cronSecret = process.env.CRON_SECRET?.trim();
-
-  if (!cronSecret) {
-    return false;
+export async function POST(request: Request) {
+  const authorization = authorizeCircleCardSchedulerRequest(request);
+  if (authorization === "invalid-runtime-brand") {
+    return NextResponse.json({ ok: false, error: "Not found." }, { status: 404 });
   }
-
-  return isAuthorizedInternalAutomationRequest(request, {
-    bearerSecrets: [cronSecret],
-    headerSecrets: [
-      {
-        headerName: "x-cron-secret",
-        secret: cronSecret
-      }
-    ],
-    allowQuerySecret: true
-  });
-}
-
-async function run(request: Request) {
-  if (!isAuthorized(request)) {
+  if (authorization === "not-configured") {
+    return NextResponse.json(
+      { ok: false, error: "Circle Card scheduler is not configured." },
+      { status: 503 }
+    );
+  }
+  if (authorization !== "authorized") {
     return NextResponse.json({ ok: false, error: "Unauthorized." }, { status: 401 });
   }
 
-  const result = await sendDueCircleCardActivationReminders();
-
-  return NextResponse.json({
-    ok: true,
-    ...result
-  });
-}
-
-export async function GET(request: Request) {
-  return run(request);
-}
-
-export async function POST(request: Request) {
-  return run(request);
+  try {
+    const result = await sendDueCircleCardActivationReminders();
+    if (result.failed > 0) {
+      return NextResponse.json(
+        { ok: false, status: "partial-failure", ...result },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({ ok: true, ...result });
+  } catch {
+    logServerError(
+      "circle-card-activation-reminder-job-failed",
+      new Error("Circle Card activation reminder job failed.")
+    );
+    return NextResponse.json({ ok: false, error: "Job failed." }, { status: 500 });
+  }
 }
