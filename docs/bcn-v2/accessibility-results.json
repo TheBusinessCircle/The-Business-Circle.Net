@@ -1,0 +1,22 @@
+[
+  {
+    "path": "/",
+    "violations": []
+  },
+  {
+    "path": "/tools/job-pricing-calculator",
+    "violations": []
+  },
+  {
+    "path": "/find-help",
+    "violations": []
+  },
+  {
+    "path": "/login",
+    "violations": []
+  },
+  {
+    "path": "/tools/quote-builder",
+    "violations": []
+  }
+]

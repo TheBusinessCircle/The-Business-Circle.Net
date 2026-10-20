@@ -3551,3 +3551,101 @@ enum GroupHostAccessRequestStatus {
   APPROVED
   REJECTED
 }
+
+// BCN 2.0: additive, opt-in records. No import from another product or automatic publication.
+model BcnHelpRequest {
+  id                String   @id @default(cuid())
+  name              String   @db.VarChar(100)
+  email             String   @db.VarChar(254)
+  business          String   @db.VarChar(160)
+  category          String   @db.VarChar(40)
+  summary           String   @db.VarChar(4000)
+  status            String   @default("RECEIVED") @db.VarChar(40)
+  processingConsentAt DateTime @default(now())
+  consentVersion    String   @default("bcn-help-2026-10-20")
+  providerId        String?
+  provider          BcnProvider? @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  consentTokenHash  String?  @unique
+  consentExpiresAt  DateTime?
+  sharingConsentAt  DateTime?
+  introducedAt      DateTime?
+  outcome           String?  @db.VarChar(1000)
+  agreedFeePence    Int?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  audit             BcnHelpAudit[]
+  @@index([status, createdAt])
+}
+
+model BcnProvider {
+  id                String   @id @default(cuid())
+  name              String   @db.VarChar(160)
+  category          String   @db.VarChar(40)
+  location          String   @db.VarChar(160)
+  description       String   @db.VarChar(1500)
+  website           String   @db.VarChar(500)
+  approved          Boolean  @default(false)
+  publicListingConsent Boolean @default(false)
+  agreementReference String? @db.VarChar(200)
+  relatedBusinessDisclosure String? @db.VarChar(500)
+  createdAt         DateTime @default(now())
+  requests          BcnHelpRequest[]
+  @@index([approved, publicListingConsent, category])
+}
+
+model BcnHelpAudit {
+  id                String   @id @default(cuid())
+  requestId         String
+  request           BcnHelpRequest @relation(fields:[requestId], references:[id], onDelete: Restrict)
+  action            String   @db.VarChar(60)
+  actorId           String   @db.VarChar(160)
+  createdAt         DateTime @default(now())
+  @@index([requestId, createdAt])
+}
+
+model BcnBusinessProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  business          String   @db.VarChar(160)
+  category          String   @db.VarChar(40)
+  location          String   @db.VarChar(160)
+  description       String   @db.VarChar(1500)
+  website           String   @db.VarChar(500)
+  publicConsentAt   DateTime?
+  approved          Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  @@index([approved, publicConsentAt])
+}
+
+model BcnAffiliateOffer {
+  id                String   @id @default(cuid())
+  slug              String   @unique @db.VarChar(80)
+  name              String   @db.VarChar(160)
+  destination       String   @db.VarChar(1500)
+  allowedHost       String   @db.VarChar(200)
+  approvalReference String   @db.VarChar(200)
+  disclosure        String   @db.VarChar(500)
+  approvedAt        DateTime?
+  active            Boolean  @default(false)
+  clicks            BcnAffiliateClick[]
+}
+model BcnAffiliateClick {
+  id                String   @id @default(cuid())
+  offerId           String
+  offer             BcnAffiliateOffer @relation(fields:[offerId], references:[id], onDelete:Restrict)
+  createdAt         DateTime @default(now())
+  @@index([offerId, createdAt])
+}
+model BcnRevenueEntry {
+  id                String   @id @default(cuid())
+  stream            String   @db.VarChar(40)
+  externalReference String   @unique @db.VarChar(200)
+  amountPence       Int
+  currency          String   @default("GBP") @db.VarChar(3)
+  evidenceReference String   @db.VarChar(300)
+  recordedBy        String
+  receivedAt        DateTime
+  createdAt         DateTime @default(now())
+  @@index([stream, receivedAt])
+}

@@ -1,3 +1,4 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
 import { NextRequest, NextResponse } from "next/server";
 import {
   createCircleCardFreeRegistration,
@@ -87,6 +88,7 @@ function checkoutCodeErrorMessage(code: string) {
 }
 
 export async function POST(request: NextRequest) {
+  if (isBcnV2Enabled()) return NextResponse.json({error:"Use the free BCN registration endpoint."},{status:410});
   if (!isTrustedOrigin(request)) {
     return NextResponse.json(
       { error: "Untrusted request origin." },

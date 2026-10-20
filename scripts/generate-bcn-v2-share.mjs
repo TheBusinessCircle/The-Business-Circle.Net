@@ -1,0 +1,5 @@
+import sharp from 'sharp';
+import {readFileSync} from 'node:fs';
+const logo=readFileSync('public/branding/the-business-circle-logo.webp').toString('base64');
+const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630"><rect width="1200" height="630" fill="#14271f"/><rect x="65" y="530" width="1070" height="1" fill="#55715e"/><image href="data:image/webp;base64,${logo}" x="65" y="52" width="84" height="84"/><g font-family="sans-serif"><text x="170" y="105" fill="#ffffff" font-size="27" font-weight="700">The Business Circle</text><text x="65" y="245" fill="#ffffff" font-size="72" font-weight="700">Real help for</text><text x="65" y="335" fill="#d5e6a2" font-size="72" font-weight="700">real business owners.</text><text x="65" y="410" fill="#c2d1c5" font-size="28">Free tools. Practical guidance. Useful connections.</text><text x="65" y="580" fill="#d5e6a2" font-size="23">thebusinesscircle.net</text><text x="900" y="580" fill="#c2d1c5" font-size="19">Free to use.</text></g></svg>`;
+await sharp(Buffer.from(svg)).png().toFile('public/bcn-v2-share.png');

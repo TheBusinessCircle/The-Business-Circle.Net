@@ -9,6 +9,8 @@ import {
 import { prisma } from "@/lib/prisma";
 
 export const FIRST_PARTY_ANALYTICS_EVENTS = [
+  "tool_started",
+  "tool_completed",
   "page_view",
   "audit_started",
   "audit_completed",

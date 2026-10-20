@@ -1,3 +1,4 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
 import type { MetadataRoute } from "next";
 import { SITE_CONFIG } from "@/config/site";
 
@@ -59,6 +60,7 @@ const PRIVATE_DISALLOW = [
 ] as const;
 
 export default function robots(): MetadataRoute.Robots {
+  if (isBcnV2Enabled()) return {rules:{userAgent:"*",allow:"/",disallow:["/api/","/admin/","/dashboard","/profile","/login","/register","/help-consent","/go/","/community","/messages","/members/","/events","/calls","/inner-circle","/core"]},sitemap:`${SITE_CONFIG.url}/sitemap.xml`};
   return {
     rules: [
       {

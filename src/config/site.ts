@@ -1,3 +1,4 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
 import type { NavigationItem, SiteConfig } from "@/types";
 import { PUBLIC_TRUST_PHRASE } from "@/config/legal";
 import { CANONICAL_SITE_URL } from "@/config/site-constants";
@@ -67,12 +68,12 @@ export const SITE_CONFIG: SiteConfig = {
   name: "The Business Circle Network",
   shortName: "Business Circle",
   description:
-    `${PUBLIC_TRUST_PHRASE} for UK business owners who want better conversations, clearer thinking, trusted relationships, and a calmer place to make better decisions.`,
+    isBcnV2Enabled() ? "Real help for real business owners. Free business tools, practical guidance and useful connections for UK small businesses." : `${PUBLIC_TRUST_PHRASE} for UK business owners who want better conversations, clearer thinking, trusted relationships, and a calmer place to make better decisions.`,
   url: CANONICAL_SITE_URL,
   supportEmail: process.env.PUBLIC_CONTACT_EMAIL?.trim() || "contact@thebusinesscircle.net",
   publicNavigation,
   memberNavigation,
-  adminNavigation,
+  adminNavigation: isBcnV2Enabled() ? [{label:"BCN Help & Revenue",href:"/admin/bcn-help"},...adminNavigation.filter(i=>!i.href.startsWith("/admin/circle-card"))] : adminNavigation,
   social: {
     linkedin: process.env.NEXT_PUBLIC_LINKEDIN_URL || undefined,
     instagram: process.env.NEXT_PUBLIC_INSTAGRAM_URL || undefined,
@@ -83,9 +84,9 @@ export const SITE_CONFIG: SiteConfig = {
   },
   seo: {
     titleTemplate: "%s | The Business Circle Network",
-    defaultTitle: "The Business Circle Network",
-    shareImagePath: "/social-share.png",
+    defaultTitle: isBcnV2Enabled() ? "Real help for real business owners | The Business Circle" : "The Business Circle Network",
+    shareImagePath: isBcnV2Enabled() ? "/bcn-v2-share.png" : "/social-share.png",
     shareImageAlt:
-      "The Business Circle Network social preview for a private founder ecosystem"
+      isBcnV2Enabled() ? "The Business Circle: real help for real business owners" : "The Business Circle Network social preview for a private founder ecosystem"
   }
 };

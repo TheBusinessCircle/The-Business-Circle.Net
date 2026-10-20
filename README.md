@@ -1,3 +1,7 @@
+# BCN 2.0 development review
+
+The free-first redesign is implemented behind the disabled-by-default `BCN_V2_ENABLED` deployment gate. See [the BCN 2.0 review and rollout documents](docs/bcn-v2/README.md) before enabling it. Existing application documentation follows; legacy billing and member rights are preserved.
+
 # The Business Circle Network
 
 Production-ready full-stack platform for The Business Circle Network: a founder-led business brand built around a Private Business Environment and a growing ecosystem for serious business owners.
