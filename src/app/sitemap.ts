@@ -15,7 +15,7 @@ export const revalidate = 3600;
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   if (isBcnV2Enabled()) {
-    const routes = ["/", "/tools", "/advice", "/find-help", "/connections", "/business-directory", "/about", "/how-we-work", "/faq", "/contact", "/membership", "/privacy-policy", "/terms-of-service", "/cookie-policy", "/rules", "/insights", ...PUBLIC_INTENT_PAGE_ROUTES, ...tools.map(t=>`/tools/${t.slug}`), ...guides.map(g=>`/advice/${g.slug}`), ...listPublicInsights().map(i=>`/insights/${i.slug}`), ...listInsightTopicClusters().map(c=>c.href)];
+    const routes = ["/", "/start", "/ideas", "/tools", "/advice", "/find-help", "/connections", "/business-directory", "/about", "/how-we-work", "/faq", "/contact", "/membership", "/privacy-policy", "/terms-of-service", "/cookie-policy", "/rules", "/insights", ...PUBLIC_INTENT_PAGE_ROUTES, ...tools.map(t=>`/tools/${t.slug}`), ...guides.map(g=>`/advice/${g.slug}`), ...listPublicInsights().map(i=>`/insights/${i.slug}`), ...listInsightTopicClusters().map(c=>c.href)];
     return routes.map(path=>({url:`${SITE_CONFIG.url}${path}`,changeFrequency:"monthly" as const,priority:path==="/"?1:0.7}));
   }
 

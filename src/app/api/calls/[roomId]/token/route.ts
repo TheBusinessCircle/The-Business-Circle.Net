@@ -1,3 +1,5 @@
+import { requestGuard } from "@/lib/bcn-v2/http";
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
 import { NextResponse } from "next/server";
 import { requireApiUser } from "@/lib/auth/api";
 import { bcnRulesRequiredResponse, hasAcceptedBcnRules } from "@/lib/rules-acceptance";
@@ -17,10 +19,14 @@ export async function POST(
     return NextResponse.json({ error: "Untrusted request origin." }, { status: 403 });
   }
 
+  if (isBcnV2Enabled()) {
+    const blocked = await requestGuard(request, "call-token", 40, true);
+    if (blocked) return blocked;
+  }
   let roomId: string | null = null;
 
   try {
-    const authResult = await requireApiUser({ requiredTier: "FOUNDATION" });
+    const authResult = await requireApiUser(isBcnV2Enabled() ? { allowUnentitled: true, requireVerifiedEmail: true } : { requiredTier: "FOUNDATION" });
     if ("response" in authResult) {
       return authResult.response;
     }
@@ -42,7 +48,7 @@ export async function POST(
       actor: toCallingUser(authResult.user)
     });
 
-    return NextResponse.json(result);
+    return NextResponse.json(isBcnV2Enabled() ? { token: result.token, identity: result.identity, url: result.url, rtcConfig: result.rtcConfig } : result);
   } catch (error) {
     if (error instanceof CallRoomTokenIssueError) {
       logServerError("calling-room-token-issue-failed", error, {

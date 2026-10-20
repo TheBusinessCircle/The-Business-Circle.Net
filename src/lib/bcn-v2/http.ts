@@ -23,7 +23,11 @@ export async function requestGuard(
   if (!isBcnV2Enabled()) return json({ error: "Unavailable." }, 404);
   if (!readOnly) {
     // Exact same origin. Do not accept merely same-site subdomains for mutations.
-    if (request.headers.get("origin") !== new URL(process.env.APP_URL || process.env.NEXTAUTH_URL || request.url).origin)
+    if (
+      request.headers.get("origin") !==
+      new URL(process.env.APP_URL || process.env.NEXTAUTH_URL || request.url)
+        .origin
+    )
       return json({ error: "Untrusted request origin." }, 403);
     if (!request.headers.get("content-type")?.startsWith("application/json"))
       return json({ error: "JSON required." }, 415);

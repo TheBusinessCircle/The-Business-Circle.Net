@@ -18,6 +18,7 @@ import {
 import {
   ANALYTICS_SESSION_REPLAY_ENABLED,
   sanitizeAnalyticsLocation,
+  isPrivateBusinessPath,
   sanitizeAnalyticsPayload
 } from "@/lib/analytics/privacy";
 
@@ -33,7 +34,9 @@ const SENSITIVE_NETWORK_PATHS = [
   "/api/stripe",
   "/api/messages",
   "/api/profile",
-  "/api/admin"
+  "/api/admin",
+  "/api/bcn",
+  "/api/calls"
 ];
 
 function readAnalyticsConsent() {
@@ -256,7 +259,7 @@ function PostHogPageView({ enabled }: { enabled: boolean }) {
   const previousPathRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!enabled || !isPostHogReady()) {
+    if (!enabled || !isPostHogReady() || isPrivateBusinessPath(pathname || "/")) {
       return;
     }
 
@@ -336,7 +339,7 @@ export function PostHogProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const track: NonNullable<Window["bcnAnalytics"]>["track"] = (event, properties) => {
-      if (!analyticsConsent || !isPostHogReady()) {
+      if (!analyticsConsent || !isPostHogReady() || isPrivateBusinessPath(window.location.pathname)) {
         return;
       }
 

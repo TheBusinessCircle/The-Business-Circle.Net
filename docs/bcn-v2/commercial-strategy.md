@@ -2,9 +2,13 @@
 
 Research reviewed 20 October 2026. The supplied BCN research PDF was read before implementation. This update follows the owner's later instruction: no visible promotion, linking or sign-in for the separate card product.
 
+## 21 October audience update
+
+The owner has broadened the welcome to startups and business owners of all kinds and requested a dedicated practical-help area. Read [growth-and-revenue-research.md](growth-and-revenue-research.md) for the current strategy and evidence. The initial tool/subject focus remains manageable and uses UK assumptions; it is not an eligibility restriction on business type.
+
 ## Positioning
 
-**Real help for real business owners.** Work out a decision, finish a task, then choose whether to ask a relevant person. Start with independent UK service owners rather than trying to compete across every business topic and country at once.
+**Real help for real business owners.** Work out a decision, finish a task, then choose whether to ask a relevant person. Welcome people starting out and established owners, while keeping the first tools and moderated help topics focused enough to deliver well.
 
 The differentiated experience is a connected owner journey, not simply another calculator or a broad networking feed. This is a commercial hypothesis, not measured product-market fit.
 

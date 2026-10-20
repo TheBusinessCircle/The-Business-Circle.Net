@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/session";
 import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
@@ -72,7 +73,7 @@ export default async function AdminHelp() {
     <div className="bcn-v2" style={{ padding: 25, borderRadius: 10 }}>
       <p className="v2-eyebrow">PRIVATE OPERATIONS</p>
       <h1 style={{ fontSize: 35 }}>Useful help. Measured outcomes.</h1>
-      <p>BCN reporting keeps demand, clicks and actual revenue separate.</p>
+      <p>BCN reporting keeps demand, clicks and actual revenue separate.</p><Link className="v2-text-link" href="/admin/bcn-ideas">Moderate Build it together requests, offers & reports ↗</Link>
       <div className="v2-grid" style={{ marginTop: 25 }}>
         <div className="v2-card">
           <h2 style={{ fontSize: 23 }}>Help requests · all time</h2>

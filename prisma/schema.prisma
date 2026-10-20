@@ -3604,6 +3604,7 @@ model BcnHelpAudit {
 }
 
 model BcnBusinessProfile {
+  acceptsMessages Boolean @default(false)
   id                String   @id @default(cuid())
   userId            String   @unique
   business          String   @db.VarChar(160)
@@ -3648,4 +3649,76 @@ model BcnRevenueEntry {
   receivedAt        DateTime
   createdAt         DateTime @default(now())
   @@index([stream, receivedAt])
+}
+
+// Moderated practical help for an idea. No investment, donations or payment processing.
+model BcnIdeaRequest {
+  id String @id @default(cuid())
+  ownerId String
+  displayName String @db.VarChar(80)
+  title String @db.VarChar(140)
+  stage String @db.VarChar(24)
+  category String @db.VarChar(40)
+  idea String @db.VarChar(2000)
+  helpNeeded String @db.VarChar(2000)
+  nextMilestone String @db.VarChar(500)
+  location String @db.VarChar(160)
+  supportTypes String[]
+  status String @default("PENDING") @db.VarChar(24)
+  publicConsentAt DateTime
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  offers BcnIdeaOffer[]
+  reports BcnIdeaReport[]
+  audit BcnIdeaAudit[]
+  @@index([status, expiresAt, createdAt])
+  @@index([ownerId, status])
+}
+model BcnIdeaOffer {
+  id String @id @default(cuid())
+  requestId String
+  helperId String
+  displayName String @db.VarChar(80)
+  kind String @db.VarChar(24)
+  scope String @db.VarChar(2000)
+  timing String @db.VarChar(300)
+  pricePence Int
+  usualPricePence Int?
+  priceTerms String @db.VarChar(500)
+  status String @default("PENDING") @db.VarChar(24)
+  threadId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  request BcnIdeaRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  reports BcnIdeaReport[]
+  audit BcnIdeaAudit[]
+  @@unique([requestId, helperId])
+  @@index([status, createdAt])
+  @@index([helperId, status])
+}
+model BcnIdeaReport {
+  id String @id @default(cuid())
+  reporterId String
+  requestId String
+  offerId String?
+  detail String @db.VarChar(1000)
+  status String @default("OPEN") @db.VarChar(24)
+  createdAt DateTime @default(now())
+  resolvedAt DateTime?
+  request BcnIdeaRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  offer BcnIdeaOffer? @relation(fields: [offerId], references: [id], onDelete: Restrict)
+  @@index([status, createdAt])
+}
+model BcnIdeaAudit {
+  id String @id @default(cuid())
+  actorId String
+  requestId String
+  offerId String?
+  action String @db.VarChar(40)
+  note String @db.VarChar(500)
+  createdAt DateTime @default(now())
+  request BcnIdeaRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  offer BcnIdeaOffer? @relation(fields: [offerId], references: [id], onDelete: Restrict)
+  @@index([requestId, createdAt])
 }

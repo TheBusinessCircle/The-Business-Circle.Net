@@ -1,3 +1,4 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
 import { AccessToken } from "livekit-server-sdk";
 import { buildCallParticipantIdentity } from "@/lib/calling";
 import type { SafeLogDetails } from "@/lib/security/logging";
@@ -208,7 +209,7 @@ export async function issueCallRoomToken(input: {
     try {
       return new AccessToken(liveKitConfig.apiKey, liveKitConfig.apiSecret, {
         identity,
-        name: input.actor.name ?? input.actor.email ?? "Business Circle Member",
+        name: input.actor.name || (isBcnV2Enabled() ? "BCN member" : input.actor.email) || "Business Circle Member",
         ttl: "10m",
         metadata: JSON.stringify({
           appUserId: input.actor.id,

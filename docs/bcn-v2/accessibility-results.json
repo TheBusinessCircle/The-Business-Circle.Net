@@ -1,22 +1,44 @@
-[
-  {
-    "path": "/",
-    "violations": []
-  },
-  {
-    "path": "/tools/job-pricing-calculator",
-    "violations": []
-  },
-  {
-    "path": "/find-help",
-    "violations": []
-  },
-  {
-    "path": "/login",
-    "violations": []
-  },
-  {
-    "path": "/tools/quote-builder",
-    "violations": []
-  }
-]
+{
+  "checked": "2026-10-21",
+  "tags": [
+    "wcag2a",
+    "wcag2aa",
+    "wcag21aa",
+    "wcag22aa"
+  ],
+  "samples": [
+    {
+      "path": "/",
+      "violations": []
+    },
+    {
+      "path": "/tools/job-pricing-calculator",
+      "violations": []
+    },
+    {
+      "path": "/find-help",
+      "violations": []
+    },
+    {
+      "path": "/login",
+      "violations": []
+    },
+    {
+      "path": "/tools/quote-builder",
+      "violations": []
+    },
+    {
+      "path": "/start/",
+      "violations": []
+    },
+    {
+      "path": "/ideas/",
+      "violations": []
+    },
+    {
+      "path": "/messages/[threadId]",
+      "context": "authenticated synthetic private chat, mobile 390px",
+      "violations": []
+    }
+  ]
+}

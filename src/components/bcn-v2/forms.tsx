@@ -262,7 +262,13 @@ export function RegisterForm() {
     </div>
   );
 }
-export function LoginFormV2({ notice }: { notice?: string }) {
+export function LoginFormV2({
+  notice,
+  returnTo = "/dashboard",
+}: {
+  notice?: string;
+  returnTo?: string;
+}) {
   const [message, setMessage] = useState(notice || "");
   const [busy, setBusy] = useState(false);
   const router = useRouter();
@@ -282,7 +288,7 @@ export function LoginFormV2({ notice }: { notice?: string }) {
           "We could not sign you in. Check your details or reset your password.",
         );
       } else {
-        router.push("/dashboard");
+        router.push(returnTo);
         router.refresh();
       }
     } catch {
@@ -333,6 +339,7 @@ export type ProfileData = {
   description: string;
   website: string;
   publicConsent: boolean;
+  acceptsMessages: boolean;
 };
 export function FreeProfileForm({ initial }: { initial?: ProfileData }) {
   const [message, setMessage] = useState("");
@@ -345,6 +352,7 @@ export function FreeProfileForm({ initial }: { initial?: ProfileData }) {
       const r = await post("/api/bcn/profile", {
         ...Object.fromEntries(f),
         publicConsent: f.get("publicConsent") === "on",
+        acceptsMessages: f.get("acceptsMessages") === "on",
       });
       setMessage(r.message);
     } catch (e) {
@@ -397,6 +405,22 @@ export function FreeProfileForm({ initial }: { initial?: ProfileData }) {
           <small>
             Untick and save to withdraw publication. Changes to published
             details return the listing to moderation.
+          </small>
+        </span>
+      </label>
+      <label className="v2-check">
+        <input
+          type="checkbox"
+          name="acceptsMessages"
+          defaultChecked={initial?.acceptsMessages}
+        />
+        <span>
+          Allow verified BCN members to request a private conversation from my
+          approved public profile.
+          <small>
+            I choose which requests to accept. Unticking stops new profile
+            requests; existing chats remain available. No marketing permission
+            is given.
           </small>
         </span>
       </label>

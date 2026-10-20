@@ -1,6 +1,6 @@
 # Verification results
 
-20 October 2026. Tests used synthetic data and disposable local databases; no production migration or deployment was performed.
+Initial checks, 20 October 2026. Tests used synthetic data and disposable local databases; no production migration or deployment was performed.
 
 | Check | Result |
 | --- | --- |
@@ -23,6 +23,33 @@
 | Automated accessibility | Zero axe violations for WCAG A/AA tags on homepage, pricing calculator, help form, sign-in and quote builder at mobile size |
 | Browser errors in main flow | No uncaught page errors |
 | Private static review | 30 production-built public pages exported; mobile navigation and hydrated calculator tested; review-only banner confirmed |
+
+## Current follow-up: 21 October 2026
+
+The blue design, broader startup/current-business journeys, free starting-plan download, Build it together workflow and free private chat are implemented on the development branch. These checks use synthetic data; they are not a live production rollout.
+
+| Check | Current result |
+| --- | --- |
+| Production build and TypeScript | Passed; 316 generated pages; existing server-action export verification retained |
+| Lint | 0 errors; the same 3 existing warnings |
+| Added automated coverage | 76 new tests in total since the initial main baseline; 99 targeted tests including relevant existing messaging/calling/privacy coverage passed |
+| Complete suite | 1,230 passed; the same 2 existing baseline failures remain |
+| Additive database changes | All three BCN migrations applied to a disposable baseline; eleven added tables total; separate profile messaging preference defaults false |
+| Public production crawl | 245 distinct sitemap URLs returned 200; no visible independent-product branding or links; 11 legacy product entry routes returned 404 |
+| Tools and introduction regression | All five tools, an actual quote PDF, public help intake, named-provider permission, introduction and evidence-backed receipt/replay/duplicate guards passed |
+| Practical help journey | Verified owner request → moderation → reviewed discounted offer → explicit owner choice → private chat → owner-reported progress persisted |
+| Access/abuse checks | Self-approval, unverified posting, foreign-owner acceptance, premature acceptance, misleading discounts, foreign chat reads/writes and cross-origin mutations rejected |
+| Consent and privacy | Directory requests require a separate recipient opt-in; recipient acceptance tested; private offers and account emails not exposed publicly; repeated acceptance reuses the existing thread |
+| Private chat | Both free accounts could send/read; blocking stopped replies and new call access; owner activity and moderator audit reviewed |
+| Calling foundation | Connected-pair invitation and outsider access/presence rejection passed; no actual media connection or external calling service was attempted |
+| Mobile and accessibility | No horizontal overflow in sampled mobile screens; zero axe WCAG A/AA-tag violations across eight representative samples, including private chat, startup plan and help board |
+| Private review artifact | 32 production-built public pages, functioning browser tools and a real starting-plan text download; authenticated links clearly route to disconnected review sign-in |
+
+See `browser-journey-results.json`, `accessibility-results.json` and `public-crawl-results.json` for compact evidence. The existing commission fixture and restricted tsx IPC failures remain documented below; tests were not disabled to hide them.
+
+**Calling and database limit:** the optional call page hit the PGlite multiplexer’s prepared-statement/portal limitation under concurrent reads. Call invitations and participant authorization passed independently. `BCN_DIRECT_CALLS_ENABLED` remains false by default. Ordinary PostgreSQL staging, the existing LiveKit/TURN service, two real browser participants, microphone/camera permissions, reconnect/leave/block and emergency controls must pass before enabling video. The older paid dashboard has the same ordinary-PostgreSQL verification need. No independent-product deployment, login, wallet, payment, referral or commission change was made.
+
+The private Site is an owner-review artifact of public pages and local browser tools. Accounts, submissions, offers, private chats, databases and payments are disconnected there; the authenticated journeys were tested separately against disposable data. Live production commit/process/proxy topology and server access remain unavailable. The production approval/access boundary is unchanged.
 
 ## Existing test failures
 

@@ -8,8 +8,9 @@ export function Connections() {
         title="The right people. A useful reason to connect."
       >
         <p>
-          Create a business profile, discover participating businesses or ask
-          BCN to review a specific problem.
+          Share a business idea, ask for practical help, offer your experience
+          or start a relevant private conversation. Startups and established
+          businesses are welcome.
         </p>
       </PageHeading>
       <section className="v2-section">
@@ -42,6 +43,22 @@ export function Connections() {
           ))}
         </div>
         <div className="v2-wrap v2-prose" style={{ marginTop: 35 }}>
+          <h2>Build it together</h2>
+          <p>
+            Turn a business dream into a specific next step.{" "}
+            <Link href="/ideas">Ask for practical help or offer yours</Link>.
+            Free, discounted, paid and skill-swap offers are clearly labelled
+            and reviewed before the owner sees them.
+          </p>
+          <h2>Private chat, with permission</h2>
+          <p>
+            Verified BCN accounts can use private chat for free after accepting
+            the rules. Find a business that has chosen to receive requests,
+            explain why you want to talk and wait for them to accept.{" "}
+            <Link href="/messages">Open your conversations</Link>. Blocking and
+            reporting are available. Optional video calls appear inside accepted
+            chats when the existing service is configured and enabled.
+          </p>
           <h2>Existing BCN members</h2>
           <p>
             Your account and current contracted member services are preserved.{" "}
@@ -49,9 +66,9 @@ export function Connections() {
             New tools, guides, profile creation and help requests are free.
           </p>
           <p>
-            Member messaging, rooms and events remain existing member services
-            during the transition. We are reviewing how to make broader
-            connections useful and safe before expanding them.
+            Existing contracted rooms and events remain available through the
+            member dashboard during the transition. Private chat is now also a
+            free BCN feature.
           </p>
         </div>
       </section>
@@ -106,7 +123,9 @@ export function HowWeWork() {
           <p>
             Every public calculator, checklist, quote builder and guide is free
             without an account. Creating a business profile, browsing the
-            directory and requesting an introduction are free too. A provider
+            directory, posting practical help requests and using private chat
+            are free too. Offers of help can be free, discounted, paid or a
+            skill swap, with clear terms before any work is agreed. A provider
             can charge for work you separately choose to commission.
           </p>
           <h2>Provider introductions</h2>
@@ -124,6 +143,15 @@ export function HowWeWork() {
             explain BCN’s possible commission and link to an appropriate option
             for the problem. No affiliate partnerships or commission rates are
             claimed on this page.
+          </p>
+          <h2>Keeping practical help useful</h2>
+          <p>
+            Build it together requests and offers are moderated before
+            publication or delivery. No fundraising or generic promotional posts
+            are allowed. Offers are private to the requester and requests expire
+            after 30 days. Choosing an offer opens a conversation; it does not
+            buy a service. BCN does not collect service payments or
+            automatically charge a commission on this board.
           </p>
           <h2>Optional extras, later</h2>
           <p>
@@ -173,8 +201,9 @@ export function AboutV2() {
       >
         <p>
           Real help for real business owners. Free tools, practical guidance and
-          useful connections, starting with UK sole traders and small service
-          businesses.
+          useful connections for people starting out and owners of all kinds.
+          Our first financial tools use UK assumptions, with a particular focus
+          on small businesses.
         </p>
       </PageHeading>
       <section className="v2-section">
@@ -258,7 +287,7 @@ export function FaqV2() {
           {[
             [
               "Do I need an account?",
-              "No. Public tools, guides, directory browsing and help requests work without one. An optional free account lets you create a business profile.",
+              "Public tools, guides, directory browsing and private BCN help requests need no account. A free, verified account is required to post on Build it together, offer help or use private chat.",
             ],
             [
               "Is everything free?",

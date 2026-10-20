@@ -6,7 +6,10 @@ import {
   hasConsentForCategory,
   parseCookieConsentFromCookieString,
 } from "@/lib/cookie-consent";
-import { sanitizeAnalyticsLocation } from "@/lib/analytics/privacy";
+import {
+  sanitizeAnalyticsLocation,
+  isPrivateBusinessPath,
+} from "@/lib/analytics/privacy";
 const allowed = () =>
   hasConsentForCategory(
     parseCookieConsentFromCookieString(document.cookie),
@@ -38,6 +41,7 @@ export function BcnAnalytics() {
     if (
       !consented ||
       !pathname ||
+      isPrivateBusinessPath(pathname) ||
       /^\/(admin|help-consent|login|register|profile|dashboard)(\/|$)/.test(
         pathname,
       )

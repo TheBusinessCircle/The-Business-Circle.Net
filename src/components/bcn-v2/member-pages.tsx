@@ -4,6 +4,23 @@ import { prisma } from "@/lib/prisma";
 import { FreeProfileForm } from "./forms";
 export async function BcnDashboard() {
   const s = await requireUser({ allowUnentitled: true });
+  const chatRequests = await prisma.directMessageRequest.count({
+    where: { recipientId: s.user.id, status: "PENDING" },
+  });
+  const openIdeas = await prisma.bcnIdeaRequest.findMany({
+    where: {
+      ownerId: s.user.id,
+      status: "APPROVED",
+      expiresAt: { gt: new Date() },
+    },
+    select: { id: true },
+  });
+  const reviewedOffers = await prisma.bcnIdeaOffer.count({
+    where: {
+      requestId: { in: openIdeas.map((i) => i.id) },
+      status: "APPROVED",
+    },
+  });
   return (
     <>
       <p className="v2-eyebrow">YOUR BUSINESS CIRCLE</p>
@@ -11,8 +28,38 @@ export async function BcnDashboard() {
         Good to see you, {s.user.name?.split(" ")[0] || "business owner"}.
       </h1>
       <p>What would make your next business decision easier?</p>
+      {(chatRequests > 0 || reviewedOffers > 0) && (
+        <section className="v2-success" aria-label="Your updates">
+          {chatRequests > 0 && (
+            <p>
+              <Link className="v2-text-link" href="/messages">
+                {chatRequests} private chat request
+                {chatRequests === 1 ? "" : "s"} waiting for your choice ↗
+              </Link>
+            </p>
+          )}
+          {reviewedOffers > 0 && (
+            <p>
+              <Link className="v2-text-link" href="/ideas/mine">
+                {reviewedOffers} reviewed offer{reviewedOffers === 1 ? "" : "s"}{" "}
+                of help to consider ↗
+              </Link>
+            </p>
+          )}
+        </section>
+      )}
       <div className="v2-grid" style={{ marginTop: 30 }}>
         {[
+          [
+            "Build it together",
+            "Ask for a helping hand with an idea, or offer practical help to someone else.",
+            "/ideas",
+          ],
+          [
+            "Private conversations",
+            "Read requests, talk with other owners and choose what happens next.",
+            "/messages",
+          ],
           [
             "Free tools",
             "Work through pricing, profit, costs and quotes.",
@@ -91,6 +138,7 @@ export async function BcnProfile() {
                 description: p.description,
                 website: p.website,
                 publicConsent: !!p.publicConsentAt,
+                acceptsMessages: p.acceptsMessages,
               }
             : undefined
         }

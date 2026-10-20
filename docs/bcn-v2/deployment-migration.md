@@ -10,7 +10,7 @@ The inspected repository has a shell deployment helper, a VPS production runbook
 
 1. Use an isolated BCN checkout on `codex/bcn-2-free-business-help`; do not deploy from a separate-product checkout. Pin the reviewed commit. Confirm no automatic production deployment is tied to this branch or PR.
 2. Create a synthetic staging database using the existing PostgreSQL infrastructure, not a copy of private data from another product. Use test-mode payment configuration only if testing legacy membership functions; the five public tools need no payment service.
-3. Configure the existing database, Auth.js, Redis and email variables using the current production environment validator/runbook. Add `BCN_V2_ENABLED=true` for both build and runtime. The production build's APP_URL/NEXTAUTH_URL must satisfy the repository's canonical production URL validator. For an alternate staging hostname, use a host-approved proxy mapping or the established development environment; do not weaken canonical URL validation just to make a preview build pass.
+3. Configure the existing database, Auth.js, Redis and email variables using the current production environment validator/runbook. Add `BCN_V2_ENABLED=true` for both build and runtime. Keep `BCN_DIRECT_CALLS_ENABLED=false` until the existing LiveKit/TURN service passes an isolated two-browser staging test; enabling it does not create a new paid service. The production build's APP_URL/NEXTAUTH_URL must satisfy the repository's canonical production URL validator. For an alternate staging hostname, use a host-approved proxy mapping or the established development environment; do not weaken canonical URL validation just to make a preview build pass.
 4. Run `npm ci`, `npm run db:generate`, `npx prisma migrate deploy`, `npx tsc --noEmit`, `npm run lint`, `npm test`, and `npm run build`. Review any existing baseline failures documented in verification rather than ignoring new failures. Do not use `prisma db push`, `migrate dev`, a reset or demo seeding against production.
 5. Verify sign-in/recovery/verification, free-account dashboard/profile, a private help request, admin moderation, a declined and an accepted named-provider proposal, token replay, provider withdrawal, and actual revenue/reversal records. Test shared Redis failure: new mutation routes must return 503.
 6. Test the independent live product read-only before and after the approved BCN release. Confirm login, card/wallet, referrals, commissions and billing separately using authorised test accounts. No changes to those systems are part of this task.
@@ -19,7 +19,7 @@ The inspected repository has a shell deployment helper, a VPS production runbook
 ## Production release after approval
 
 - Record running commit, process/upstream, environment, health checks and database backup. Verify the backup can restore to an isolated environment.
-- Review the additive SQL `20261020230000_bcn_free_help`. It creates only the seven new tables, their indexes, foreign keys and domain checks. Existing records and subscription tables are untouched.
+- Review the additive SQL `20261020230000_bcn_free_help`. It creates only seven new tables, their indexes, foreign keys and domain checks. Also review `20261021010000_bcn_connection_preferences` (an opted-out-by-default preference on the new profile table) and `20261021020000_bcn_build_together` (four new request/offer/report/audit tables and indexes). Existing customer and subscription tables are untouched.
 - Use the site's actual existing release mechanism once verified. Install/generate, apply approved migrations and build the reviewed BCN commit with the same flag and canonical configuration used in staging. Switch only the BCN upstream/process.
 - Check public homepage, all tools, sitemap/canonicals, mobile/desktop sign-in, free profile, private intake and admin. Check legacy entitlement and billing portal behaviour. Confirm no visible independent-product links, branding or features in BCN.
 - Verify an independent-product control request against the unchanged baseline. Never run its Stripe setup or billing scripts as part of BCN deployment.
@@ -27,7 +27,7 @@ The inspected repository has a shell deployment helper, a VPS production runbook
 
 ## Rollback
 
-Restore the previously deployed build and its original environment with the flag unset/off. Keep the seven additive tables and any new records; do not roll them down or drop data. A flag change alone does not necessarily remove prerendered pages, so use the previous build artifact. Restore the database only for a separately reviewed incident plan. No subscription cancellation, refund or entitlement change is needed for an application rollback.
+Restore the previously deployed build and its original environment with the flag unset/off. Keep the eleven additive tables and any new records; do not roll them down or drop data. A flag change alone does not necessarily remove prerendered pages, so use the previous build artifact. Restore the database only for a separately reviewed incident plan. No subscription cancellation, refund or entitlement change is needed for an application rollback.
 
 ## Membership migration plan
 
@@ -43,6 +43,8 @@ Suggested communication draft for later review:
 
 ## Operations and reporting
 
-Use `/admin/bcn-help` for review and evidence-backed receipts. Proposed referral fees and affiliate clicks are demand indicators, not income. Existing analytics can supply consented page/source/return-visit views; the new screen adds tool start/completion, request status, introductions, clicks and BCN receipts. Reconcile manually recorded receipts with bank/network settlement evidence, with explicit reversals for refunds. Do not combine them with the service provider's own sales.
+Test new idea submission → request moderation → free/discounted offer → offer moderation → owner choice → private chat → report/block → owner-reported progress. Check foreign-owner reads/writes, expired/rejected requests, misleading prices and duplicate acceptance. Confirm existing group-call/paid-resource permissions remain. Assign a moderator, approve the new terms/privacy text and document Online Safety Act scope and relevant risk/access assessments before a broad community launch. See the growth research brief for authoritative guidance and limits.
+
+Use `/admin/bcn-ideas` for practical-help moderation, reports and consent audits. Use `/admin/bcn-help` for review and evidence-backed receipts. Proposed referral fees and affiliate clicks are demand indicators, not income. Existing analytics can supply consented page/source/return-visit views; the new screen adds tool start/completion, request status, introductions, clicks and BCN receipts. Reconcile manually recorded receipts with bank/network settlement evidence, with explicit reversals for refunds. Do not combine them with the service provider's own sales.
 
 Review the six editorial drafts with an accountable human editor before public launch. UK VAT assumptions were checked against HMRC on 20 October 2026: standard 20%, reduced 5%, zero-rated and exempt supplies differ. The tools deliberately do not calculate tax liability or handle construction reverse charge/special schemes. No search ranking, affiliate income or customer outcome is guaranteed.

@@ -60,16 +60,19 @@ export function BcnHome() {
       <section className="v2-hero">
         <div className="v2-wrap v2-hero-grid">
           <div>
-            <p className="v2-eyebrow">FOR THE PEOPLE RUNNING THE BUSINESS</p>
+            <p className="v2-eyebrow">
+              STARTING OUT. BUILDING UP. RUNNING THE BUSINESS.
+            </p>
             <h1>
               Real help for
               <br />
               <span>real business owners.</span>
             </h1>
             <p className="v2-intro">
-              Price the job. Work out the numbers. Find the right help. Free
-              practical tools and useful connections for your next business
-              decision.
+              Starting your first business or growing an established one? Work
+              out the numbers, find practical help and talk to people who
+              understand the work. Free tools and useful connections, whatever
+              you do.
             </p>
             <div className="v2-actions">
               <Link className="v2-button v2-button-light" href="/tools">
@@ -116,7 +119,7 @@ export function BcnHome() {
       <div className="v2-strip">
         <div className="v2-wrap">
           <span>✓ PRACTICAL TOOLS, FREE RESULTS</span>
-          <span>✓ MADE FOR UK SMALL BUSINESSES</span>
+          <span>✓ STARTUPS & ESTABLISHED BUSINESSES</span>
           <span>✓ CONNECTIONS WITH YOUR PERMISSION</span>
         </div>
       </div>
@@ -130,6 +133,44 @@ export function BcnHome() {
             <span className="v2-note">Start with one useful next step.</span>
           </div>
           <ToolCards />
+        </div>
+      </section>
+      <section className="v2-section v2-section-white">
+        <div className="v2-wrap">
+          <div className="v2-section-head">
+            <div>
+              <p className="v2-eyebrow">WHERE ARE YOU RIGHT NOW?</p>
+              <h2>There is a place to start.</h2>
+            </div>
+          </div>
+          <div className="v2-grid">
+            {[
+              [
+                "Starting a business",
+                "Turn an idea into a first offer, work out the costs and plan a small next step.",
+                "/start",
+                "Build your starting plan",
+              ],
+              [
+                "Running a business",
+                "Get clearer on pricing, profit, your website and the help you need next.",
+                "/tools",
+                "Work through a decision",
+              ],
+              [
+                "People helping people",
+                "Share your idea, ask for practical help or offer your skills for free, at a discount or for a clear price.",
+                "/ideas",
+                "Build it together",
+              ],
+            ].map(([title, text, href, action]) => (
+              <Link className="v2-card v2-card-link" key={href} href={href}>
+                <h3>{title}</h3>
+                <p>{text}</p>
+                <span className="v2-text-link">{action} ↗</span>
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
       <section className="v2-section v2-section-white">

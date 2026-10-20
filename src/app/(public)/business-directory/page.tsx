@@ -30,6 +30,7 @@ export default async function Directory({
   }[] = [];
   let profiles: {
     id: string;
+    acceptsMessages: boolean;
     business: string;
     category: string;
     description: string;
@@ -86,6 +87,7 @@ export default async function Directory({
         select: {
           id: true,
           userId: true,
+          acceptsMessages: true,
           business: true,
           category: true,
           description: true,
@@ -111,7 +113,7 @@ export default async function Directory({
     unavailable = true;
   }
   const listings = [
-    ...providers.map((p) => ({ ...p, type: "Participating provider" })),
+    ...providers.map((p) => ({ ...p, type: "Participating provider", acceptsMessages: false })),
     ...profiles.map((p) => ({
       ...p,
       name: p.business,
@@ -173,6 +175,7 @@ export default async function Directory({
                       </a>
                     </p>
                   )}
+                  {p.acceptsMessages && <p><Link className="v2-text-link" href={`/messages?connect=${p.id}`}>Request a private conversation ↗</Link></p>}
                   <Link
                     className="v2-text-link"
                     href={`/find-help?category=${p.category}`}

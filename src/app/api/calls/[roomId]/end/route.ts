@@ -1,3 +1,4 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
 import { NextResponse } from "next/server";
 import { requireApiUser } from "@/lib/auth/api";
 import { bcnRulesRequiredResponse, hasAcceptedBcnRules } from "@/lib/rules-acceptance";
@@ -18,7 +19,7 @@ export async function POST(
   }
 
   try {
-    const authResult = await requireApiUser({ requiredTier: "FOUNDATION" });
+    const authResult = await requireApiUser(isBcnV2Enabled() ? { allowUnentitled: true, requireVerifiedEmail: true } : { requiredTier: "FOUNDATION" });
     if ("response" in authResult) {
       return authResult.response;
     }
@@ -38,7 +39,7 @@ export async function POST(
       actor: toCallingUser(authResult.user)
     });
 
-    return NextResponse.json({ room });
+    return NextResponse.json(isBcnV2Enabled() ? { ok: true } : { room });
   } catch (error) {
     if (error instanceof Error && error.message === "room-end-forbidden") {
       return NextResponse.json(

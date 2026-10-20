@@ -102,7 +102,7 @@ export default auth((req) => {
 
   if (isBcnV2Enabled()) {
     const path = nextUrl.pathname;
-    if (path === "/llms.txt") return new NextResponse("# The Business Circle\n\nReal help for real business owners. Free UK business tools, practical guidance and permission-based connections.\n\nTools: https://thebusinesscircle.net/tools\nGuides: https://thebusinesscircle.net/advice\nHelp: https://thebusinesscircle.net/find-help\nCommercial disclosures: https://thebusinesscircle.net/how-we-work\n\nNo ranking or AI citation guarantee is made.\n",{headers:{"Content-Type":"text/plain; charset=utf-8"}});
+    if (path === "/llms.txt") return new NextResponse("# The Business Circle\n\nReal help for real business owners. Free UK business tools, practical guidance and permission-based connections.\n\nTools: https://thebusinesscircle.net/tools\nGuides: https://thebusinesscircle.net/advice\nStarting a business: https://thebusinesscircle.net/start\nPractical help for ideas: https://thebusinesscircle.net/ideas\nHelp: https://thebusinesscircle.net/find-help\nCommercial disclosures: https://thebusinesscircle.net/how-we-work\n\nNo ranking or AI citation guarantee is made.\n",{headers:{"Content-Type":"text/plain; charset=utf-8"}});
     if (path === "/circle-card.webmanifest" || isBcnHiddenProductPath(path) || /^\/api\/(circle-card|stripe\/circle-card)(\/|$)/.test(path)) {
       return new NextResponse("This page is unavailable.", {status:404, headers:{"X-Robots-Tag":"noindex", "Content-Type":"text/plain; charset=utf-8"}});
     }
@@ -112,8 +112,8 @@ export default auth((req) => {
     if (["/login","/register","/sign-in"].includes(path) && (nextUrl.searchParams.get("source") === "circle-card" || ["from","returnTo"].some(k=>isBcnHiddenProductPath(nextUrl.searchParams.get(k)||"")))) {
       return NextResponse.redirect(new URL(path==="/sign-in"?"/login":path,nextUrl));
     }
-    if (["/dashboard","/profile"].includes(path)) {
-      if (!req.auth?.user || req.auth.user.suspended) return NextResponse.redirect(toLoginRedirect(nextUrl,path));
+    if (["/dashboard","/profile","/messages"].includes(path) || path.startsWith("/messages/") || path.startsWith("/calls/")) {
+      if (!req.auth?.user || req.auth.user.suspended) return NextResponse.redirect(toLoginRedirect(nextUrl,`${path}${nextUrl.search}`));
       return nextWithCurrentPath(req,path);
     }
     if (AUTH_ROUTES.includes(path)) {

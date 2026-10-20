@@ -48,6 +48,7 @@ type CallRoomClientProps = {
   currentUserId: string;
   currentUserRole: string;
   canManageRoom: boolean;
+  exitPath?: string;
 };
 
 type ParticipantSnapshot = {
@@ -287,7 +288,8 @@ function getPreviewErrorCopy(error: unknown) {
   return DEVICE_FALLBACK_COPY;
 }
 
-function getJoinFailureCopy(error: unknown) {
+function getJoinFailureCopy(error: unknown, simple = false) {
+  if (simple) return CONNECTION_ERROR_COPY;
   if (error instanceof Error) {
     const message = error.message || "";
     const normalizedMessage = message.toLowerCase();
@@ -580,7 +582,8 @@ export function CallRoomClient({
   canJoinNow,
   currentUserId,
   currentUserRole,
-  canManageRoom
+  canManageRoom,
+  exitPath = "/calls"
 }: CallRoomClientProps) {
   const router = useRouter();
   const [roomState, setRoomState] = useState<Room | null>(null);
@@ -1202,11 +1205,11 @@ export function CallRoomClient({
       }
 
       disconnectRedirectTimerRef.current = window.setTimeout(() => {
-        router.push("/calls");
+        router.push(exitPath);
         router.refresh();
       }, 1200);
     },
-    [router]
+    [router, exitPath]
   );
 
   const connectToRoom = () => {
@@ -1328,7 +1331,7 @@ export function CallRoomClient({
         roomRef.current = null;
         setRoomState(null);
         setConnectionState(ConnectionState.Disconnected);
-        setJoinError(getJoinFailureCopy(error));
+        setJoinError(getJoinFailureCopy(error, exitPath === "/messages"));
 
         console.error("[calling] room-connect-failed", {
           roomId,
@@ -1436,7 +1439,7 @@ export function CallRoomClient({
       setJoinError(null);
       setDeviceNotice(null);
       setRoomNotice(null);
-      router.push("/calls");
+      router.push(exitPath);
       router.refresh();
     });
   };
@@ -1530,7 +1533,7 @@ export function CallRoomClient({
         await activeRoom?.disconnect().catch(() => undefined);
         setRoomState(null);
         setConnectionState(ConnectionState.Disconnected);
-        router.push("/calls");
+        router.push(exitPath);
         router.refresh();
       } catch {
         setRoomNotice("Unable to end the room right now.");
@@ -1849,7 +1852,7 @@ export function CallRoomClient({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => router.push("/calls")}
+                  onClick={() => router.push(exitPath)}
                   disabled={isJoining}
                 >
                   Back To Calls
@@ -1912,8 +1915,7 @@ export function CallRoomClient({
               <CardHeader>
                 <CardTitle>Room view</CardTitle>
                 <CardDescription>
-                  Participant media is rendered directly inside the platform using your internal
-                  calling stack.
+                  {exitPath === "/messages" ? "Talk privately with the person you connected with. You choose whether to enable your camera, microphone or screen sharing." : "Participant media is rendered directly inside the platform using your internal calling stack."}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">

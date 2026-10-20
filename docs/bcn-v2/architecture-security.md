@@ -19,6 +19,12 @@ Source baseline: main commit `5fa2bbf6ac7d39aa14636882bbae2d2713faf11a`. The rep
 | --- | --- |
 | `/`, `/tools`, `/tools/[slug]` | Public, full results with no account |
 | `/advice`, `/advice/[slug]` | Public practical guides |
+| `/start` | Public browser-only starting plan, text download and practical pathways |
+| `/ideas` | Public search of approved, unexpired practical-help requests |
+| `/ideas/new`, `/ideas/mine`, owner-only parts of `/ideas/[id]` | Verified-account submissions, private offers and owner controls; noindex |
+| `/messages`, `/messages/[threadId]` → `POST /api/bcn/conversations` | Free verified-account chat, rules acceptance, participant access and recipient choice |
+| `/calls/[roomId]` | Optional accepted-pair calling, explicit flag/configuration plus existing permissions |
+| `/admin/bcn-ideas` → `POST /api/bcn/ideas` | Fresh administrator moderation, reports and auditable state/consent decisions |
 | `/find-help` → `POST /api/bcn/help` | Public, bounded and rate-limited private intake |
 | `/business-directory` | Public search of consented and moderated new records |
 | `/connections`, `/how-we-work` | Public journeys and commercial disclosures |
@@ -32,7 +38,7 @@ Source baseline: main commit `5fa2bbf6ac7d39aa14636882bbae2d2713faf11a`. The rep
 
 ## New data
 
-Seven additive tables: `BcnHelpRequest`, `BcnProvider`, `BcnHelpAudit`, `BcnBusinessProfile`, `BcnAffiliateOffer`, `BcnAffiliateClick`, `BcnRevenueEntry`. No new external database, payment account or shared identity integration. Existing users retain their original records; new profile publication is opt-in and starts unapproved.
+The initial seven additive tables: `BcnHelpRequest`, `BcnProvider`, `BcnHelpAudit`, `BcnBusinessProfile`, `BcnAffiliateOffer`, `BcnAffiliateClick`, `BcnRevenueEntry`. Four further practical-help tables and an opted-out-by-default profile preference extend this to eleven tables; see the 21 October section below. No new external database, payment account or shared identity integration. Existing users retain their original records; new profile publication is opt-in and starts unapproved.
 
 Introduction states: RECEIVED → REVIEWED → AWAITING_CONSENT → CONSENTED → INTRODUCED → CLOSED. Rejection is available before introduction. Declining a proposal returns the request to REVIEWED and clears the proposed provider and token. Re-proposals invalidate the previous token. An administrator must record actual introduction after permission; the application does not automatically email a provider. Record withdrawal before sharing by rejecting/closing appropriately and entering the reason; do not share after withdrawal.
 
@@ -66,3 +72,19 @@ Internal models, assets, server actions, webhook processing, subscription/referr
 - Verify proxy IP-header trust and multi-instance Redis behaviour on staging. Payload limits also need reverse-proxy enforcement.
 - Test email delivery/verification, recovery and existing membership portal with synthetic staging accounts. This work sends no live customer communications.
 - Automated accessibility and local browser results are evidence for the sampled flows, not a full accessibility or penetration-test certification.
+
+## 21 October: practical help and free private conversations
+
+Four additive tables (`BcnIdeaRequest`, `BcnIdeaOffer`, `BcnIdeaReport`, `BcnIdeaAudit`) extend the original seven. A separate `acceptsMessages` field on the new business-profile table defaults to false; existing profile-publication permission is not treated as permission for directory chat requests.
+
+New authenticated mutation endpoints `/api/bcn/ideas` and `/api/bcn/conversations` use the configured-origin guard, a bounded JSON reader, shared limiter fail-closed behaviour in production, fresh active/verified accounts and server-controlled ownership. Idea status transitions run in serializable transactions. Only administrators can moderate. Owners cannot approve their own requests/offers or read another owner's private offers. Helper consent plus owner selection of a reviewed offer opens a two-person thread in the existing direct-message tables; replay returns the same thread. No payment or automatic fee is created.
+
+New requests expire after thirty days and are limited to two open requests per owner. Edits return to review and withdraw earlier offers. Operators review explicit scope, timing, full prices and evidence behind claimed discounts. Free and swap offers cannot contain a cash price; discounted offers require a higher comparison price. Those checks do not establish professional credentials or prove a usual price is genuine.
+
+The existing private-message service permits verified active BCN accounts without a subscription only when the isolated BCN 2.0 flag is active. The original deployment and separate product retain their old gates. Directory requests also require an approved, public profile with the separate messaging opt-in. Consent on acceptance, participant authorization, blocking, reports and archive controls remain. The UI exposes names, not account emails. Historical attachments remain protected by participant access; no new upload facility was added to the free chat composer.
+
+Optional direct calling requires `BCN_DIRECT_CALLS_ENABLED=true`, secure LiveKit configuration, existing global/emergency controls, verified/rules-accepted connected participants and no block. It is off by default. Free authentication at room APIs is followed by room-type permissions; group rooms retain the subscription/tier/host rules. The presence endpoint validates room access before accepting a ping, preventing an outsider from creating their own invitation. Access/token responses omit unnecessary room/user data in BCN mode. Call exit returns to private chats. Configuration readiness and invitation tests are not a real media-connectivity test. Blocking denies new/repeated call access; users should leave an existing call immediately if needed. Revalidation cannot recall media already received or an already-issued token by itself; test the existing provider's active-session removal and emergency shutdown in staging before enabling direct calls.
+
+New private idea, chat, account and call routes are excluded from page analytics; private referrers are redacted. Replay stays disabled. Board state, moderation records, owner-reported progress, introductions and evidenced receipts are distinct measures. No board match is labelled earned revenue or independently verified success.
+
+Publication and offer/contact permissions are recorded. Retention targets are review targets, not automated deletion jobs. The staging/release review must cover the expanded privacy/terms text, moderator capacity, complaints handling, an Online Safety Act scope assessment and any applicable risk/access assessments. Adult-only terms do not establish that children cannot access the service. See `growth-and-revenue-research.md` for Ofcom, ASA and ICO sources and the commercial implications.

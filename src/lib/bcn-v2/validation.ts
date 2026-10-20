@@ -46,10 +46,11 @@ export const profileSchema = z
     description: z.string().trim().min(20).max(1500),
     website,
     publicConsent: z.boolean(),
+    acceptsMessages: z.boolean().default(false),
   })
   .strict();
 export const providerSchema = profileSchema
-  .omit({ publicConsent: true })
+  .omit({ publicConsent: true, acceptsMessages: true })
   .extend({
     approved: z.boolean(),
     publicListingConsent: z.boolean(),

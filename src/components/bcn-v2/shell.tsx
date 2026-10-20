@@ -6,6 +6,7 @@ import "./v2.css";
 const navigation = [
   ["Free tools", "/tools"],
   ["Business advice", "/advice"],
+  ["Build it together", "/ideas"],
   ["Find help", "/find-help"],
   ["Directory", "/business-directory"],
   ["Connections", "/connections"],
@@ -62,6 +63,8 @@ export function BcnShell({ children }: { children: ReactNode }) {
               </p>
             </div>
             <nav aria-label="Footer navigation">
+              <Link href="/start">Starting a business</Link>
+              <Link href="/ideas">Build it together</Link>
               <Link href="/about">About BCN</Link>
               <Link href="/how-we-work">How we work & earn</Link>
               <Link href="/contact">Contact</Link>
