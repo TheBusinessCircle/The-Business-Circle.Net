@@ -1,9 +1,10 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
 import { NextResponse } from "next/server";
 import { requireApiUser } from "@/lib/auth/api";
 import { bcnRulesRequiredResponse, hasAcceptedBcnRules } from "@/lib/rules-acceptance";
 import { isTrustedOrigin } from "@/lib/security/origin";
 import { logServerError } from "@/lib/security/logging";
-import { markCallParticipantLeft, recordCallParticipantPresence } from "@/server/calling";
+import { markCallParticipantLeft, recordCallParticipantPresence, validateCallRoomAccess } from "@/server/calling";
 import { participantPresenceSchema, roomIdSchema } from "@/server/calling/schemas";
 import { toCallingUser } from "@/server/calling/session";
 
@@ -18,7 +19,7 @@ export async function POST(
   }
 
   try {
-    const authResult = await requireApiUser({ requiredTier: "FOUNDATION" });
+    const authResult = await requireApiUser(isBcnV2Enabled() ? { allowUnentitled: true, requireVerifiedEmail: true } : { requiredTier: "FOUNDATION" });
     if ("response" in authResult) {
       return authResult.response;
     }
@@ -35,6 +36,11 @@ export async function POST(
     }
 
     const actor = toCallingUser(authResult.user);
+    // A presence ping is not an invitation. Never let it create access for an outsider.
+    if (isBcnV2Enabled()) {
+      const access = await validateCallRoomAccess({ roomId: params.data.roomId, actor });
+      if (!access.allowed) return NextResponse.json({ error: "This call is private or unavailable." }, { status: 403 });
+    }
 
     if (body.data.state === "LEFT") {
       await markCallParticipantLeft({

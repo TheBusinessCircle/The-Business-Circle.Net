@@ -1,3 +1,4 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
 import { readFile } from "node:fs/promises";
 import { NextResponse } from "next/server";
 import { requireApiUser } from "@/lib/auth/api";
@@ -11,7 +12,7 @@ type RouteProps = {
 };
 
 export async function GET(_request: Request, { params }: RouteProps) {
-  const authResult = await requireApiUser({ requiredTier: "FOUNDATION" });
+  const authResult = await requireApiUser(isBcnV2Enabled() ? { allowUnentitled: true, requireVerifiedEmail: true } : { requiredTier: "FOUNDATION" });
   if ("response" in authResult) {
     return authResult.response;
   }

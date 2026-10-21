@@ -1,3 +1,4 @@
+import { isBcnV2Enabled, isBcnHiddenProductPath } from "@/lib/bcn-v2/flags";
 import { auth } from "@/auth";
 import { safeRedirectPath } from "@/lib/auth/utils";
 import {
@@ -99,6 +100,32 @@ export default auth((req) => {
     return NextResponse.redirect(shareImageUrl, 308);
   }
 
+  if (isBcnV2Enabled()) {
+    const path = nextUrl.pathname;
+    if (path === "/llms.txt") return new NextResponse("# The Business Circle\n\nReal help for real business owners. Free UK business tools, practical guidance and permission-based connections.\n\nTools: https://thebusinesscircle.net/tools\nGuides: https://thebusinesscircle.net/advice\nStarting a business: https://thebusinesscircle.net/start\nPractical help for ideas: https://thebusinesscircle.net/ideas\nHelp: https://thebusinesscircle.net/find-help\nCommercial disclosures: https://thebusinesscircle.net/how-we-work\n\nNo ranking or AI citation guarantee is made.\n",{headers:{"Content-Type":"text/plain; charset=utf-8"}});
+    if (path === "/circle-card.webmanifest" || isBcnHiddenProductPath(path) || /^\/api\/(circle-card|stripe\/circle-card)(\/|$)/.test(path)) {
+      return new NextResponse("This page is unavailable.", {status:404, headers:{"X-Robots-Tag":"noindex", "Content-Type":"text/plain; charset=utf-8"}});
+    }
+    const redirects: Record<string,string> = {"/home":"/", "/join":"/register", "/join-mobile":"/register", "/join-desktop":"/register", "/sign-up":"/register", "/early-access":"/register", "/audit":"/tools/website-health-checklist", "/resources":"/advice", "/directory":"/business-directory"};
+    if (redirects[path]) return NextResponse.redirect(new URL(redirects[path],nextUrl),307);
+    // Ignore product return paths on BCN sign-in, retaining the legitimate BCN account.
+    if (["/login","/register","/sign-in"].includes(path) && (nextUrl.searchParams.get("source") === "circle-card" || ["from","returnTo"].some(k=>isBcnHiddenProductPath(nextUrl.searchParams.get(k)||"")))) {
+      return NextResponse.redirect(new URL(path==="/sign-in"?"/login":path,nextUrl));
+    }
+    if (["/dashboard","/profile","/messages"].includes(path) || path.startsWith("/messages/") || path.startsWith("/calls/")) {
+      if (!req.auth?.user || req.auth.user.suspended) return NextResponse.redirect(toLoginRedirect(nextUrl,`${path}${nextUrl.search}`));
+      return nextWithCurrentPath(req,path);
+    }
+    if (AUTH_ROUTES.includes(path)) {
+      if(req.auth?.user && !req.auth.user.suspended) return NextResponse.redirect(new URL("/dashboard",nextUrl));
+      return nextWithCurrentPath(req,path);
+    }
+    // Legacy member areas keep their existing entitlement checks, but never route to another product.
+    if (!path.startsWith("/api") && !path.startsWith("/admin") && startsWithPath(path, MEMBER_ROUTE_PREFIXES) && req.auth?.user && !req.auth.user.hasActiveSubscription && req.auth.user.role !== "ADMIN") {
+      return NextResponse.redirect(new URL("/dashboard",nextUrl));
+    }
+  }
+
   const session = req.auth;
   const pathname = nextUrl.pathname;
   const requestedPath = `${pathname}${nextUrl.search ?? ""}`;
@@ -114,7 +141,7 @@ export default auth((req) => {
   const isJoinRoute =
     pathname === "/join" || pathname === "/join-desktop" || pathname === "/join-mobile";
   const authFromPath = safeRedirectPath(nextUrl.searchParams.get("from"), "");
-  const shouldPreferCircleCard = isCircleCardFirstAccount(session?.user);
+  const shouldPreferCircleCard = !isBcnV2Enabled() && isCircleCardFirstAccount(session?.user);
 
   if (isAuthRoute && session?.user && !session.user.suspended) {
     if (isJoinRoute) {
@@ -199,6 +226,11 @@ export const config = {
   // Admin-only routes are enforced here; member route groups also call requireUser
   // in their server layout so protection remains explicit if routing changes later.
   matcher: [
+    "/((?!_next/static|_next/image|api/|.*\\.[^/]+$).*)",
+    "/circle-card.webmanifest",
+    "/llms.txt",
+    "/api/circle-card/:path*",
+    "/api/stripe/circle-card/:path*",
     "/login",
     "/register",
     "/join",

@@ -34,7 +34,12 @@ function isAuthenticationPath(pathname: string) {
   );
 }
 
+export function isPrivateBusinessPath(pathname: string) {
+  return /^\/(messages|calls|help-consent|profile|dashboard|admin)(\/|$)/.test(pathname) || pathname.startsWith("/ideas/");
+}
+
 function redactBearerPath(pathname: string) {
+  if (isPrivateBusinessPath(pathname)) return "/[private]";
   return pathname
     .replace(/^\/invite\/[^/]+/i, "/invite/[redacted]")
     .replace(/^\/testimonial\/[^/]+/i, "/testimonial/[redacted]");
@@ -99,6 +104,7 @@ export function sanitizeAnalyticsLocation(
     url.pathname = redactBearerPath(url.pathname);
 
     if (
+      url.pathname === "/[private]" ||
       isAuthenticationPath(url.pathname) ||
       url.pathname.startsWith("/invite/") ||
       url.pathname.startsWith("/testimonial/")

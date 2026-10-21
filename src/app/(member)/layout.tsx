@@ -1,3 +1,5 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
+import { BcnMemberShell } from "@/components/bcn-v2/member-shell";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
@@ -45,6 +47,7 @@ export const metadata: Metadata = {
 };
 
 export default async function MemberLayout({ children }: { children: ReactNode }) {
+  if (isBcnV2Enabled()) return <BcnMemberShell>{children}</BcnMemberShell>;
   const requestHeaders = await headers();
   const currentPathname = requestHeaders.get("x-bcn-pathname") ?? "";
   const session = await requireUser({

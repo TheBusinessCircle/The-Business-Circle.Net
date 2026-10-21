@@ -1,3 +1,5 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
+import { BcnConversation } from "@/components/bcn-v2/conversation-pages";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -89,6 +91,7 @@ function feedbackMessage(input: { notice: string; error: string }) {
 }
 
 export default async function DirectMessageThreadPage({ params, searchParams }: PageProps) {
+  if (isBcnV2Enabled()) return <BcnConversation threadId={(await params).threadId} />;
   const session = await requireUser();
   const { threadId } = await params;
   const resolvedSearchParams = await searchParams;

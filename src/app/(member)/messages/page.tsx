@@ -1,3 +1,5 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
+import { BcnConversations } from "@/components/bcn-v2/conversation-pages";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Inbox, Search, ShieldCheck } from "lucide-react";
@@ -59,6 +61,7 @@ function feedbackMessage(input: { notice: string; error: string }) {
 }
 
 export default async function MessagesPage({ searchParams }: PageProps) {
+  if (isBcnV2Enabled()) { const p = await searchParams; return <BcnConversations connect={typeof p.connect === "string" ? p.connect : undefined} archived={p.view === "archived"} />; }
   const session = await requireUser();
   const params = await searchParams;
   const query = firstValue(params.q).trim();

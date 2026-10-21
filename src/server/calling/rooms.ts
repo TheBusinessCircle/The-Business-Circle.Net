@@ -1,3 +1,7 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
+import { connectedPairCanTalk } from "@/server/bcn-v2/connections-policy";
+import { sendDirectMessage } from "@/server/messages/message.service";
+import { publishMessagesThreadRefresh } from "@/lib/messages/ably-publisher";
 import { randomUUID } from "node:crypto";
 import {
   Prisma,
@@ -260,6 +264,11 @@ export async function createOneToOneCallRoom(input: {
     throw new Error("target-not-eligible");
   }
 
+  if (isBcnV2Enabled()) {
+    if (!(await connectedPairCanTalk(input.actor.id, input.targetUserId))) throw new Error("accepted-chat-required");
+    const existing = await db.callRoom.findFirst({ where: { type: "ONE_TO_ONE", status: "LIVE", createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) }, AND: [{ participants: { some: { userId: input.actor.id } } }, { participants: { some: { userId: input.targetUserId } } }] }, select: { id: true } });
+    if (existing) return getCallRoomById(existing.id);
+  }
   const identifiers = buildRoomIdentifiers("private-call", "one-to-one");
   const now = new Date();
   const room = await db.callRoom.create({
@@ -268,7 +277,7 @@ export async function createOneToOneCallRoom(input: {
       status: "LIVE",
       createdByUserId: input.actor.id,
       hostUserId: input.actor.id,
-      title: `Private call with ${targetUser.name ?? targetUser.email}`,
+      title: `Private call with ${targetUser.name || (isBcnV2Enabled() ? "a BCN member" : targetUser.email)}`,
       description: "Private 1 to 1 member call.",
       slug: identifiers.slug,
       livekitRoomName: identifiers.livekitRoomName,
@@ -306,6 +315,13 @@ export async function createOneToOneCallRoom(input: {
     }
   });
 
+  if (isBcnV2Enabled()) {
+    const thread = await db.directMessageThread.findFirst({ where: { AND: [{ participants: { some: { userId: input.actor.id } } }, { participants: { some: { userId: input.targetUserId } } }] }, select: { id: true } });
+    if (thread) {
+      await sendDirectMessage({ threadId: thread.id, senderId: input.actor.id, content: `I’ve opened a private call. Join when you’re ready: /calls/${room.id}` });
+      await publishMessagesThreadRefresh(thread.id, { type: "message.created" });
+    }
+  }
   return getCallRoomById(room.id);
 }
 

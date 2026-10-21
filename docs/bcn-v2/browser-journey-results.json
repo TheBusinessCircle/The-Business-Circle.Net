@@ -1,0 +1,58 @@
+{
+  "checked": "2026-10-21",
+  "data": "disposable synthetic fixtures; no live customer data",
+  "database": "PostgreSQL WASM / PGlite socket multiplexer; ordinary PostgreSQL staging still required",
+  "journeys": {
+    "public_tools_and_introductions": {
+      "passed": [
+        "additive migration: 11 new tables; existing schema retained",
+        "homepage serves with isolated test data",
+        "no first-party visitor cookie before analytics permission",
+        "pricing calculator returns \u00a3533.33 without account",
+        "profit calculator returns \u00a3500 expected operating profit",
+        "cost comparison includes setup costs",
+        "manual website checklist works without scans",
+        "editable quote and actual PDF rendering",
+        "public help submission persists privately",
+        "unauthorized admin and cross-origin mutations rejected",
+        "reviewed request \u2192 named provider \u2192 explicit consent \u2192 introduction, with replay blocked",
+        "actual receipts kept separate; duplicate references rejected",
+        "mobile homepage fits 390px and menu opens",
+        "public/mobile auth surfaces and legacy product entry points isolated",
+        "automated WCAG checks on five representative mobile pages",
+        "browser flows without uncaught page errors"
+      ],
+      "blocked": []
+    },
+    "ideas_and_private_conversations": {
+      "passed": [
+        "free account accepts BCN rules without paid entitlement",
+        "browser request persists privately and unpublished detail is inaccessible",
+        "only administrators can publish; verified owners only; public brief excludes account email",
+        "misleading discounts, self-offers and acceptance before review rejected",
+        "reviewed offer has clear real and comparison prices and stays private to owner",
+        "chosen offer creates consented private thread; foreign owner and replay cannot create extra threads",
+        "both free accounts can chat; foreign thread read/write denied; account email not disclosed",
+        "configured direct call creates invitation only for accepted participants; outsider presence cannot grant access",
+        "mobile private chat fits screen and has no automated WCAG violations",
+        "progress is recorded without revenue; blocking stops replies and new call access",
+        "profile messaging requires a separate opt-in and recipient accepts the request in browser",
+        "CSRF rejected and moderation / consent audit is reviewable",
+        "full ideas \u2192 reviewed discounted help \u2192 accepted private chat \u2192 optional call invitation \u2192 owner-reported progress journey"
+      ],
+      "blocked": [
+        "optional call page: PGlite concurrent prepared-statement/portal limitation; real PostgreSQL staging required"
+      ]
+    },
+    "private_static_review": {
+      "passed": [
+        "static private review: mobile navigation, hydration and working job calculator",
+        "review-only banner is visible after client navigation",
+        "review links for authenticated features lead to the disconnected sign-in screen",
+        "free starting plan downloads the owner\u2019s entered text without an account",
+        "new startup and practical-help pages fit mobile and have zero automated WCAG violations"
+      ],
+      "blocked": []
+    }
+  }
+}

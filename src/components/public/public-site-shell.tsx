@@ -1,8 +1,11 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
+import { BcnShell } from "@/components/bcn-v2/shell";
 import { ReactNode } from "react";
 import { Footer } from "@/components/public/footer";
 import { Navbar } from "@/components/public/navbar";
 
 export function PublicSiteShell({ children }: { children: ReactNode }) {
+  if (isBcnV2Enabled()) return <BcnShell>{children}</BcnShell>;
   return (
     <div className="flex min-h-screen flex-col overflow-x-clip">
       <Navbar />
