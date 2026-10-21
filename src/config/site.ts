@@ -73,7 +73,7 @@ export const SITE_CONFIG: SiteConfig = {
   supportEmail: process.env.PUBLIC_CONTACT_EMAIL?.trim() || "contact@thebusinesscircle.net",
   publicNavigation,
   memberNavigation,
-  adminNavigation: isBcnV2Enabled() ? [{label:"BCN Help & Revenue",href:"/admin/bcn-help"},...adminNavigation.filter(i=>!i.href.startsWith("/admin/circle-card"))] : adminNavigation,
+  adminNavigation: isBcnV2Enabled() ? [{label:"BCN Help & Revenue",href:"/admin/bcn-help"},{label:"Practical help moderation",href:"/admin/bcn-ideas"},{label:"Publication queue",href:"/admin/bcn-content"},...adminNavigation.filter(i=>!i.href.startsWith("/admin/circle-card"))] : adminNavigation,
   social: {
     linkedin: process.env.NEXT_PUBLIC_LINKEDIN_URL || undefined,
     instagram: process.env.NEXT_PUBLIC_INSTAGRAM_URL || undefined,

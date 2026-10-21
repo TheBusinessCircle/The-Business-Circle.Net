@@ -19,6 +19,10 @@ export default function AdvicePage() {
           Short, practical guides with worked examples, sources and a useful
           next step. Start with the decision on your desk.
         </p>
+        <p>
+          <Link href="/blog">Read the BCN blog</Link> for more practical ideas
+          about starting, running and helping a business.
+        </p>
       </PageHeading>
       <section className="v2-section">
         <div className="v2-wrap v2-grid">

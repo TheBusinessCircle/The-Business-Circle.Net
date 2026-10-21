@@ -2,6 +2,8 @@
 
 Status: development branch; production is not changed. Flag off by default.
 
+Update 21 October: the owner has authorised the live switch. Server access, isolated deployment verification and the remaining staging checks are still required. A 104-article free blog and twice-weekly UK schedule are implemented. See [the calendar](editorial-calendar.md) and [publication operations](editorial-operations.md). New articles remain unreleased until an actual launch date is configured.
+
 The proposition is **Real help for real business owners.** Welcome startups and established owners of all kinds. The first financial tools use UK assumptions. Let someone complete a useful task before asking for an account.
 
 ## Delivered in source

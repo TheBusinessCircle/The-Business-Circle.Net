@@ -1,6 +1,6 @@
 # Deployment instructions and membership transition
 
-Do not run these steps against production until the owner has reviewed the preview and explicitly approved the release. No billing changes are included in this release.
+The owner authorised the BCN 2.0 switch on 21 October 2026 after the private preview was presented. Proceed through the technical release checks with authorised hosting access; do not request the same conversational approval again. No billing changes are included or authorised. The current blocker is server access and verification of isolated deployment topology, backups and staging. See editorial-operations.md for the 104-article schedule and current access boundary.
 
 ## Evidence and access boundary
 
