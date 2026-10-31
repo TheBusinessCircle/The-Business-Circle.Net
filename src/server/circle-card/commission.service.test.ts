@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MembershipTier, Role, SubscriptionStatus } from "@prisma/client";
 
 vi.mock("server-only", () => ({}));
@@ -30,6 +30,8 @@ describe("Circle Card commission ledger generation", () => {
   const createdKeys = new Set<string>();
 
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-07-20T12:00:00.000Z"));
     vi.clearAllMocks();
     createdKeys.clear();
     ledgerFindManyMock.mockResolvedValue([]);
@@ -83,6 +85,10 @@ describe("Circle Card commission ledger generation", () => {
       circleCardGrowthReferral: { updateMany: referralUpdateManyMock },
       circleCardCommissionLedger: { createMany: ledgerCreateManyMock }
     }));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("is idempotent for the same referrer, referred user and month", async () => {
