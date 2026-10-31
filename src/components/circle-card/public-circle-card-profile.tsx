@@ -10,6 +10,8 @@ import {
   spinToConnectCircleCardAction
 } from "@/actions/circle-card.actions";
 import { CircleCardAboutExpander } from "@/components/circle-card/circle-card-about-expander";
+import { CircleCardBusinessHeroActions } from "@/components/circle-card/circle-card-business-hero-actions";
+import { resolveCircleCardHeroReviewAction } from "@/config/circle-card-hero-actions";
 import { CircleCardFramedImage } from "@/components/circle-card/circle-card-framed-image";
 import { CircleCardInstallPrompt } from "@/components/circle-card/circle-card-install-prompt";
 import { CircleCardLogoMark } from "@/components/circle-card/circle-card-logo-mark";
@@ -3157,6 +3159,10 @@ export function PublicCircleCardProfile({
   }
 
   const businessHeroImageUrl = card.businessLogoUrl || card.profileImageUrl;
+  const businessHeroReviewAction = resolveCircleCardHeroReviewAction({
+    slug: card.slug,
+    websiteUrl: card.websiteUrl
+  });
   const businessHeroImageAlt = card.businessLogoUrl
     ? `${card.businessName || card.fullName} logo`
     : card.fullName;
@@ -3315,12 +3321,14 @@ export function PublicCircleCardProfile({
                 </div>
 
                 {primaryCustomLink || primaryWebsiteLink ? (
-                  <div className="mt-6 flex justify-center">
-                    {renderPrimaryCta({
+                  <CircleCardBusinessHeroActions
+                    reviewAction={businessHeroReviewAction}
+                    analyticsCardId={analyticsCardId}
+                    primaryAction={renderPrimaryCta({
                       source: "business_hero_cta",
-                      className: "max-w-full sm:w-auto"
+                      className: businessHeroReviewAction ? "w-full" : "max-w-full sm:w-auto"
                     })}
-                  </div>
+                  />
                 ) : null}
 
                 {noticeMessage || errorMessage ? (
