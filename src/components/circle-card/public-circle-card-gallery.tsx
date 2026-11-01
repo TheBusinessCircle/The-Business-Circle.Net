@@ -6,15 +6,23 @@ import {
   isValidCircleCardGalleryImageUrl,
   type CircleCardGalleryItem
 } from "@/lib/circle-card/content-blocks";
+import { circleCardPublicThemeClasses } from "@/lib/circle-card/public-theme-classes";
+import { cn } from "@/lib/utils";
 
 type PublicCircleCardGalleryProps = {
   items: CircleCardGalleryItem[];
   id?: string;
+  heading?: string;
+  description?: string;
+  spotlight?: boolean;
 };
 
 export function PublicCircleCardGallery({
   items,
-  id = "business-gallery"
+  id = "business-gallery",
+  heading = "Selected work",
+  description,
+  spotlight = false
 }: PublicCircleCardGalleryProps) {
   const [selectedItem, setSelectedItem] = useState<CircleCardGalleryItem | null>(null);
   const [failedItemIds, setFailedItemIds] = useState<Set<string>>(() => new Set());
@@ -60,25 +68,31 @@ export function PublicCircleCardGallery({
       <section
         id={id}
         aria-labelledby={`${id}-title`}
-        className="rounded-[1.75rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(12,25,32,0.88),rgba(4,10,24,0.96))] p-4 shadow-panel-soft sm:p-6"
+        className={spotlight
+          ? circleCardPublicThemeClasses.sectionCard
+          : "rounded-[1.75rem] border border-gold/18 bg-[linear-gradient(145deg,rgba(12,25,32,0.88),rgba(4,10,24,0.96))] p-4 shadow-panel-soft sm:p-6"}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-medium text-gold">Gallery / Portfolio</p>
+            <p className="text-xs font-medium text-gold">{spotlight ? "The Precision portfolio" : "Gallery / Portfolio"}</p>
             <h2 id={`${id}-title`} className="mt-1 font-display text-2xl text-foreground">
-              Selected work
+              {heading}
             </h2>
+            {description ? <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">{description}</p> : null}
           </div>
           <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gold/18 bg-gold/10 text-gold">
             <Images size={18} aria-hidden="true" />
           </span>
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
-          {visibleItems.map((item) => (
+        <div className={cn("mt-5 grid grid-cols-2 gap-3 sm:gap-4", !spotlight && "md:grid-cols-3")}>
+          {visibleItems.map((item, index) => (
             <article
               key={item.id}
-              className="min-w-0 overflow-hidden rounded-2xl border border-silver/14 bg-white/[0.04]"
+              className={cn(
+                "min-w-0 overflow-hidden rounded-2xl border border-silver/14 bg-white/[0.04]",
+                spotlight && (index === 0 || (index === visibleItems.length - 1 && visibleItems.length % 2 === 0)) && "col-span-2"
+              )}
             >
               <button
                 type="button"
@@ -86,7 +100,7 @@ export function PublicCircleCardGallery({
                 onClick={() => setSelectedItem(item)}
                 aria-label={`Enlarge ${item.title || "portfolio image"}`}
               >
-                <span className="block aspect-square overflow-hidden bg-background/40 sm:aspect-[4/3]">
+                <span className={cn("block overflow-hidden bg-background/40", spotlight ? "aspect-[16/10]" : "aspect-square sm:aspect-[4/3]")}>
                   <img
                     src={item.imageUrl}
                     alt={item.title || "Portfolio image"}
