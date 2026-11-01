@@ -11,7 +11,8 @@ import {
 } from "@/actions/circle-card.actions";
 import { CircleCardAboutExpander } from "@/components/circle-card/circle-card-about-expander";
 import { CircleCardBusinessHeroActions } from "@/components/circle-card/circle-card-business-hero-actions";
-import { resolveCircleCardHeroReviewAction } from "@/config/circle-card-hero-actions";
+import { CircleCardBusinessProjectCta, CircleCardBusinessSignature } from "@/components/circle-card/circle-card-business-experience";
+import { resolveCircleCardBusinessExperience, resolveCircleCardHeroReviewAction } from "@/config/circle-card-hero-actions";
 import { CircleCardFramedImage } from "@/components/circle-card/circle-card-framed-image";
 import { CircleCardInstallPrompt } from "@/components/circle-card/circle-card-install-prompt";
 import { CircleCardLogoMark } from "@/components/circle-card/circle-card-logo-mark";
@@ -2543,7 +2544,14 @@ export function PublicCircleCardProfile({
       return null;
     }
 
-    return <PublicCircleCardGallery id={id} items={card.galleryItems} />;
+    const experience = resolveCircleCardBusinessExperience({ slug: card.slug, websiteUrl: card.websiteUrl });
+    return <PublicCircleCardGallery
+      id={id}
+      items={card.galleryItems}
+      heading={experience?.galleryHeading}
+      description={experience?.galleryDescription}
+      spotlight={Boolean(experience)}
+    />;
   }
 
   function renderReviewsSection({ id = "business-reviews" }: { id?: string } = {}) {
@@ -3163,6 +3171,10 @@ export function PublicCircleCardProfile({
     slug: card.slug,
     websiteUrl: card.websiteUrl
   });
+  const businessExperience = resolveCircleCardBusinessExperience({
+    slug: card.slug,
+    websiteUrl: card.websiteUrl
+  });
   const businessHeroImageAlt = card.businessLogoUrl
     ? `${card.businessName || card.fullName} logo`
     : card.fullName;
@@ -3180,7 +3192,8 @@ export function PublicCircleCardProfile({
   return (
     <div
       className={cn(circleCardPublicThemeClasses.backgroundShell, "pb-32 lg:pb-16")}
-      style={circleCardThemeStyle}
+      style={{ ...circleCardThemeStyle, ...businessExperience?.surfaceStyle }}
+      data-business-experience={businessExperience?.key}
       data-circle-card-surface={circleCardThemeSurface}
       {...circleStudioAttributes}
     >
@@ -3247,18 +3260,28 @@ export function PublicCircleCardProfile({
                 </div>
 
                 <div className="mx-auto mt-6 max-w-2xl text-center">
+                  {businessExperience ? (
+                    <p className="mb-3 text-[10px] font-semibold uppercase tracking-[.2em] text-[hsl(var(--cc-theme-accent-hsl))] sm:text-xs">
+                      {businessExperience.eyebrow}
+                    </p>
+                  ) : null}
                   <h1
                     id="circle-card-profile-title"
-                    className="font-display text-4xl font-semibold leading-tight text-foreground sm:text-5xl"
+                    className={cn("font-display font-semibold leading-tight text-foreground", businessExperience ? "text-3xl sm:text-5xl" : "text-4xl sm:text-5xl")}
                   >
-                    {card.fullName}
+                    {businessExperience ? (
+                      <>
+                        <span className="block">{businessExperience.brandName}</span>
+                        <span className="mt-2 block text-xl font-medium text-silver sm:text-2xl">{businessExperience.specialty}</span>
+                      </>
+                    ) : card.fullName}
                   </h1>
 
                   {card.role ? (
                     <p className="mt-3 text-base font-medium text-silver">{card.role}</p>
                   ) : null}
 
-                  {card.businessName ? (
+                  {card.businessName && !businessExperience ? (
                     <p className="mt-1 text-sm text-muted">{card.businessName}</p>
                   ) : null}
 
@@ -3280,6 +3303,7 @@ export function PublicCircleCardProfile({
                       {viewLabel}
                     </span>
                   </div>
+                  {businessExperience ? <CircleCardBusinessSignature experience={businessExperience} /> : null}
                 </div>
 
                 <div className="mt-6 flex flex-wrap justify-center gap-2">
@@ -3325,6 +3349,7 @@ export function PublicCircleCardProfile({
                     reviewAction={businessHeroReviewAction}
                     analyticsCardId={analyticsCardId}
                     primaryAction={renderPrimaryCta({
+                      ...(businessExperience ? { link: null, website: websiteContactRow, label: "Visit Website" } : {}),
                       source: "business_hero_cta",
                       className: businessHeroReviewAction ? "w-full" : "max-w-full sm:w-auto"
                     })}
@@ -3347,6 +3372,15 @@ export function PublicCircleCardProfile({
                 ) : null}
               </div>
             </article>
+
+            {businessExperience ? (
+              <CircleCardBusinessProjectCta
+                experience={businessExperience}
+                phoneHref={telHref}
+                phoneLabel={card.phone}
+                analyticsCardId={analyticsCardId}
+              />
+            ) : null}
 
             <section
               aria-label="Circle Card actions"
