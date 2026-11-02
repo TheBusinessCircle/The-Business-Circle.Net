@@ -33,11 +33,13 @@ describe("Lawrence Severn's custom presentation", () => {
   expect(html).not.toContain("/circle-card/clients/lawrence-severn/shopfront.jpg");
  });
 
- it("puts a clearly labelled spinning identity ahead of the shop content",()=>{
+ it("keeps the spinning identity without visible instruction copy",()=>{
   const html=renderToStaticMarkup(createElement(LawrenceSevernCard,props));
   expect(html.indexOf('Circle Card connection')).toBeLessThan(html.indexOf('lawrence-heading'));
   expect(html).toContain('data-preview-spin');
-  expect(html).toContain('Spin the logo');
+  expect(html).not.toContain('Spin the logo');
+  expect(html).not.toContain('Tap or swipe the circle');
+  expect(html).not.toContain('YOUR LOCAL BUTCHER. IN YOUR CIRCLE.');
   expect(html).toContain('No connection is created here.');
   expect(html).toContain('QUALITY BUTCHERS');
  });

@@ -11,6 +11,11 @@ spec.loader.exec_module(installer)
 
 
 class DeploymentGuards(unittest.TestCase):
+    def setUp(self):
+        ports = patch.multiple(installer, OLD_PORT=3371, NEW_PORT=3372)
+        ports.start()
+        self.addCleanup(ports.stop)
+
     def test_unit_changes_release_and_port_without_changing_secret_digits(self):
         source = '[Service]\nWorkingDirectory=/old\nExecStart=/usr/bin/node /old/server.js --port 3371\nEnvironment="PORT=3371" "SECRET=example3371value"\n'
         result = installer.rewrite_unit(source, '/old', '/new', '/private/override.env')
@@ -41,14 +46,14 @@ class DeploymentGuards(unittest.TestCase):
             self.assertFalse(installer.allowed_payload(filename))
 
     def test_launcher_preserves_identity_and_billing_checks(self):
-        original = '/opt/thebusinesscircle/circle-card-launchers/0539b3999fa8d626805270633d8d393c309dcffb/launch-959.mjs'
+        original = '/opt/thebusinesscircle/circle-card-launchers/lawrence-20261102-222341/launch.mjs'
         source = (
             "if(process.getuid()===0||process.env.USER!=='circle-card-app'||process.env.LOGNAME!=='circle-card-app'||realpathSync(process.cwd())!==\"" + str(installer.LIVE) + "\")throw Error('Exact Circle runtime identity required');"
             "const values=readEnvironmentJson('/etc/thebusinesscircle/circle-card/runtime.env.json');"
             "validateProtectedStandaloneBilling(values,{applicationSha:'0539b3999fa8d626805270633d8d393c309dcffb'});"
             "process.execve('/usr/bin/node',['/usr/bin/node','" + str(installer.LIVE) + "/node_modules/next/dist/bin/next','start','-p','3371'],{...values,PORT:'3371'});"
         )
-        stage = Path('/var/www/releases/circle-card-lawrence-20261102-222341')
+        stage = Path('/var/www/releases/circle-card-lawrence-20261102-230600')
         with patch.object(Path, 'read_text', return_value=source):
             _, result, _ = installer.prepare_launcher('ExecStart=/usr/bin/node ' + original, stage)
         self.assertNotIn(str(installer.LIVE), result)

@@ -51,7 +51,7 @@ export function LawrenceSevernCard({ name, phone, location, spin, share, wallet,
           {feedback}
           <section className={styles.identityPanel} aria-label="Circle Card connection">
             <div className={styles.spin}>{spin ?? <button type="button" className={styles.previewSpin} data-preview-spin aria-label="Spin Lawrence Severn & Son’s logo — design preview"><LawrenceSevernLogoFace /></button>}</div>
-            <div className={styles.identityPrompt}><p className={styles.eyebrow}>YOUR LOCAL BUTCHER. IN YOUR CIRCLE.</p><h2>Spin the logo<br /><em>to connect.</em></h2><p>Tap or swipe the circle to keep us close.</p>{!spin ? <span role="status" data-preview-spin-status>Design preview · No connection is created here.</span> : null}</div>
+            {!spin ? <span className={styles.previewStatus} role="status" data-preview-spin-status>Design preview · No connection is created here.</span> : null}
           </section>
           <section className={styles.hero} aria-labelledby="lawrence-heading">
             <div className={styles.heroCopy}>

@@ -17,10 +17,10 @@ import tarfile
 import time
 import urllib.request
 
-LIVE = Path('/var/www/releases/circle-card-0539b3999fa8d626805270633d8d393c309dcffb')
-LIVE_UNIT = 'circle-card-release-0539b39-owned.service'
+LIVE = Path('/var/www/releases/circle-card-lawrence-20261102-222341')
+LIVE_UNIT = 'circle-card-lawrence-20261102-222341.service'
 NGINX = Path('/etc/nginx/sites-enabled/circlecard.co.uk')
-OLD_PORT, NEW_PORT = 3371, 3372
+OLD_PORT, NEW_PORT = 3372, 3373
 PAGE = Path('src/app/(member)/app/prepared/[preparedId]/preview/page.tsx')
 CUSTOM = 'src/components/circle-card/lawrence-severn/'
 ASSETS = 'public/circle-card/clients/lawrence-severn/'
@@ -44,18 +44,18 @@ def rewrite_unit(text, old_root, new_root, override_file):
     lines = []
     for line in text.splitlines():
         if re.match(r'\s*ExecStart\s*=', line):
-            line = re.sub(r'(?<!\d)3371(?!\d)', '3372', line)
+            line = re.sub(rf'(?<!\d){OLD_PORT}(?!\d)', str(NEW_PORT), line)
         elif re.match(r'\s*Environment\s*=', line):
-            line = re.sub(r'(?<!\w)PORT=3371(?=["\s]|$)', 'PORT=3372', line)
+            line = re.sub(rf'(?<!\w)PORT={OLD_PORT}(?=["\s]|$)', f'PORT={NEW_PORT}', line)
         lines.append(line)
     return '\n'.join(lines) + f'\n\n[Service]\nEnvironmentFile={override_file}\n'
 
 
 def rewrite_nginx(text, old_root, new_root):
-    pattern = r'(?m)^(\s*proxy_pass\s+)http://127\.0\.0\.1:3371(\s*;)'
+    pattern = rf'(?m)^(\s*proxy_pass\s+)http://127\.0\.0\.1:{OLD_PORT}(\s*;)' 
     if len(re.findall(pattern, text)) != 1:
-        raise RuntimeError('Expected exactly one live Circle Card proxy target on port 3371.')
-    result = re.sub(pattern, r'\g<1>http://127.0.0.1:3372\2', text)
+        raise RuntimeError(f'Expected exactly one live Circle Card proxy target on port {OLD_PORT}.')
+    result = re.sub(pattern, lambda match: f'{match.group(1)}http://127.0.0.1:{NEW_PORT}{match.group(2)}', text)
     # Keep any release-specific static aliases pointed at the matching build.
     result = result.replace(old_root, new_root)
     for match in list(re.finditer(r'(?m)^(\s*(?:alias|root)\s+)([^;\s]+)(\s*;)', result)):
@@ -95,7 +95,7 @@ def health(path, expected):
 
 
 def prepare_launcher(unit_text, stage):
-    original = Path('/opt/thebusinesscircle/circle-card-launchers/0539b3999fa8d626805270633d8d393c309dcffb/launch-959.mjs')
+    original = Path('/opt/thebusinesscircle/circle-card-launchers/lawrence-20261102-222341/launch.mjs')
     if str(original) not in unit_text:
         raise RuntimeError('The source service uses an unrecognised launcher; live site unchanged.')
     source = original.read_text()
@@ -104,7 +104,7 @@ def prepare_launcher(unit_text, stage):
         if token not in source:
             raise RuntimeError('The expected protected launcher checks changed.')
     updated = source.replace(str(LIVE), str(stage))
-    for old, new in [("'-p','3371'", "'-p','3372'"), ("PORT:'3371'", "PORT:'3372'")]:
+    for old, new in [(f"'-p','{OLD_PORT}'", f"'-p','{NEW_PORT}'"), (f"PORT:'{OLD_PORT}'", f"PORT:'{NEW_PORT}'")]:
         if updated.count(old) != 1:
             raise RuntimeError('The launcher port configuration changed; live site unchanged.')
         updated = updated.replace(old, new)
@@ -153,7 +153,7 @@ def main():
         raise RuntimeError('The live process is not running from the expected release.')
     source_page = (LIVE / PAGE).read_text()
     for required in ['getOwnedPreparedCard(preparedId)', 'buildPreparedCardPreview(row,plan)', 'contactDownloadHref']:
-        if required not in source_page:
+        if required not in re.sub(r'\s+', '', source_page):
             raise RuntimeError('The prepared-preview source changed; no deployment was attempted.')
     available_kib = next(int(line.split()[1]) for line in Path('/proc/meminfo').read_text().splitlines() if line.startswith('MemAvailable:'))
     if not args.resume_existing and available_kib < 4096 * 1024:
@@ -252,7 +252,7 @@ def main():
         if value.startswith(str(LIVE) + '/'):
             env[key] = str(stage) + value[len(str(LIVE)):]
     log_path = state / ('resume-verification.log' if args.resume_existing else 'build.log')
-    print('Checking the completed build.' if args.resume_existing else 'Building the new release. The live site remains on port 3371.', flush=True)
+    print('Checking the completed build.' if args.resume_existing else f'Building the new release. The live site remains on port {OLD_PORT}.', flush=True)
     with log_path.open('w') as log:
         log_path.chmod(0o600)
         # Release files may intentionally lack executable bits. Node reads the
@@ -337,7 +337,7 @@ def main():
         print('Open: https://circlecard.co.uk/app/prepared/cmvzmvkzm00g7u7ah42orvyi8/preview?plan=pro&presentation=custom')
         print('Release:', stage)
         print('Service:', unit_name)
-        print('Previous release remains running on port 3371.')
+        print(f'Previous release remains running on port {OLD_PORT}.')
         print('Rollback configuration:', backup)
         print('Verify the signed-in Custom, Free and Pro samples before declaring the result complete.')
     except Exception:
