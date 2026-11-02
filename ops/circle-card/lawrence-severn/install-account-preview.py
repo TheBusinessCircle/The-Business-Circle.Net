@@ -117,6 +117,9 @@ def main():
     for required in ['getOwnedPreparedCard(preparedId)', 'buildPreparedCardPreview(row,plan)', 'contactDownloadHref']:
         if required not in source_page:
             raise RuntimeError('The prepared-preview source changed; no deployment was attempted.')
+    available_kib = next(int(line.split()[1]) for line in Path('/proc/meminfo').read_text().splitlines() if line.startswith('MemAvailable:'))
+    if available_kib < 4096 * 1024:
+        raise RuntimeError(f'Build requires 4096 MiB available RAM; currently {available_kib // 1024} MiB. Live site unchanged.')
     with socket.socket() as probe:
         probe.bind(('127.0.0.1', NEW_PORT))
     env = dict(os.environ)
@@ -180,7 +183,7 @@ def main():
     elif next_dir.exists():
         shutil.rmtree(next_dir)
     env.update({'PWD': str(stage), 'NODE_ENV': 'production', 'PORT': str(NEW_PORT), 'HOSTNAME': '127.0.0.1', 'NEXT_TELEMETRY_DISABLED': '1'})
-    env['NODE_OPTIONS'] = env.get('NODE_OPTIONS', '') + ' --max-old-space-size=1536'
+    env['NODE_OPTIONS'] = env.get('NODE_OPTIONS', '') + ' --max-old-space-size=3072'
     for key, value in list(env.items()):
         if value.startswith(str(LIVE) + '/'):
             env[key] = str(stage) + value[len(str(LIVE)):]
