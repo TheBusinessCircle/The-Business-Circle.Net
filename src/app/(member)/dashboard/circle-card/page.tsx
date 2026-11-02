@@ -228,7 +228,5449 @@ import {
 import { signOutAction } from "@/lib/actions/auth-actions";
 import {
   CIRCLE_CARD_RECOMMENDATION_CATEGORIES,
-  circleCardRecommendationVisibil…12152 tokens truncated…{cn(buttonVariants({ variant: "outline" }), "h-10 min-w-0 justify-center gap-1.5 px-2 text-xs sm:text-sm")}
+  circleCardRecommendationVisibilityLabel
+} from "@/lib/circle-card/recommendations";
+import {
+  CIRCLE_CARD_TYPE_COPY,
+  CIRCLE_CARD_TYPES
+} from "@/lib/circle-card/card-types";
+import {
+  CIRCLE_CARD_BUSINESS_BLOCK_TYPES,
+  CIRCLE_CARD_DOCUMENT_PRO_LIMIT,
+  CIRCLE_CARD_BRAND_PARTNERSHIP_FREE_LIMIT,
+  CIRCLE_CARD_BRAND_PARTNERSHIP_PRO_LIMIT,
+  CIRCLE_CARD_FEATURED_CONTENT_FREE_LIMIT,
+  CIRCLE_CARD_FEATURED_CONTENT_PRO_LIMIT,
+  CIRCLE_CARD_CREATOR_OFFER_FREE_LIMIT,
+  CIRCLE_CARD_CREATOR_OFFER_PRO_LIMIT,
+  CIRCLE_CARD_PRESS_PROOF_FREE_LIMIT,
+  CIRCLE_CARD_PRESS_PROOF_PRO_LIMIT,
+  CIRCLE_CARD_GALLERY_PRO_LIMIT,
+  CIRCLE_CARD_MENU_OFFER_PRO_LIMIT,
+  CIRCLE_CARD_OPENING_HOURS_PRESETS,
+  CIRCLE_CARD_PRODUCT_PRO_LIMIT,
+  CIRCLE_CARD_SERVICE_LIMIT,
+  CIRCLE_CARD_WEEKDAYS,
+  CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS,
+  CIRCLE_CARD_CREATOR_BLOCK_TYPES,
+  circleCardOpeningHoursDayLabel,
+  circleCardBrandPartnershipStatus,
+  circleCardCreatorOfferStatus,
+  circleCardPressProofStatus,
+  circleCardAudienceSnapshotStatus,
+  circleCardMediaKitStatus,
+  isValidCircleCardReviewItem,
+  readCircleCardGalleryItems,
+  readCircleCardAudienceSnapshot,
+  readCircleCardFeaturedContentItems,
+  readCircleCardCreatorOffers,
+  readCircleCardPressProofItems,
+  readCircleCardBookingEnquiry,
+  readCircleCardBrandPartnerships,
+  readCircleCardDocumentItems,
+  readCircleCardOpeningHours,
+  readCircleCardMenuOfferItems,
+  readCircleCardMediaKit,
+  readCircleCardProductItems,
+  readCircleCardPriceListItems,
+  readCircleCardReviewItems,
+  readCircleCardServices,
+  resolveCircleCardOpeningHoursBuilderMode,
+  resolveCircleCardMenuOffersBuilderMode,
+  resolveCircleCardBookingBuilderMode,
+  resolveCircleCardDocumentsBuilderMode,
+  resolveCircleCardProductsBuilderMode,
+  resolveCircleCardPriceListBuilderMode,
+  resolveCircleCardGalleryBuilderMode,
+  resolveCircleCardReviewsBuilderMode,
+  resolveCircleCardServicesBuilderMode,
+  type CircleCardOpeningHours,
+  type CircleCardMenuOffersBuilderMode,
+  type CircleCardMenuOfferItem,
+  type CircleCardBookingBuilderMode,
+  type CircleCardBookingEnquiry,
+  type CircleCardDocumentsBuilderMode,
+  type CircleCardDocumentItem,
+  type CircleCardOpeningHoursBuilderMode,
+  type CircleCardOpeningHoursPreset,
+  type CircleCardProductsBuilderMode,
+  type CircleCardProductItem,
+  type CircleCardPriceListBuilderMode,
+  type CircleCardPriceListItem,
+  type CircleCardReviewsBuilderMode,
+  type CircleCardReviewItem,
+  type CircleCardGalleryBuilderMode,
+  type CircleCardGalleryItem,
+  type CircleCardServiceItem,
+  type CircleCardServicesBuilderMode
+} from "@/lib/circle-card/content-blocks";
+import { circleCardIntroductionStatusLabel } from "@/lib/circle-card/introductions";
+import { isEligibleCircleCardWalletTestimonialTarget } from "@/lib/circle-card/wallet-testimonials";
+import {
+  CIRCLE_CARD_REFERRAL_OPEN_STATUSES,
+  circleCardReferralStatusLabel,
+  circleCardReferralVisibilityLabel
+} from "@/lib/circle-card/referrals";
+import {
+  buildCircleCardReferralPath,
+  circleCardReferralStatusLabel as circleCardGrowthReferralStatusLabel
+} from "@/lib/circle-card/referral-engine";
+import {
+  CIRCLE_CARD_OPPORTUNITY_CURRENCY_OPTIONS,
+  CIRCLE_CARD_OPPORTUNITY_SOURCE_TYPES,
+  CIRCLE_CARD_OPPORTUNITY_STATUSES,
+  circleCardOpportunitySourceTypeLabel,
+  circleCardOpportunityStatusLabel,
+  isCircleCardOpportunityOpenStatus
+} from "@/lib/circle-card/opportunities";
+import {
+  CIRCLE_CARD_ACTIVITY_FILTER_OPTIONS,
+  CIRCLE_CARD_ACTIVITY_FILTER_TYPE_MAP,
+  type CircleCardActivityFilter,
+  circleCardActivityHref,
+  circleCardActivityTypeLabel,
+  resolveCircleCardActivityFilter
+} from "@/lib/circle-card/activity";
+import {
+  circleCardNotificationHref,
+  circleCardNotificationTypeLabel
+} from "@/lib/circle-card/notifications";
+import {
+  CIRCLE_CARD_ICON_192,
+  CIRCLE_CARD_MANIFEST_PATH,
+  createCircleCardPageMetadata
+} from "@/lib/circle-card/metadata";
+import {
+  CIRCLE_CARD_DISCOVER_HIDDEN_LABEL,
+  CIRCLE_CARD_DISCOVER_SETTING_COPY,
+  CIRCLE_CARD_DISCOVER_VISIBLE_LABEL,
+  CIRCLE_CARD_DISCOVER_VISIBLE_WHERE
+} from "@/lib/circle-card/privacy";
+import {
+  type CircleCardLinkActionMode,
+  type CircleCardLinkType,
+  type CircleCardLinkVisibility,
+  type CircleCardSocialLink,
+  type CircleCardSocialPlatform,
+  CIRCLE_WALLET_CATEGORY_OPTIONS,
+  CIRCLE_WALLET_MET_AT_OPTIONS,
+  readCircleCardSocialLinks,
+  readCircleWalletBusinessCardSocialLinks,
+  readCircleWalletTags,
+  resolveCircleCardLookupSlug
+} from "@/lib/circle-card/schema";
+import {
+  buildCircleCardIdentityFilterWhere,
+  CIRCLE_CARD_ACCOUNT_TYPES,
+  CIRCLE_CARD_ACCOUNT_TYPE_COPY,
+  CIRCLE_CARD_IDENTITY_TAGS,
+  getCircleCardAccountTypeLabel,
+  getCircleCardIdentityTagLabel,
+  normalizeCircleCardIdentityTags,
+  resolveCircleCardAccountType
+} from "@/lib/circle-card/identity";
+import {
+  DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT,
+  buildCircleCardProfileLayoutFilterWhere,
+  CIRCLE_CARD_PROFILE_LAYOUTS,
+  CIRCLE_CARD_PROFILE_LAYOUT_COPY,
+  getCircleCardProfileLayoutLabel,
+  resolveCircleCardProfileLayoutFilter
+} from "@/lib/circle-card/profile-layout";
+import { prisma } from "@/lib/prisma";
+import { requireCircleCardUser } from "@/lib/session";
+import { absoluteUrl, cn, formatCurrency, formatDate, slugify } from "@/lib/utils";
+import {
+  calculateCircleCardCompletionForCard,
+  createDueOpportunityNotificationsForUser,
+  getCircleCardCommissionEarningsForUser,
+  getCircleCardReferralCentreForUser,
+  getCircleCardAnalyticsSummary,
+  markCircleCardReferralActivationForUser,
+  syncCircleCardActivationLeadScore,
+  trackCircleCardEvent,
+  loadCircleCardAccessForUser,
+  filterPublicCircleCardTargetsWithinOwnerPlans
+} from "@/server/circle-card";
+
+export const metadata: Metadata = createCircleCardPageMetadata({
+  title: "Circle Card",
+  description: "Create your card, manage Circle Wallet, track activity, and share your public identity.",
+  path: "/dashboard/circle-card",
+  noIndex: true
+});
+
+export const dynamic = "force-dynamic";
+
+type PageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const CIRCLE_CARD_APP_SECTIONS = [
+  "home",
+  "my-card",
+  "network",
+  "business",
+  "referrals",
+  "share",
+  "settings"
+] as const;
+
+type CircleCardAppSection = (typeof CIRCLE_CARD_APP_SECTIONS)[number];
+
+const USE_OPTIMISTIC_SMART_LINK_MANAGER = true;
+
+function firstValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function circleCardPlatformStatusToneClass(tone: CircleCardPlatformStatusTone) {
+  switch (tone) {
+    case "green":
+      return "border-emerald-400/24 bg-emerald-400/10 text-emerald-200";
+    case "red":
+      return "border-red-400/24 bg-red-400/10 text-red-200";
+    case "amber":
+    default:
+      return "border-gold/24 bg-gold/10 text-gold";
+  }
+}
+
+function circleCardPlatformStatusDotClass(tone: CircleCardPlatformStatusTone) {
+  switch (tone) {
+    case "green":
+      return "bg-emerald-300";
+    case "red":
+      return "bg-red-300";
+    case "amber":
+    default:
+      return "bg-gold";
+  }
+}
+
+function circleCardLaunchChecklistStatusLabel(status: CircleCardPlatformOwnerLaunchChecklistStatus) {
+  switch (status) {
+    case "ready":
+      return "Ready";
+    case "attention":
+      return "Needs attention";
+    case "critical":
+      return "Critical issue";
+    case "future":
+    default:
+      return "Future / not active";
+  }
+}
+
+function circleCardLaunchChecklistStatusClass(status: CircleCardPlatformOwnerLaunchChecklistStatus) {
+  switch (status) {
+    case "ready":
+      return "border-emerald-400/24 bg-emerald-400/10 text-emerald-200";
+    case "attention":
+      return "border-gold/24 bg-gold/10 text-gold";
+    case "critical":
+      return "border-red-400/24 bg-red-400/10 text-red-200";
+    case "future":
+    default:
+      return "border-silver/18 bg-silver/10 text-silver";
+  }
+}
+
+function circleCardLaunchChecklistStatusDotClass(status: CircleCardPlatformOwnerLaunchChecklistStatus) {
+  switch (status) {
+    case "ready":
+      return "bg-emerald-300";
+    case "attention":
+      return "bg-gold";
+    case "critical":
+      return "bg-red-300";
+    case "future":
+    default:
+      return "bg-silver";
+  }
+}
+
+function circleCardPerformanceStatusLabel(status: CircleCardPlatformOwnerPerformanceStatus) {
+  switch (status) {
+    case "good":
+      return "Good";
+    case "warning":
+      return "Warning";
+    case "issue":
+      return "Issue";
+    case "not-active":
+    default:
+      return "Not active";
+  }
+}
+
+function circleCardPerformanceStatusClass(status: CircleCardPlatformOwnerPerformanceStatus) {
+  switch (status) {
+    case "good":
+      return "border-emerald-400/24 bg-emerald-400/10 text-emerald-200";
+    case "warning":
+      return "border-gold/24 bg-gold/10 text-gold";
+    case "issue":
+      return "border-red-400/24 bg-red-400/10 text-red-200";
+    case "not-active":
+    default:
+      return "border-silver/18 bg-silver/10 text-silver";
+  }
+}
+
+function circleCardPerformanceStatusDotClass(status: CircleCardPlatformOwnerPerformanceStatus) {
+  switch (status) {
+    case "good":
+      return "bg-emerald-300";
+    case "warning":
+      return "bg-gold";
+    case "issue":
+      return "bg-red-300";
+    case "not-active":
+    default:
+      return "bg-silver";
+  }
+}
+
+function resolveCircleCardAppSection(value: string | undefined): CircleCardAppSection {
+  if (value === "wallet") {
+    return "network";
+  }
+  return CIRCLE_CARD_APP_SECTIONS.includes(value as CircleCardAppSection)
+    ? (value as CircleCardAppSection)
+    : "my-card";
+}
+
+function circleCardSectionHref(section: CircleCardAppSection, hash?: string) {
+  const suffix = hash ? `#${hash.replace(/^#/, "")}` : "";
+  return `/dashboard/circle-card?section=${section}${suffix}`;
+}
+
+function circleCardManageHref(input: {
+  cardId?: string | null;
+  section?: CircleCardAppSection;
+  hash?: string;
+  newCard?: boolean;
+}) {
+  const params = new URLSearchParams({
+    section: input.section ?? "my-card"
+  });
+
+  if (input.cardId) {
+    params.set("cardId", input.cardId);
+  }
+
+  if (input.newCard) {
+    params.set("newCard", "1");
+  }
+
+  const suffix = input.hash ? `#${input.hash.replace(/^#/, "")}` : "";
+  return `/dashboard/circle-card?${params.toString()}${suffix}`;
+}
+
+function circleCardHubTypeMeta(cardType: string) {
+  switch (cardType) {
+    case "BUSINESS":
+      return {
+        label: "Business",
+        icon: ShoppingBag,
+        description: CIRCLE_CARD_TYPE_COPY.BUSINESS.description
+      };
+    case "CREATOR":
+      return {
+        label: "Creator",
+        icon: Camera,
+        description: CIRCLE_CARD_TYPE_COPY.CREATOR.description
+      };
+    case "TEAM":
+      return {
+        label: "Team",
+        icon: UserCheck,
+        description: "Team identity, staff cards and shared-branding card foundation."
+      };
+    default:
+      return {
+        label: "Personal",
+        icon: ContactRound,
+        description: CIRCLE_CARD_TYPE_COPY.PERSONAL.description
+      };
+  }
+}
+
+function circleCardHubStatusMeta(input: { isPublished: boolean }) {
+  if (input.isPublished) {
+    return {
+      label: "Live",
+      className: "border-emerald-400/24 bg-emerald-400/10 text-emerald-200"
+    };
+  }
+
+  return {
+    label: "Hidden",
+    className: "border-silver/18 bg-silver/8 text-silver"
+  };
+}
+
+type CircleCardUsageMetric = {
+  label: string;
+  value: string;
+  hint: string;
+  icon: typeof Activity;
+};
+
+type CircleCardSetupChecklistItemId =
+  | "profile-image"
+  | "about"
+  | "featured-link"
+  | "location"
+  | "share";
+
+type CircleCardSetupChecklistItem = {
+  id: CircleCardSetupChecklistItemId;
+  label: string;
+  complete: boolean;
+  href: string;
+  actionLabel: string;
+};
+
+const CIRCLE_CARD_SETUP_TOTAL_STEPS = 5;
+
+function hasSetupText(value?: string | null) {
+  return Boolean(value?.trim());
+}
+
+function circleCardSetupNextActionCopy(item: CircleCardSetupChecklistItem | null) {
+  switch (item?.id) {
+    case "profile-image":
+      return "Add your profile image first.";
+    case "about":
+      return "Add a short intro so people know what you do.";
+    case "featured-link":
+      return "Add your first link so people have somewhere useful to go.";
+    case "location":
+      return "Add your location so people know where you work.";
+    case "share":
+    default:
+      return "Your card is ready to share.";
+  }
+}
+
+function buildCircleCardSetupChecklist(input: {
+  cardId?: string | null;
+  profileImageUrl?: string | null;
+  about?: string | null;
+  activeFeaturedLinkCount: number;
+  location?: string | null;
+  shareCount: number;
+}): CircleCardSetupChecklistItem[] {
+  const cardHref = (section: CircleCardAppSection, hash: string) =>
+    input.cardId
+      ? circleCardManageHref({ cardId: input.cardId, section, hash })
+      : circleCardSectionHref(section, hash);
+
+  return [
+    {
+      id: "profile-image",
+      label: "Add profile image",
+      complete: hasSetupText(input.profileImageUrl),
+      href: cardHref("my-card", "card-images"),
+      actionLabel: "Edit images"
+    },
+    {
+      id: "about",
+      label: "Add bio/about",
+      complete: hasSetupText(input.about),
+      href: cardHref("my-card", "card-identity"),
+      actionLabel: "Edit profile"
+    },
+    {
+      id: "featured-link",
+      label: "Add first featured link",
+      complete: input.activeFeaturedLinkCount > 0,
+      href: cardHref("my-card", "custom-links"),
+      actionLabel: "Add link"
+    },
+    {
+      id: "location",
+      label: "Add location",
+      complete: hasSetupText(input.location),
+      href: cardHref("my-card", "card-contact-details"),
+      actionLabel: "Edit contact/location"
+    },
+    {
+      id: "share",
+      label: "Share your card",
+      complete: input.shareCount > 0,
+      href: cardHref("share", "share-assets"),
+      actionLabel: "Share card"
+    }
+  ];
+}
+
+function CircleCardSetupChecklistPanel({
+  cardId,
+  fullName,
+  publicUrl,
+  setupItems,
+  created = false,
+  className
+}: {
+  cardId: string;
+  fullName: string;
+  publicUrl: string;
+  setupItems: CircleCardSetupChecklistItem[];
+  created?: boolean;
+  className?: string;
+}) {
+  const completeCount = setupItems.filter((item) => item.complete).length;
+  const progress = Math.round((completeCount / CIRCLE_CARD_SETUP_TOTAL_STEPS) * 100);
+  const nextItem = setupItems.find((item) => !item.complete) ?? null;
+  const nextActionHref =
+    nextItem?.href ?? circleCardManageHref({ cardId, section: "share", hash: "share-assets" });
+  const nextActionLabel = nextItem?.actionLabel ?? "Share card";
+  const nextActionCopy = circleCardSetupNextActionCopy(nextItem);
+
+  return (
+    <CircleCardDashboardSection
+      id="circle-card-completion"
+      title={created ? "Your Circle Card has been created" : "Complete your Circle Card"}
+      summary={
+        progress === 100
+          ? "Setup complete — your card is ready to share."
+          : `${completeCount} of ${CIRCLE_CARD_SETUP_TOTAL_STEPS} setup steps complete for ${fullName}.`
+      }
+      defaultOpen={progress < 100}
+      badge={
+        <Badge
+          variant="outline"
+          className={cn(
+            created ? "border-emerald-400/30 text-emerald-200" : "border-gold/28 text-gold"
+          )}
+        >
+          {progress}%
+        </Badge>
+      }
+      className={cn(
+        created
+          ? "border-emerald-400/28 bg-emerald-400/10"
+          : "border-gold/24 bg-card/70",
+        className
+      )}
+    >
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">
+            Completing: {fullName}
+          </p>
+
+          <div className="mt-4 rounded-xl border border-silver/14 bg-background/24 p-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  Circle Card setup: {progress}%
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted">{nextActionCopy}</p>
+              </div>
+              <Link href={nextActionHref} className={cn(buttonVariants({ size: "sm" }), "w-full gap-2 sm:w-auto")}>
+                {nextActionLabel}
+                <ArrowUpRight size={14} />
+              </Link>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-background/70">
+              <div
+                className="h-full rounded-full bg-gold transition-[width] duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-2">
+            {setupItems.map((item) => (
+              <div
+                key={item.id}
+                className="grid gap-2 rounded-xl border border-silver/14 bg-background/18 p-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  {item.complete ? (
+                    <CheckCircle2 size={16} className="shrink-0 text-emerald-200" />
+                  ) : (
+                    <ClipboardCheck size={16} className="shrink-0 text-silver" />
+                  )}
+                  <span className="min-w-0 text-sm font-medium text-foreground">{item.label}</span>
+                </div>
+                <Badge
+                  variant={item.complete ? "outline" : "muted"}
+                  className={cn(
+                    "w-fit",
+                    item.complete ? "border-emerald-400/28 text-emerald-200" : ""
+                  )}
+                >
+                  {item.complete ? "Complete" : "Incomplete"}
+                </Badge>
+                <Link
+                  href={item.href}
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full gap-2 sm:w-auto")}
+                >
+                  {item.actionLabel}
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <aside className="rounded-xl border border-silver/14 bg-background/24 p-3 sm:p-4">
+          <p className="text-sm font-semibold text-foreground">Public card link</p>
+          <p className="mt-2 break-all rounded-lg border border-silver/12 bg-background/28 p-3 text-xs text-muted">
+            {publicUrl}
+          </p>
+          <div className="mt-3 grid gap-2">
+            <Link href={publicUrl} target="_blank" rel="noopener noreferrer">
+              <Button type="button" variant="outline" className="w-full gap-2">
+                View public card
+                <ArrowUpRight size={16} />
+              </Button>
+            </Link>
+            <CircleCardCopyLinkButton publicUrl={publicUrl} className="w-full" />
+            <CircleCardShareButton
+              title={`${fullName} | Circle Card`}
+              publicUrl={publicUrl}
+              cardId={cardId}
+              analyticsSource={created ? "dashboard_created" : "dashboard_completion"}
+              label="Share card"
+              hideStatus
+            />
+          </div>
+        </aside>
+      </div>
+    </CircleCardDashboardSection>
+  );
+}
+
+type BusinessCardBuilderAccess = "locked" | "available" | "platform-preview";
+
+function CircleCardServiceFields({
+  idPrefix,
+  service
+}: {
+  idPrefix: string;
+  service?: CircleCardServiceItem;
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <div className="space-y-2 sm:col-span-2">
+        <Label htmlFor={`${idPrefix}-title`}>Service title</Label>
+        <Input
+          id={`${idPrefix}-title`}
+          name="title"
+          defaultValue={service?.title ?? ""}
+          maxLength={80}
+          placeholder="Strategy session"
+          required
+        />
+      </div>
+      <div className="space-y-2 sm:col-span-2">
+        <Label htmlFor={`${idPrefix}-description`}>Short description</Label>
+        <Textarea
+          id={`${idPrefix}-description`}
+          name="description"
+          defaultValue={service?.description ?? ""}
+          rows={3}
+          maxLength={280}
+          placeholder="A focused session to clarify priorities and next steps."
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}-price`}>Starting price (optional)</Label>
+        <Input
+          id={`${idPrefix}-price`}
+          name="startingPrice"
+          defaultValue={service?.startingPrice ?? ""}
+          maxLength={60}
+          placeholder="From £250"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}-image`}>Image URL (optional)</Label>
+        <Input
+          id={`${idPrefix}-image`}
+          name="imageUrl"
+          type="url"
+          defaultValue={service?.imageUrl ?? ""}
+          placeholder="https://..."
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}-cta-label`}>Enquiry CTA label (optional)</Label>
+        <Input
+          id={`${idPrefix}-cta-label`}
+          name="ctaLabel"
+          defaultValue={service?.ctaLabel ?? ""}
+          maxLength={40}
+          placeholder="Enquire now"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={`${idPrefix}-cta-url`}>Enquiry CTA link (optional)</Label>
+        <Input
+          id={`${idPrefix}-cta-url`}
+          name="ctaUrl"
+          type="url"
+          defaultValue={service?.ctaUrl ?? ""}
+          placeholder="https://..."
+        />
+      </div>
+      <label
+        htmlFor={`${idPrefix}-active`}
+        className="flex items-start gap-3 rounded-xl border border-silver/14 bg-background/22 p-3 text-sm text-foreground sm:col-span-2"
+      >
+        <input
+          id={`${idPrefix}-active`}
+          name="isActive"
+          type="checkbox"
+          defaultChecked={service?.isActive ?? true}
+          className="mt-0.5 h-4 w-4 rounded border-border bg-background accent-primary"
+        />
+        <span>
+          Active on public Business Card
+          <span className="mt-1 block text-xs text-muted">Hidden services remain editable here.</span>
+        </span>
+      </label>
+    </div>
+  );
+}
+
+function CircleCardServicesBuilder({
+  mode,
+  cardId,
+  cardName,
+  services
+}: {
+  mode: CircleCardServicesBuilderMode;
+  cardId?: string;
+  cardName: string;
+  services: CircleCardServiceItem[];
+}) {
+  if (mode === "hidden") {
+    return null;
+  }
+
+  if (mode === "locked") {
+    return (
+      <div id="business-card-services" className="scroll-mt-24 rounded-xl border border-gold/24 bg-gold/10 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Services are included with Pro.</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted">
+              Add services to your Business Card with Pro.
+            </p>
+          </div>
+          <Badge variant="outline" className="w-fit border-gold/28 text-gold">Pro</Badge>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "preview" || !cardId) {
+    return (
+      <div id="business-card-services" className="scroll-mt-24 rounded-xl border border-cyan-400/24 bg-cyan-400/10 p-4">
+        <Badge variant="outline" className="border-cyan-400/30 text-cyan-100">Business preview</Badge>
+        <p className="mt-3 text-sm font-semibold text-foreground">Services Builder preview</p>
+        <p className="mt-1 text-sm leading-relaxed text-muted">
+          Select or create a Business Card to add services. Personal Card content is never used for this block.
+        </p>
+      </div>
+    );
+  }
+
+  const returnPath = circleCardManageHref({
+    cardId,
+    section: "my-card",
+    hash: "business-card-services"
+  });
+  const activeCount = services.filter((service) => service.isActive).length;
+
+  return (
+    <section id="business-card-services" className="scroll-mt-24 rounded-2xl border border-gold/22 bg-gold/8 p-3 sm:p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-display text-xl font-semibold text-foreground">Services</h3>
+            <Badge variant="outline" className="border-gold/28 text-gold">Pro</Badge>
+            <Badge variant="muted">{activeCount} active</Badge>
+          </div>
+          <p className="mt-1 text-sm text-muted">Add the services people most often ask you about.</p>
+          <p className="mt-1 text-xs text-silver">Show services, prices and enquiry links on your Business Card.</p>
+          <p className="mt-2 text-[11px] uppercase tracking-[0.08em] text-gold">Card: {cardName}</p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-2">
+        {services.map((service) => (
+          <details key={service.id} className="group rounded-xl border border-silver/14 bg-background/20">
+            <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
+              <span className="min-w-0">
+                <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
+                  <span className="truncate">{service.title}</span>
+                  <Badge variant={service.isActive ? "outline" : "muted"} className={service.isActive ? "border-emerald-400/26 text-emerald-200" : undefined}>
+                    {service.isActive ? "Active" : "Hidden"}
+                  </Badge>
+                  {service.startingPrice ? <Badge variant="muted">{service.startingPrice}</Badge> : null}
+                </span>
+                <span className="mt-1 block line-clamp-2 text-xs leading-relaxed text-muted">{service.description}</span>
+              </span>
+              <ChevronDown size={15} className="mt-1 shrink-0 text-silver transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="border-t border-silver/12 p-3">
+              <form action={upsertCircleCardServiceAction} className="space-y-3">
+                <input type="hidden" name="cardId" value={cardId} />
+                <input type="hidden" name="serviceId" value={service.id} />
+                <input type="hidden" name="returnPath" value={returnPath} />
+                <CircleCardServiceFields idPrefix={`service-${service.id}`} service={service} />
+                <Button type="submit" size="sm" className="h-9 gap-2">
+                  <Save size={14} />
+                  Save service
+                </Button>
+              </form>
+              <div className="mt-3 grid gap-2 border-t border-silver/12 pt-3 sm:grid-cols-3">
+                <form action={toggleCircleCardServiceAction}>
+                  <input type="hidden" name="cardId" value={cardId} />
+                  <input type="hidden" name="serviceId" value={service.id} />
+                  <input type="hidden" name="returnPath" value={returnPath} />
+                  <Button type="submit" variant="outline" size="sm" className="h-9 w-full gap-2">
+                    {service.isActive ? <EyeOff size={14} /> : <Eye size={14} />}
+                    {service.isActive ? "Hide" : "Show"}
+                  </Button>
+                </form>
+                <Button type="button" variant="outline" size="sm" className="h-9 w-full gap-2" disabled>
+                  <ArrowDown size={14} />
+                  Reorder — Coming Soon
+                </Button>
+                <form action={deleteCircleCardServiceAction}>
+                  <input type="hidden" name="cardId" value={cardId} />
+                  <input type="hidden" name="serviceId" value={service.id} />
+                  <input type="hidden" name="returnPath" value={returnPath} />
+                  <Button type="submit" variant="outline" size="sm" className="h-9 w-full gap-2 text-destructive">
+                    <Trash2 size={14} />
+                    Delete
+                  </Button>
+                </form>
+              </div>
+            </div>
+          </details>
+        ))}
+        {!services.length ? (
+          <p className="rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">
+            Add your first service so visitors know exactly what you offer.
+          </p>
+        ) : null}
+      </div>
+
+      <details className="group mt-3 rounded-xl border border-gold/20 bg-background/20" open={!services.length}>
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-3 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden">
+          <span>Add service</span>
+          <span className="flex items-center gap-2 text-xs font-normal text-muted">
+            {services.length}/{CIRCLE_CARD_SERVICE_LIMIT}
+            <ChevronDown size={15} className="text-silver transition-transform group-open:rotate-180" />
+          </span>
+        </summary>
+        <form action={upsertCircleCardServiceAction} className="space-y-3 border-t border-silver/12 p-3">
+          <input type="hidden" name="cardId" value={cardId} />
+          <input type="hidden" name="returnPath" value={returnPath} />
+          <CircleCardServiceFields idPrefix={`service-new-${cardId}`} />
+          <Button type="submit" size="sm" className="h-9 gap-2" disabled={services.length >= CIRCLE_CARD_SERVICE_LIMIT}>
+            <ShoppingBag size={14} />
+            Add service
+          </Button>
+        </form>
+      </details>
+    </section>
+  );
+}
+
+function CircleCardProductsBuilder({
+  mode,
+  cardId,
+  cardName,
+  products
+}: {
+  mode: CircleCardProductsBuilderMode;
+  cardId: string;
+  cardName: string;
+  products: CircleCardProductItem[];
+}) {
+  if (mode === "hidden") {
+    return null;
+  }
+
+  if (mode === "locked") {
+    return (
+      <div id="business-card-products" className="scroll-mt-24 rounded-xl border border-gold/24 bg-gold/10 p-4">
+        <div className="flex items-start gap-3">
+          <Lock size={17} className="mt-0.5 shrink-0 text-gold" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">Products are included with Circle Card Pro.</p>
+            <p className="mt-1 text-sm text-muted">Upgrade to add and manage products on this Business Card.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "preview") {
+    return (
+      <div id="business-card-products" className="scroll-mt-24 rounded-xl border border-cyan-400/24 bg-cyan-400/10 p-4">
+        <Badge variant="outline" className="border-cyan-300/30 text-cyan-100">Platform Preview</Badge>
+        <p className="mt-3 text-sm font-semibold text-foreground">Products Builder preview</p>
+        <p className="mt-1 text-sm text-muted">Select or create a Business Card to add products. Personal and Creator Cards never use this block.</p>
+      </div>
+    );
+  }
+
+  return <CircleCardProductsManager cardId={cardId} cardName={cardName} initialItems={products} />;
+}
+
+function CircleCardPriceListBuilder({
+  mode,
+  cardId,
+  cardName,
+  priceItems
+}: {
+  mode: CircleCardPriceListBuilderMode;
+  cardId: string;
+  cardName: string;
+  priceItems: CircleCardPriceListItem[];
+}) {
+  if (mode === "hidden") return null;
+  if (mode === "locked") {
+    return (
+      <div id="business-card-price-list" className="scroll-mt-24 rounded-xl border border-gold/24 bg-gold/10 p-4">
+        <div className="flex items-start gap-3">
+          <Lock size={17} className="mt-0.5 shrink-0 text-gold" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">Price List is included with Circle Card Pro.</p>
+            <p className="mt-1 text-sm text-muted">Upgrade to add and manage prices on this Business Card.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (mode === "preview") {
+    return (
+      <div id="business-card-price-list" className="scroll-mt-24 rounded-xl border border-cyan-400/24 bg-cyan-400/10 p-4">
+        <Badge variant="outline" className="border-cyan-300/30 text-cyan-100">Platform Preview</Badge>
+        <p className="mt-3 text-sm font-semibold text-foreground">Price List Builder preview</p>
+        <p className="mt-1 text-sm text-muted">Select or create a Business Card to add prices. Personal and Creator Cards never use this block.</p>
+      </div>
+    );
+  }
+  return <CircleCardPriceListManager cardId={cardId} cardName={cardName} initialItems={priceItems} />;
+}
+
+function CircleCardMenuOffersBuilder({
+  mode,
+  cardId,
+  cardName,
+  items
+}: {
+  mode: CircleCardMenuOffersBuilderMode;
+  cardId: string;
+  cardName: string;
+  items: CircleCardMenuOfferItem[];
+}) {
+  if (mode === "hidden") return null;
+  if (mode === "locked") {
+    return (
+      <div id="business-card-menu-offers" className="scroll-mt-24 rounded-xl border border-gold/24 bg-gold/10 p-4">
+        <div className="flex items-start gap-3">
+          <Lock size={17} className="mt-0.5 shrink-0 text-gold" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">Menu &amp; Offers are included with Circle Card Pro.</p>
+            <p className="mt-1 text-sm text-muted">Upgrade to add and manage menu items, promotions and offers on this Business Card.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (mode === "preview") {
+    return (
+      <div id="business-card-menu-offers" className="scroll-mt-24 rounded-xl border border-cyan-400/24 bg-cyan-400/10 p-4">
+        <Badge variant="outline" className="border-cyan-300/30 text-cyan-100">Platform Preview</Badge>
+        <p className="mt-3 text-sm font-semibold text-foreground">Menu &amp; Offers Builder preview</p>
+        <p className="mt-1 text-sm text-muted">Select or create a Business Card to add items. Personal and Creator Cards never use this block.</p>
+      </div>
+    );
+  }
+  return <CircleCardMenuOffersManager cardId={cardId} cardName={cardName} initialItems={items} />;
+}
+
+function CircleCardBookingBuilder({
+  mode,
+  cardId,
+  cardName,
+  booking
+}: {
+  mode: CircleCardBookingBuilderMode;
+  cardId: string;
+  cardName: string;
+  booking: CircleCardBookingEnquiry | null;
+}) {
+  if (mode === "hidden") {
+    return null;
+  }
+
+  if (mode === "locked") {
+    return (
+      <div id="business-card-booking" className="scroll-mt-24 rounded-xl border border-gold/24 bg-gold/10 p-4">
+        <div className="flex items-start gap-3">
+          <Lock size={17} className="mt-0.5 shrink-0 text-gold" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">Booking / Enquiry is included with Circle Card Pro.</p>
+            <p className="mt-1 text-sm text-muted">Upgrade to add booking, quote and enquiry routes to this Business Card.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "preview") {
+    return (
+      <div id="business-card-booking" className="scroll-mt-24 rounded-xl border border-cyan-400/24 bg-cyan-400/10 p-4">
+        <Badge variant="outline" className="border-cyan-300/30 text-cyan-100">Platform Preview</Badge>
+        <p className="mt-3 text-sm font-semibold text-foreground">Booking / Enquiry Builder preview</p>
+        <p className="mt-1 text-sm text-muted">Select or create a Business Card to add conversion routes. Personal and Creator Cards never use this block.</p>
+      </div>
+    );
+  }
+
+  return <CircleCardBookingManager cardId={cardId} cardName={cardName} initialBooking={booking} />;
+}
+
+function CircleCardDocumentsBuilder({
+  mode,
+  cardId,
+  cardName,
+  documents
+}: {
+  mode: CircleCardDocumentsBuilderMode;
+  cardId: string;
+  cardName: string;
+  documents: CircleCardDocumentItem[];
+}) {
+  if (mode === "hidden") {
+    return null;
+  }
+
+  if (mode === "locked") {
+    return (
+      <div id="business-card-downloads" className="scroll-mt-24 rounded-xl border border-gold/24 bg-gold/10 p-4">
+        <div className="flex items-start gap-3">
+          <Lock size={17} className="mt-0.5 shrink-0 text-gold" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">Downloads are included with Circle Card Pro.</p>
+            <p className="mt-1 text-sm text-muted">Upgrade to add useful files to this Business Card.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "preview") {
+    return (
+      <div id="business-card-downloads" className="scroll-mt-24 rounded-xl border border-cyan-400/24 bg-cyan-400/10 p-4">
+        <Badge variant="outline" className="border-cyan-300/30 text-cyan-100">Platform Preview</Badge>
+        <p className="mt-3 text-sm font-semibold text-foreground">Downloads / Documents Builder preview</p>
+        <p className="mt-1 text-sm text-muted">Select or create a Business Card to add documents. Personal and Creator Cards never use this block.</p>
+      </div>
+    );
+  }
+
+  return <CircleCardDocumentsManager cardId={cardId} cardName={cardName} initialItems={documents} />;
+}
+
+function CircleCardGalleryBuilder({
+  mode,
+  cardId,
+  cardName,
+  galleryItems
+}: {
+  mode: CircleCardGalleryBuilderMode;
+  cardId?: string;
+  cardName: string;
+  galleryItems: CircleCardGalleryItem[];
+}) {
+  if (mode === "hidden") {
+    return null;
+  }
+
+  if (mode === "locked") {
+    return (
+      <div id="business-card-gallery" className="scroll-mt-24 rounded-xl border border-gold/24 bg-gold/10 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Gallery is included with Circle Card Pro.</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted">Show your work with Circle Card Pro.</p>
+          </div>
+          <Badge variant="outline" className="w-fit border-gold/28 text-gold">Pro</Badge>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "preview" || !cardId) {
+    return (
+      <div id="business-card-gallery" className="scroll-mt-24 rounded-xl border border-cyan-400/24 bg-cyan-400/10 p-4">
+        <Badge variant="outline" className="border-cyan-400/30 text-cyan-100">Business preview</Badge>
+        <p className="mt-3 text-sm font-semibold text-foreground">Gallery / Portfolio preview</p>
+        <p className="mt-1 text-sm leading-relaxed text-muted">
+          Select or create a Business Card to showcase its work. Personal and Creator Cards never use this gallery.
+        </p>
+      </div>
+    );
+  }
+
+  return <CircleCardGalleryManager cardId={cardId} cardName={cardName} initialItems={galleryItems} />;
+}
+
+function CircleCardReviewsBuilder({
+  mode,
+  cardId,
+  cardName,
+  reviews,
+  pendingWalletTestimonials,
+  approvedWalletTestimonialCount
+}: {
+  mode: CircleCardReviewsBuilderMode;
+  cardId?: string;
+  cardName: string;
+  reviews: CircleCardReviewItem[];
+  pendingWalletTestimonials: CircleCardPendingWalletTestimonial[];
+  approvedWalletTestimonialCount: number;
+}) {
+  if (mode === "hidden") {
+    return null;
+  }
+
+  if (mode === "locked") {
+    return (
+      <div id="business-card-reviews" className="scroll-mt-24 rounded-xl border border-gold/24 bg-gold/10 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Circle Trust is included with Circle Card Pro.</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted">
+              Build trust with connection testimonials and client proof.
+            </p>
+          </div>
+          <Badge variant="outline" className="w-fit border-gold/28 text-gold">Pro</Badge>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "preview" || !cardId) {
+    return (
+      <div id="business-card-reviews" className="scroll-mt-24 rounded-xl border border-cyan-400/24 bg-cyan-400/10 p-4">
+        <Badge variant="outline" className="border-cyan-400/30 text-cyan-100">Business preview</Badge>
+        <p className="mt-3 text-sm font-semibold text-foreground">Circle Trust preview</p>
+        <p className="mt-1 text-sm leading-relaxed text-muted">
+          Select or create a Business Card to build reputation through real connections.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <CircleCardReviewsManager
+      cardId={cardId}
+      cardName={cardName}
+      initialItems={reviews}
+      pendingWalletTestimonials={pendingWalletTestimonials}
+      approvedWalletTestimonialCount={approvedWalletTestimonialCount}
+    />
+  );
+}
+
+const OPENING_HOURS_PRESET_LABELS: Record<CircleCardOpeningHoursPreset, string> = {
+  "weekdays-9-5": "Monday to Friday 9–5",
+  "open-7-days": "Open 7 days",
+  "weekends-closed": "Weekends closed",
+  "appointment-only": "Appointment only"
+};
+
+function CircleCardOpeningHoursBuilder({
+  mode,
+  cardId,
+  cardName,
+  openingHours
+}: {
+  mode: CircleCardOpeningHoursBuilderMode;
+  cardId?: string;
+  cardName: string;
+  openingHours: CircleCardOpeningHours | null;
+}) {
+  if (mode === "hidden") {
+    return null;
+  }
+
+  if (mode === "locked") {
+    return (
+      <div id="business-card-opening-hours" className="scroll-mt-24 rounded-xl border border-gold/24 bg-gold/10 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Opening hours are included with Pro.</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted">
+              Add opening hours to your Business Card with Pro.
+            </p>
+          </div>
+          <Badge variant="outline" className="w-fit border-gold/28 text-gold">Pro</Badge>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "preview" || !cardId) {
+    return (
+      <div id="business-card-opening-hours" className="scroll-mt-24 rounded-xl border border-cyan-400/24 bg-cyan-400/10 p-4">
+        <Badge variant="outline" className="border-cyan-400/30 text-cyan-100">Business preview</Badge>
+        <p className="mt-3 text-sm font-semibold text-foreground">Opening Hours Builder preview</p>
+        <p className="mt-1 text-sm leading-relaxed text-muted">
+          Select or create a Business Card to save its weekly opening hours.
+        </p>
+      </div>
+    );
+  }
+
+  const returnPath = circleCardManageHref({
+    cardId,
+    section: "my-card",
+    hash: "business-card-opening-hours"
+  });
+  const openDayCount = openingHours
+    ? CIRCLE_CARD_WEEKDAYS.filter(({ key }) => openingHours.days[key].isOpen).length
+    : 0;
+
+  return (
+    <section id="business-card-opening-hours" className="scroll-mt-24 rounded-2xl border border-gold/22 bg-gold/8 p-3 sm:p-4">
+      <details data-circle-card-module-details className="group" open={!openingHours}>
+        <summary className="flex cursor-pointer list-none items-start justify-between gap-3 [&::-webkit-details-marker]:hidden">
+          <span className="min-w-0">
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="font-display text-xl font-semibold text-foreground">Opening Hours</span>
+              <Badge variant="outline" className="border-gold/28 text-gold">Pro</Badge>
+              {openingHours ? <Badge variant="muted">{openDayCount} open days</Badge> : null}
+            </span>
+            <span className="mt-1 block text-sm text-muted">Let people know when you’re open or available.</span>
+            <span className="mt-2 block text-[11px] uppercase tracking-[0.08em] text-gold">Card: {cardName}</span>
+          </span>
+          <ChevronDown size={16} className="mt-1 shrink-0 text-silver transition-transform group-open:rotate-180" />
+        </summary>
+
+        <div className="mt-4 border-t border-silver/12 pt-4">
+          {!openingHours ? (
+            <p className="mb-4 rounded-xl border border-dashed border-silver/18 bg-background/18 p-3 text-sm text-muted">
+              Add opening hours so visitors know when you are available.
+            </p>
+          ) : null}
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.08em] text-silver">Quick presets</p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              {CIRCLE_CARD_OPENING_HOURS_PRESETS.map((preset) => (
+                <form key={preset} action={saveCircleCardOpeningHoursAction}>
+                  <input type="hidden" name="cardId" value={cardId} />
+                  <input type="hidden" name="preset" value={preset} />
+                  <input type="hidden" name="returnPath" value={returnPath} />
+                  <Button type="submit" variant="outline" size="sm" className="h-9 w-full px-2">
+                    {OPENING_HOURS_PRESET_LABELS[preset]}
+                  </Button>
+                </form>
+              ))}
+            </div>
+          </div>
+
+          <form action={saveCircleCardOpeningHoursAction} className="mt-4 space-y-3">
+            <input type="hidden" name="cardId" value={cardId} />
+            <input type="hidden" name="returnPath" value={returnPath} />
+            <div className="grid gap-2">
+              {CIRCLE_CARD_WEEKDAYS.map(({ key, label }) => {
+                const day = openingHours?.days[key] ?? {
+                  isOpen: false,
+                  openingTime: null,
+                  closingTime: null,
+                  note: null
+                };
+
+                return (
+                  <fieldset key={key} className="rounded-xl border border-silver/14 bg-background/20 p-3">
+                    <legend className="sr-only">{label}</legend>
+                    <div className="grid gap-3 sm:grid-cols-[130px_120px_120px_minmax(0,1fr)] sm:items-end">
+                      <label htmlFor={`${key}-is-open`} className="flex min-h-10 items-center gap-2 text-sm font-semibold text-foreground">
+                        <input
+                          id={`${key}-is-open`}
+                          name={`${key}.isOpen`}
+                          type="checkbox"
+                          defaultChecked={day.isOpen}
+                          className="h-4 w-4 rounded border-border bg-background accent-primary"
+                        />
+                        {label}
+                      </label>
+                      <div className="space-y-1">
+                        <Label htmlFor={`${key}-opening`} className="text-xs">Opens</Label>
+                        <Input
+                          id={`${key}-opening`}
+                          name={`${key}.openingTime`}
+                          type="time"
+                          defaultValue={day.openingTime ?? ""}
+                          className="h-10"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor={`${key}-closing`} className="text-xs">Closes</Label>
+                        <Input
+                          id={`${key}-closing`}
+                          name={`${key}.closingTime`}
+                          type="time"
+                          defaultValue={day.closingTime ?? ""}
+                          className="h-10"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor={`${key}-note`} className="text-xs">Note (optional)</Label>
+                        <Input
+                          id={`${key}-note`}
+                          name={`${key}.note`}
+                          defaultValue={day.note ?? ""}
+                          maxLength={120}
+                          placeholder="By appointment only"
+                          className="h-10"
+                        />
+                      </div>
+                    </div>
+                    <p className="mt-2 text-xs text-muted">Current: {circleCardOpeningHoursDayLabel(day)}</p>
+                  </fieldset>
+                );
+              })}
+            </div>
+            <Button type="submit" size="sm" className="h-9 gap-2">
+              <Save size={14} />
+              Save opening hours
+            </Button>
+          </form>
+        </div>
+      </details>
+    </section>
+  );
+}
+
+const BUSINESS_CARD_BUILDER_BLOCK_DESCRIPTIONS: Record<string, string> = {
+  SERVICES: "Explain the main services your business provides.",
+  PRODUCTS: "Prepare a simple product showcase without checkout.",
+  PRICE_LIST: "Outline pricing guidance or starting points.",
+  OPENING_HOURS: "Show when the business is available.",
+  GALLERY_PORTFOLIO: "Present project images, proof or portfolio examples.",
+  REVIEWS_TESTIMONIALS: "Bring trust signals into the business profile.",
+  BOOKING_ENQUIRY_LINK: "Send visitors to an existing booking or enquiry page.",
+  DOWNLOADS_DOCUMENTS: "Make brochures, menus, forms or documents easy to find.",
+  MENU_OFFERS: "Highlight a menu, seasonal offer or current promotion."
+};
+
+function businessBuilderBlockIcon(type: string) {
+  switch (type) {
+    case "SERVICES":
+      return Wrench;
+    case "PRODUCTS":
+      return ShoppingBag;
+    case "PRICE_LIST":
+      return Tag;
+    case "OPENING_HOURS":
+      return CalendarDays;
+    case "GALLERY_PORTFOLIO":
+      return Camera;
+    case "REVIEWS_TESTIMONIALS":
+      return Star;
+    case "BOOKING_ENQUIRY_LINK":
+      return LinkIcon;
+    case "DOWNLOADS_DOCUMENTS":
+      return Download;
+    case "MENU_OFFERS":
+      return BookOpen;
+    default:
+      return ClipboardCheck;
+  }
+}
+
+function BusinessCardBuilderFoundation({
+  access,
+  previewLabel,
+  cardId,
+  publicUrl,
+  fullName,
+  servicesMode,
+  services,
+  productsMode,
+  products,
+  priceListMode,
+  priceItems,
+  menuOffersMode,
+  menuOfferItems,
+  bookingMode,
+  booking,
+  documentsMode,
+  documents,
+  galleryMode,
+  galleryItems,
+  reviewsMode,
+  reviews,
+  pendingWalletTestimonials,
+  approvedWalletTestimonialCount,
+  trust,
+  hasProAccess,
+  openingHoursMode,
+  openingHours,
+  businessName,
+  businessDescription,
+  primaryService,
+  businessCategory,
+  serviceArea,
+  websiteUrl,
+  profileImageUrl,
+  businessLogoUrl,
+  email,
+  phone,
+  billingEnabled,
+  className
+}: {
+  access: BusinessCardBuilderAccess;
+  previewLabel: string;
+  cardId: string;
+  publicUrl: string;
+  fullName: string;
+  servicesMode: CircleCardServicesBuilderMode;
+  services: CircleCardServiceItem[];
+  productsMode: CircleCardProductsBuilderMode;
+  products: CircleCardProductItem[];
+  priceListMode: CircleCardPriceListBuilderMode;
+  priceItems: CircleCardPriceListItem[];
+  menuOffersMode: CircleCardMenuOffersBuilderMode;
+  menuOfferItems: CircleCardMenuOfferItem[];
+  bookingMode: CircleCardBookingBuilderMode;
+  booking: CircleCardBookingEnquiry | null;
+  documentsMode: CircleCardDocumentsBuilderMode;
+  documents: CircleCardDocumentItem[];
+  galleryMode: CircleCardGalleryBuilderMode;
+  galleryItems: CircleCardGalleryItem[];
+  reviewsMode: CircleCardReviewsBuilderMode;
+  reviews: CircleCardReviewItem[];
+  pendingWalletTestimonials: CircleCardPendingWalletTestimonial[];
+  approvedWalletTestimonialCount: number;
+  trust: CircleTrustSummary;
+  hasProAccess: boolean;
+  openingHoursMode: CircleCardOpeningHoursBuilderMode;
+  openingHours: CircleCardOpeningHours | null;
+  businessName?: string | null;
+  businessDescription?: string | null;
+  primaryService?: string | null;
+  businessCategory?: string | null;
+  serviceArea?: string | null;
+  websiteUrl?: string | null;
+  profileImageUrl?: string | null;
+  businessLogoUrl?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  billingEnabled: boolean;
+  className?: string;
+}) {
+  const locked = access === "locked";
+  const blockDefinitions = CIRCLE_CARD_CONTENT_BLOCK_DEFINITIONS.filter(
+    (definition) => definition.family === "BUSINESS" && !definition.publicEditingEnabled
+  );
+  const detailItems = [
+    {
+      label: "Business description",
+      value: businessDescription,
+      href: circleCardManageHref({ cardId, section: "my-card", hash: "card-identity" }),
+      action: "Edit profile"
+    },
+    {
+      label: "Primary service",
+      value: primaryService,
+      href: circleCardManageHref({ cardId, section: "my-card", hash: "card-identity" }),
+      action: "Edit role/service"
+    },
+    {
+      label: "Business category",
+      value: businessCategory || businessName,
+      href: circleCardManageHref({ cardId, section: "my-card", hash: "card-identity" }),
+      action: "Edit identity"
+    },
+    {
+      label: "Service area",
+      value: serviceArea,
+      href: circleCardManageHref({ cardId, section: "my-card", hash: "card-contact-details" }),
+      action: "Edit location"
+    },
+    {
+      label: "Website",
+      value: websiteUrl,
+      href: circleCardManageHref({ cardId, section: "my-card", hash: "card-contact-details" }),
+      action: "Edit website"
+    },
+    {
+      label: "Enquiry CTA label",
+      value: null,
+      href: null,
+      action: "Coming next"
+    },
+    {
+      label: "Enquiry CTA link",
+      value: websiteUrl,
+      href: circleCardManageHref({ cardId, section: "my-card", hash: "card-contact-details" }),
+      action: websiteUrl ? "Uses website" : "Coming next"
+    }
+  ];
+  const activeServiceCount = services.filter((service) => service.isActive).length;
+  const activeProductCount = products.filter((product) => product.isActive).length;
+  const activePriceCount = priceItems.filter((item) => item.isActive).length;
+  const activeMenuOfferCount = menuOfferItems.filter((item) => item.isActive).length;
+  const activeDocumentCount = documents.filter((document) => document.isActive).length;
+  const activeGalleryCount = galleryItems.filter((item) => item.isActive).length;
+  const activeReviewCount = reviews.filter(
+    (item) => item.isActive && isValidCircleCardReviewItem(item)
+  ).length;
+  const trustSignalCount = activeReviewCount + approvedWalletTestimonialCount;
+  const moduleHrefs = {
+    services: circleCardManageHref({ cardId, section: "business", hash: "business-card-services" }),
+    products: circleCardManageHref({ cardId, section: "business", hash: "business-card-products" }),
+    priceList: circleCardManageHref({ cardId, section: "business", hash: "business-card-price-list" }),
+    menuOffers: circleCardManageHref({ cardId, section: "business", hash: "business-card-menu-offers" }),
+    booking: circleCardManageHref({ cardId, section: "business", hash: "business-card-booking" }),
+    documents: circleCardManageHref({ cardId, section: "business", hash: "business-card-downloads" }),
+    gallery: circleCardManageHref({ cardId, section: "business", hash: "business-card-gallery" }),
+    reviews: circleCardManageHref({ cardId, section: "business", hash: "business-card-reviews" }),
+    openingHours: circleCardManageHref({ cardId, section: "business", hash: "business-card-opening-hours" })
+  };
+  const completion = calculateBusinessProfileCompletion({
+    businessName,
+    about: businessDescription,
+    profileImageUrl,
+    businessLogoUrl,
+    location: serviceArea,
+    websiteUrl,
+    email,
+    phone,
+    activeServiceCount,
+    hasOpeningHours: Boolean(openingHours),
+    activeGalleryCount,
+    activeProductCount,
+    activePriceCount,
+    activeDocumentCount,
+    bookingActive: Boolean(booking?.isActive && booking.showOnPublicCard),
+    activeMenuOfferCount,
+    trustSignalCount
+  });
+  const completionById = new Map(completion.items.map((item) => [item.id, item.complete]));
+  const completionChecklist = [
+    {
+      label: "Business identity",
+      complete: ["business-name", "about", "brand-image"].every((id) => completionById.get(id as BusinessProfileCompletionItemId))
+    },
+    {
+      label: "Contact details",
+      complete: ["location", "contact-route"].every((id) => completionById.get(id as BusinessProfileCompletionItemId))
+    },
+    { label: "Services", complete: Boolean(completionById.get("services")) },
+    { label: "Gallery", complete: Boolean(completionById.get("gallery")) },
+    { label: "Products", complete: Boolean(completionById.get("products")) },
+    { label: "Booking", complete: Boolean(completionById.get("booking")) },
+    { label: "Circle Trust", complete: Boolean(completionById.get("circle-trust")) }
+  ];
+  const completionActionHrefs: Record<BusinessProfileCompletionItemId, { label: string; href: string }> = {
+    "business-name": {
+      label: "Add your business name",
+      href: circleCardManageHref({ cardId, section: "my-card", hash: "card-identity" })
+    },
+    about: {
+      label: "Add your business description",
+      href: circleCardManageHref({ cardId, section: "my-card", hash: "card-identity" })
+    },
+    "brand-image": {
+      label: "Add a logo or profile image",
+      href: circleCardManageHref({ cardId, section: "my-card", hash: "card-images" })
+    },
+    location: {
+      label: "Add your business location",
+      href: circleCardManageHref({ cardId, section: "my-card", hash: "card-contact-details" })
+    },
+    "contact-route": {
+      label: "Add a website or contact route",
+      href: circleCardManageHref({ cardId, section: "my-card", hash: "card-contact-details" })
+    },
+    services: { label: "Add your first service", href: moduleHrefs.services },
+    "opening-hours": { label: "Add opening hours", href: moduleHrefs.openingHours },
+    gallery: { label: "Upload portfolio images", href: moduleHrefs.gallery },
+    products: { label: "Add a product", href: moduleHrefs.products },
+    "price-list": { label: "Add your first price", href: moduleHrefs.priceList },
+    documents: { label: "Add a document", href: moduleHrefs.documents },
+    booking: { label: "Add a booking link", href: moduleHrefs.booking },
+    "menu-offers": { label: "Add a menu or offer", href: moduleHrefs.menuOffers },
+    "circle-trust": {
+      label: "Build my Circle Trust",
+      href: moduleHrefs.reviews
+    }
+  };
+  const nextBestAction = completion.nextIncompleteId
+    ? completionActionHrefs[completion.nextIncompleteId]
+    : { label: "View your completed Business Card", href: publicUrl };
+  const activeModules = [
+    {
+      type: "SERVICES",
+      label: "Services",
+      description: "Show what you offer.",
+      status: services.length ? `${activeServiceCount} active` : "0 services",
+      complete: activeServiceCount > 0,
+      action: services.length ? "Manage Services" : "Add your first service",
+      href: moduleHrefs.services
+    },
+    {
+      type: "PRODUCTS",
+      label: "Products",
+      description: "Let people browse what you sell.",
+      status: products.length ? `${activeProductCount} active` : "0 products",
+      complete: activeProductCount > 0,
+      action: products.length ? "Manage Products" : "Add first product",
+      href: moduleHrefs.products
+    },
+    {
+      type: "PRICE_LIST",
+      label: "Price List",
+      description: "Give visitors clear starting points.",
+      status: priceItems.length ? `${activePriceCount} active` : "0 prices",
+      complete: activePriceCount > 0,
+      action: priceItems.length ? "Manage Price List" : "Add first price",
+      href: moduleHrefs.priceList
+    },
+    {
+      type: "MENU_OFFERS",
+      label: "Menu & Offers",
+      description: "Highlight timely promotions.",
+      status: menuOfferItems.length ? `${activeMenuOfferCount} Active` : "0 Items",
+      complete: activeMenuOfferCount > 0,
+      action: menuOfferItems.length ? "Manage Menu & Offers" : "Add first item",
+      href: moduleHrefs.menuOffers
+    },
+    {
+      type: "BOOKING_ENQUIRY_LINK",
+      label: "Booking / Enquiry",
+      description: "Turn visitors into enquiries.",
+      status: booking?.isActive && booking.showOnPublicCard ? "Active" : booking ? "Hidden" : "Not set",
+      complete: Boolean(booking?.isActive && booking.showOnPublicCard),
+      action: booking ? "Manage Booking" : "Add booking link",
+      href: moduleHrefs.booking
+    },
+    {
+      type: "DOWNLOADS_DOCUMENTS",
+      label: "Downloads / Documents",
+      description: "Share useful files and resources.",
+      status: documents.length ? `${activeDocumentCount} active` : "0 documents",
+      complete: activeDocumentCount > 0,
+      action: documents.length ? "Manage Documents" : "Add first document",
+      href: moduleHrefs.documents
+    },
+    {
+      type: "GALLERY_PORTFOLIO",
+      label: "Gallery / Portfolio",
+      description: "Show proof of your work.",
+      status: `${activeGalleryCount} image${activeGalleryCount === 1 ? "" : "s"}`,
+      complete: activeGalleryCount > 0,
+      action: galleryItems.length ? "Manage Gallery" : "Add your first gallery image",
+      href: moduleHrefs.gallery
+    },
+    {
+      type: "OPENING_HOURS",
+      label: "Opening Hours",
+      description: "Help visitors know when you are available.",
+      status: openingHours ? "Set up" : "Not set",
+      complete: Boolean(openingHours),
+      action: openingHours ? "Edit Opening Hours" : "Set your opening hours",
+      href: moduleHrefs.openingHours
+    },
+    {
+      type: "REVIEWS_TESTIMONIALS",
+      label: "Circle Trust",
+      description: "Build reputation through real connections.",
+      status: `${trustSignalCount} trust signal${trustSignalCount === 1 ? "" : "s"}`,
+      complete: trustSignalCount > 0,
+      action: trustSignalCount ? "Build Trust" : "Build my Circle Trust",
+      href: moduleHrefs.reviews
+    }
+  ] as const;
+
+  return (
+    <CircleCardDashboardSection
+      id="business-card-builder"
+      title="Business Card Builder"
+      summary={
+        locked
+          ? "Business Card Builder is a Pro feature."
+          : "Structure services, products, enquiry and trust sections for a stronger business profile."
+      }
+      appSection="business"
+      className={cn(
+        "border-gold/20 bg-[linear-gradient(145deg,hsl(var(--card)/0.72),hsl(var(--background)/0.36))]",
+        className
+      )}
+      badge={
+        <Badge
+          variant={access === "platform-preview" ? "premium" : "outline"}
+          className={cn(access !== "platform-preview" && "border-gold/28 text-gold")}
+        >
+          {previewLabel}
+        </Badge>
+      }
+    >
+      <CircleTrustProgressPanel
+        trust={trust}
+        cardId={cardId}
+        cardType="BUSINESS"
+        hasProAccess={hasProAccess}
+        publicUrl={publicUrl}
+      />
+
+      {locked ? (
+        <div className="mt-4 space-y-3">
+          <div className="rounded-2xl border border-gold/24 bg-gold/10 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">
+                  Business Card Builder is a Pro feature.
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-muted">
+                  Free keeps a useful identity card, five active links and basic analytics. Pro opens a
+                  second card and the working business presentation modules for services, products, pricing and enquiries.
+                </p>
+                <p className="mt-2 text-xs font-medium text-gold">
+                  Completing these modules helps strengthen your Circle Trust. Pro access does not add points by itself.
+                </p>
+              </div>
+              <CircleCardProCheckoutButtons monthlyLabel="£9.99/month" billingEnabled={billingEnabled} authenticated intent={{ source: "business_builder", capability: "open_business_builder", cardId, returnPath: `/dashboard/circle-card?section=business&cardId=${encodeURIComponent(cardId)}#business-card-builder` }} label="Unlock Business Card Builder" earlyAccessLabel="Register for Business Builder" showPrice={false} />
+            </div>
+          </div>
+        <CircleCardServicesBuilder
+          mode={servicesMode}
+          cardId={cardId}
+          cardName={businessName || "Selected Business Card"}
+          services={services}
+        />
+        <CircleCardProductsBuilder
+          mode={productsMode}
+          cardId={cardId}
+          cardName={businessName || "Selected Business Card"}
+          products={products}
+        />
+        <CircleCardPriceListBuilder
+          mode={priceListMode}
+          cardId={cardId}
+          cardName={businessName || "Selected Business Card"}
+          priceItems={priceItems}
+        />
+        <CircleCardMenuOffersBuilder
+          mode={menuOffersMode}
+          cardId={cardId}
+          cardName={businessName || "Selected Business Card"}
+          items={menuOfferItems}
+        />
+        <CircleCardBookingBuilder
+          mode={bookingMode}
+          cardId={cardId}
+          cardName={businessName || "Selected Business Card"}
+          booking={booking}
+        />
+        <CircleCardDocumentsBuilder
+          mode={documentsMode}
+          cardId={cardId}
+          cardName={businessName || "Selected Business Card"}
+          documents={documents}
+        />
+        <CircleCardGalleryBuilder
+          mode={galleryMode}
+          cardId={cardId}
+          cardName={businessName || "Selected Business Card"}
+          galleryItems={galleryItems}
+        />
+        <CircleCardReviewsBuilder
+          mode={reviewsMode}
+          cardId={cardId}
+          cardName={businessName || "Selected Business Card"}
+          reviews={reviews}
+          pendingWalletTestimonials={pendingWalletTestimonials}
+          approvedWalletTestimonialCount={approvedWalletTestimonialCount}
+        />
+        <CircleCardOpeningHoursBuilder
+          mode={openingHoursMode}
+          cardId={cardId}
+          cardName={businessName || "Selected Business Card"}
+          openingHours={openingHours}
+        />
+        </div>
+      ) : (
+        <div className="mt-4 space-y-4 pb-16 sm:pb-0">
+          <div className="rounded-2xl border border-gold/20 bg-gold/8 p-4">
+            <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">
+              Builder for: {businessName || "Selected Business Card"}
+            </p>
+            <p className="text-sm font-semibold text-foreground">
+              Your business apps, all in one workspace.
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-muted">
+              Launch an active module below to manage what appears on this selected Business Card.
+            </p>
+          </div>
+
+          <section aria-labelledby="business-profile-completion-title" className="grid gap-3 rounded-2xl border border-gold/20 bg-card/48 p-3 sm:p-4 lg:grid-cols-[minmax(0,1fr)_minmax(240px,0.38fr)]">
+            <div className="min-w-0">
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">Business Pro</p>
+                  <h3 id="business-profile-completion-title" className="mt-1 text-sm font-semibold text-foreground sm:text-base">Business Profile Completion</h3>
+                </div>
+                <p className="font-display text-3xl font-semibold text-gold">{completion.score}%</p>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-background/60" aria-hidden="true">
+                <div className="h-full rounded-full bg-gradient-to-r from-gold/70 to-gold transition-[width]" style={{ width: `${completion.score}%` }} />
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-4">
+                {completionChecklist.map((item) => (
+                  <div key={item.label} className="flex min-w-0 items-center gap-1.5 text-xs">
+                    {item.complete ? (
+                      <CheckCircle2 size={14} className="shrink-0 text-emerald-300" aria-hidden="true" />
+                    ) : (
+                      <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-silver/40" aria-hidden="true" />
+                    )}
+                    <span className={cn("truncate", item.complete ? "text-foreground" : "text-muted")}>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex min-w-0 flex-col justify-between rounded-xl border border-gold/18 bg-gold/8 p-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">Next best action</p>
+                <p className="mt-2 text-sm font-semibold leading-snug text-foreground">{nextBestAction.label}</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted">
+                  {completion.score === 100
+                    ? "Your Business Card is ready to share."
+                    : `${completion.completedCount} of ${completion.totalCount} profile signals complete.`}
+                </p>
+              </div>
+              <Link href={nextBestAction.href} className={cn(buttonVariants({ size: "sm" }), "mt-3 h-10 w-full gap-2")}>
+                {nextBestAction.label}
+                <ArrowUpRight size={14} aria-hidden="true" />
+              </Link>
+            </div>
+          </section>
+
+          <div aria-label="Business Card shortcuts" className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+            <Link href={publicUrl} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-10 min-w-0 gap-2 px-2")}>
+              <Eye size={14} aria-hidden="true" />
+              <span className="truncate">View public Business Card</span>
+            </Link>
+            <CircleCardCopyLinkButton publicUrl={publicUrl} label="Copy public link" size="sm" className="h-10 min-w-0 px-2" analytics={{ cardId, source: "business_builder" }} />
+            <CircleCardShareButton title={`${fullName} | Circle Card`} publicUrl={publicUrl} cardId={cardId} analyticsSource="business_builder" label="Share Business Card" size="sm" className="min-w-0" buttonClassName="h-10 min-w-0 px-2" hideStatus />
+            <Link href={moduleHrefs.reviews} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-10 min-w-0 gap-2 px-2")}>
+              <ShieldCheck size={14} aria-hidden="true" />
+              <span className="truncate">Build my Circle Trust</span>
+            </Link>
+          </div>
+
+          <nav aria-label="Business Card setup" className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-9">
+            <Link
+              href={moduleHrefs.services}
+              className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
+            >
+              <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Services</span>
+              <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{Math.min(activeServiceCount, 3)} / 3</span>
+            </Link>
+            <Link
+              href={moduleHrefs.products}
+              className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
+            >
+              <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Products</span>
+              <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{products.length} / {CIRCLE_CARD_PRODUCT_PRO_LIMIT}</span>
+            </Link>
+            <Link
+              href={moduleHrefs.booking}
+              className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
+            >
+              <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Booking</span>
+              <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{booking?.isActive && booking.showOnPublicCard ? "Active" : booking ? "Hidden" : "Not set"}</span>
+            </Link>
+            <Link
+              href={moduleHrefs.priceList}
+              className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
+            >
+              <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Prices</span>
+              <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{activePriceCount} active</span>
+            </Link>
+            <Link
+              href={moduleHrefs.menuOffers}
+              className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
+            >
+              <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Menu &amp; Offers</span>
+              <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{menuOfferItems.length} / {CIRCLE_CARD_MENU_OFFER_PRO_LIMIT}</span>
+            </Link>
+            <Link
+              href={moduleHrefs.documents}
+              className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
+            >
+              <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Downloads</span>
+              <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{documents.length} / {CIRCLE_CARD_DOCUMENT_PRO_LIMIT}</span>
+            </Link>
+            <Link
+              href={moduleHrefs.openingHours}
+              className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
+            >
+              <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Hours</span>
+              <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{openingHours ? "Set" : "Not set"}</span>
+            </Link>
+            <Link
+              href={moduleHrefs.gallery}
+              className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
+            >
+              <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Gallery</span>
+              <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{galleryItems.length} / {CIRCLE_CARD_GALLERY_PRO_LIMIT}</span>
+            </Link>
+            <Link
+              href={moduleHrefs.reviews}
+              className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-silver/14 bg-background/24 px-2.5 py-2 transition-colors hover:border-gold/30 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 sm:px-3"
+            >
+              <span className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-muted sm:text-xs">Circle Trust</span>
+              <span className="mt-0.5 text-xs font-semibold text-foreground sm:text-sm">{trustSignalCount} signal{trustSignalCount === 1 ? "" : "s"}</span>
+            </Link>
+          </nav>
+
+          <section aria-labelledby="business-builder-modules-title" className="rounded-2xl border border-silver/14 bg-background/18 p-3 sm:p-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.08em] text-gold">Business apps</p>
+              <h3 id="business-builder-modules-title" className="mt-1 font-display text-lg font-semibold text-foreground sm:text-xl">
+                Open a module
+              </h3>
+            </div>
+
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              {activeModules.map((module) => {
+                const Icon = businessBuilderBlockIcon(module.type);
+
+                return (
+                  <Link
+                    key={module.type}
+                    href={module.href}
+                    className="group flex min-h-36 min-w-0 flex-col rounded-xl border border-gold/20 bg-card/52 p-3 transition-colors hover:border-gold/40 hover:bg-gold/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+                  >
+                    <span className="flex items-start justify-between gap-3">
+                      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gold/20 bg-gold/10 text-gold">
+                        <Icon size={16} aria-hidden="true" />
+                      </span>
+                      <span className="flex max-w-[70%] flex-wrap justify-end gap-1.5">
+                        <Badge variant={module.complete ? "outline" : "muted"} className={module.complete ? "border-emerald-400/24 text-emerald-200" : undefined}>
+                          {module.complete ? "Complete" : "Set up"}
+                        </Badge>
+                        <Badge variant="muted" className="max-w-full">{module.status}</Badge>
+                      </span>
+                    </span>
+                    <span className="mt-3 text-sm font-semibold text-foreground">{module.label}</span>
+                    <span className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted">{module.description}</span>
+                    <span className="mt-auto flex items-center gap-1.5 pt-3 text-xs font-semibold text-gold">
+                      {module.action}
+                      <ArrowUpRight size={13} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden="true" />
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-3">
+              {blockDefinitions.map((definition) => {
+                const Icon = businessBuilderBlockIcon(definition.type);
+
+                return (
+                  <div key={definition.type} className="min-w-0 rounded-xl border border-silver/12 bg-card/36 p-3">
+                    <div className="flex items-start gap-2.5">
+                      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-silver/14 bg-background/30 text-silver">
+                        <Icon size={14} aria-hidden="true" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold leading-snug text-foreground sm:text-sm">{definition.label}</p>
+                        <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted">
+                          {BUSINESS_CARD_BUILDER_BLOCK_DESCRIPTIONS[definition.type] ?? "Prepared for a future business profile block."}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="muted" className="mt-2.5">Coming Soon</Badge>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <CircleCardServicesBuilder
+            mode={servicesMode}
+            cardId={cardId}
+            cardName={businessName || "Selected Business Card"}
+            services={services}
+          />
+
+          <CircleCardProductsBuilder
+            mode={productsMode}
+            cardId={cardId}
+            cardName={businessName || "Selected Business Card"}
+            products={products}
+          />
+
+          <CircleCardPriceListBuilder
+            mode={priceListMode}
+            cardId={cardId}
+            cardName={businessName || "Selected Business Card"}
+            priceItems={priceItems}
+          />
+
+          <CircleCardMenuOffersBuilder
+            mode={menuOffersMode}
+            cardId={cardId}
+            cardName={businessName || "Selected Business Card"}
+            items={menuOfferItems}
+          />
+
+          <CircleCardBookingBuilder
+            mode={bookingMode}
+            cardId={cardId}
+            cardName={businessName || "Selected Business Card"}
+            booking={booking}
+          />
+
+          <CircleCardDocumentsBuilder
+            mode={documentsMode}
+            cardId={cardId}
+            cardName={businessName || "Selected Business Card"}
+            documents={documents}
+          />
+
+          <CircleCardGalleryBuilder
+            mode={galleryMode}
+            cardId={cardId}
+            cardName={businessName || "Selected Business Card"}
+            galleryItems={galleryItems}
+          />
+
+          <CircleCardReviewsBuilder
+            mode={reviewsMode}
+            cardId={cardId}
+            cardName={businessName || "Selected Business Card"}
+            reviews={reviews}
+            pendingWalletTestimonials={pendingWalletTestimonials}
+            approvedWalletTestimonialCount={approvedWalletTestimonialCount}
+          />
+
+          <CircleCardOpeningHoursBuilder
+            mode={openingHoursMode}
+            cardId={cardId}
+            cardName={businessName || "Selected Business Card"}
+            openingHours={openingHours}
+          />
+
+          <details className="group rounded-xl border border-silver/14 bg-background/18">
+            <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
+              <span>
+                <span className="text-sm font-semibold text-foreground">Business details</span>
+                <span className="mt-1 block text-xs leading-relaxed text-muted">
+                  Existing card fields that can safely power a business profile.
+                </span>
+              </span>
+              <ChevronDown size={16} className="mt-1 text-silver transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="grid gap-2 border-t border-silver/12 p-3 sm:grid-cols-2 xl:grid-cols-3">
+              {detailItems.map((item) => (
+                <div key={item.label} className="rounded-xl border border-silver/12 bg-card/42 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-muted">{item.label}</p>
+                  <p className="mt-1 min-h-5 break-words text-sm font-semibold text-foreground">
+                    {item.value?.trim() || "Coming next"}
+                  </p>
+                  {item.href ? (
+                    <Link href={item.href} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-3 h-8 gap-2")}>
+                      {item.action}
+                    </Link>
+                  ) : (
+                    <Badge variant="muted" className="mt-3">
+                      {item.action}
+                    </Badge>
+                  )}
+                </div>
+              ))}
+            </div>
+          </details>
+
+        </div>
+      )}
+    </CircleCardDashboardSection>
+  );
+}
+
+function CreatorProStudio({
+  mode,
+  entitlementLabel,
+  cardId,
+  fullName,
+  profileImageUrl,
+  about,
+  websiteUrl,
+  activeSocialProfileCount,
+  activeFeaturedLinkCount,
+  activeLinkTypes,
+  creatorTrustSignalCount,
+  trust,
+  featuredContentItems,
+  mediaKit,
+  audienceSnapshot,
+  brandPartnerships,
+  creatorOffers,
+  pressProofItems,
+  publicUrl,
+  billingEnabled,
+  className
+}: {
+  mode: CreatorStudioMode;
+  entitlementLabel: string;
+  cardId: string;
+  fullName: string;
+  profileImageUrl?: string | null;
+  about?: string | null;
+  websiteUrl?: string | null;
+  activeSocialProfileCount: number;
+  activeFeaturedLinkCount: number;
+  activeLinkTypes: string[];
+  creatorTrustSignalCount: number;
+  trust: CircleTrustSummary;
+  featuredContentItems: ReturnType<typeof readCircleCardFeaturedContentItems>;
+  mediaKit: ReturnType<typeof readCircleCardMediaKit>;
+  audienceSnapshot: ReturnType<typeof readCircleCardAudienceSnapshot>;
+  brandPartnerships: ReturnType<typeof readCircleCardBrandPartnerships>;
+  creatorOffers: ReturnType<typeof readCircleCardCreatorOffers>;
+  pressProofItems: ReturnType<typeof readCircleCardPressProofItems>;
+  publicUrl: string;
+  billingEnabled: boolean;
+  className?: string;
+}) {
+  if (mode === "hidden") return null;
+
+  const locked = mode === "locked";
+  const isPreview = mode === "preview";
+  const cardHref = (hash: string) => circleCardManageHref({ cardId, section: "my-card", hash });
+  const featuredLinksHref = cardHref("custom-links");
+  const featuredContentHref = cardHref("creator-featured-content");
+  const mediaKitHref = cardHref("creator-media-kit");
+  const audienceHref = cardHref("creator-audience");
+  const brandPartnershipsHref = cardHref("creator-brand-partnerships");
+  const creatorOffersHref = cardHref("creator-offers");
+  const pressProofHref = cardHref("creator-press-proof");
+  const socialProfilesHref = cardHref("card-social-profiles");
+  const identityHref = cardHref("card-identity");
+  const imagesHref = cardHref("card-images");
+  const shareHref = circleCardManageHref({ cardId, section: "share", hash: "share-assets" });
+  const linkTypeSet = new Set(activeLinkTypes);
+  const featuredContentCount = featuredContentItems.filter((item) => item.isActive).length;
+  const mediaKitStatus = circleCardMediaKitStatus(mediaKit);
+  const audienceStatus = circleCardAudienceSnapshotStatus(audienceSnapshot);
+  const brandPartnershipStatus = circleCardBrandPartnershipStatus(brandPartnerships);
+  const creatorOfferStatus = circleCardCreatorOfferStatus(creatorOffers);
+  const creatorOfferCount = creatorOffers.filter((item) => item.active).length;
+  const pressProofStatus = circleCardPressProofStatus(pressProofItems);
+  const proofCount = pressProofItems.filter((item) => item.active).length;
+  const brandPartnershipCount = brandPartnerships.filter((item) => item.isActive).length;
+  const hasOpenToPartnershipsData = Boolean(
+    mediaKit?.availableFor.length || mediaKit?.primaryNiche || mediaKit?.secondaryNiche || mediaKit?.whatICreate.length
+  );
+  const brandPartnershipCompletion = brandPartnershipCount > 0
+    ? brandPartnershipStatus
+    : hasOpenToPartnershipsData
+      ? "Active"
+      : "Not Started";
+  const hasCommunityRoute = Boolean(websiteUrl?.trim()) || linkTypeSet.has("COMMUNITY");
+  const completion = calculateCreatorProfileCompletion({
+    creatorCardSelected: mode !== "preview",
+    hasProfileImage: Boolean(profileImageUrl?.trim()),
+    hasBio: Boolean(about?.trim()),
+    activeSocialProfileCount,
+    activeFeaturedLinkCount,
+    hasFeaturedContent: featuredContentCount > 0,
+    hasMediaKit: mediaKitStatus !== "Not Started",
+    hasWhatICreate: Boolean(mediaKit?.whatICreate.length),
+    hasAudienceSnapshot: audienceStatus !== "Not Started",
+    hasBrandPartnershipOrOpenToData: brandPartnershipCount > 0 || hasOpenToPartnershipsData,
+    hasCreatorOffer: creatorOfferCount > 0,
+    hasPressProof: proofCount > 0,
+    hasWebsiteOrCommunityLink: hasCommunityRoute,
+    creatorTrustSignalCount
+  });
+  const completionById = new Map(completion.items.map((item) => [item.id, item.complete]));
+  const completionActions: Record<CreatorProfileCompletionItemId, { label: string; href: string }> = {
+    "creator-card": { label: "Select your Creator Card", href: identityHref },
+    "profile-image": { label: "Add your creator image", href: imagesHref },
+    "creator-bio": { label: "Add your creator bio", href: identityHref },
+    "social-profile": { label: "Add your best social platform", href: socialProfilesHref },
+    "featured-link": { label: "Add your first featured link", href: featuredLinksHref },
+    "featured-content": { label: "Add your first featured content", href: featuredContentHref },
+    "media-kit": { label: "Complete your Live Media Kit", href: mediaKitHref },
+    "what-i-create": { label: "Add what you create", href: mediaKitHref },
+    "audience-snapshot": { label: "Add your Audience Snapshot", href: audienceHref },
+    "brand-partnership": { label: "Add a Brand Partnership", href: brandPartnershipsHref },
+    "creator-offer": { label: "Add a Creator Offer", href: creatorOffersHref },
+    "press-proof": { label: "Add Press & Proof", href: pressProofHref },
+    "community-route": { label: "Add a community or website link", href: featuredLinksHref },
+    "creator-trust": { label: "Start building your Circle Trust", href: shareHref }
+  };
+  const nextAction = completion.nextIncompleteId
+    ? completionActions[completion.nextIncompleteId]
+    : { label: "View public Creator Card", href: publicUrl };
+  const completionStages = [
+    { label: "Profile", complete: ["creator-card", "profile-image", "creator-bio"].every((id) => completionById.get(id as CreatorProfileCompletionItemId)) },
+    { label: "Social & links", complete: ["social-profile", "featured-link", "community-route"].every((id) => completionById.get(id as CreatorProfileCompletionItemId)) },
+    { label: "Featured Content", complete: Boolean(completionById.get("featured-content")) },
+    { label: "Live Media Kit", complete: ["media-kit", "what-i-create"].every((id) => completionById.get(id as CreatorProfileCompletionItemId)) },
+    { label: "Audience", complete: Boolean(completionById.get("audience-snapshot")) },
+    { label: "Partnerships", complete: Boolean(completionById.get("brand-partnership")) },
+    { label: "Offers", complete: Boolean(completionById.get("creator-offer")) },
+    { label: "Press & Proof", complete: Boolean(completionById.get("press-proof")) },
+    { label: "Circle Trust", complete: Boolean(completionById.get("creator-trust")) }
+  ];
+  const modules = [
+    {
+      name: "Featured Content",
+      benefit: "Showcase your best videos, posts and content.",
+      metric: `${featuredContentCount} active`,
+      completion: featuredContentCount > 0 ? "Complete" : "Not Started",
+      action: featuredContentCount > 0 ? "Manage Featured Content" : "Add Featured Content",
+      href: featuredContentHref,
+      icon: Star
+    },
+    {
+      name: "Live Media Kit",
+      benefit: "Give brands a clear, always-up-to-date creator profile.",
+      metric: mediaKitStatus === "Not Started" ? "Not started" : "Active",
+      completion: mediaKitStatus,
+      action: mediaKitStatus === "Not Started" ? "Set up Live Media Kit" : "Manage Media Kit",
+      href: mediaKitHref,
+      icon: Download
+    },
+    {
+      name: "Audience Snapshot",
+      benefit: "Help brands understand who watches your content.",
+      metric: audienceStatus === "Not Started" ? "Not started" : "Active",
+      completion: audienceStatus,
+      action: audienceStatus === "Not Started" ? "Add Audience Snapshot" : "Manage Audience",
+      href: audienceHref,
+      icon: BarChart3
+    },
+    {
+      name: "Brand Partnerships",
+      benefit: "Show brands who already trust your work.",
+      metric: brandPartnershipCount > 0 ? `${brandPartnershipCount} active` : hasOpenToPartnershipsData ? "Open to partnerships" : "0 active",
+      completion: brandPartnershipCompletion,
+      action: brandPartnershipCount > 0 || hasOpenToPartnershipsData ? "Manage Partnerships" : "Add Partnership",
+      href: brandPartnershipsHref,
+      icon: Handshake
+    },
+    {
+      name: "Creator Offers",
+      benefit: "Promote affiliates, merch, courses or communities.",
+      metric: `${creatorOfferCount} active`,
+      completion: creatorOfferStatus,
+      action: creatorOfferCount > 0 ? "Manage Offers" : "Add Creator Offer",
+      href: creatorOffersHref,
+      icon: ShoppingBag
+    },
+    {
+      name: "Press & Proof",
+      benefit: "Show credibility, mentions and milestones.",
+      metric: `${proofCount} active`,
+      completion: pressProofStatus,
+      action: proofCount > 0 ? "Manage Proof" : "Add Press & Proof",
+      href: pressProofHref,
+      icon: Sparkles
+    },
+    {
+      name: "Circle Trust",
+      benefit: "Build reputation through real connections.",
+      metric: `${creatorTrustSignalCount} trust signal${creatorTrustSignalCount === 1 ? "" : "s"}`,
+      completion: creatorTrustSignalCount > 0 ? "Active" : "Not Started",
+      action: "Build my Circle Trust",
+      href: shareHref,
+      icon: ShieldCheck
+    }
+  ] as const;
+  const activeModuleCount = modules.filter((module) => module.completion !== "Not Started").length;
+
+  return (
+    <CircleCardDashboardSection
+      id="creator-pro-studio"
+      title="Creator Pro Studio"
+      summary="Showcase your content, grow collaborations, and build your Circle Trust."
+      appSection="my-card"
+      className={cn(
+        "border-cyan-300/18 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.08),transparent_34%),linear-gradient(145deg,hsl(var(--card)/0.76),hsl(var(--background)/0.4))]",
+        className
+      )}
+      badge={
+        <Badge variant={isPreview ? "premium" : "outline"} className={cn(!isPreview && "border-cyan-300/28 text-cyan-100")}>
+          {isPreview ? "Platform Preview" : entitlementLabel}
+        </Badge>
+      }
+    >
+      <div className="space-y-4 pb-20 sm:pb-0">
+        <section aria-labelledby="creator-completion-title" className="grid gap-3 rounded-2xl border border-cyan-300/18 bg-background/22 p-3 sm:p-4 lg:grid-cols-[minmax(0,1fr)_minmax(230px,0.38fr)]">
+          <div className="min-w-0">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.08em] text-cyan-200">Creator profile</p>
+                <h3 id="creator-completion-title" className="mt-1 text-sm font-semibold text-foreground sm:text-base">Creator Profile Strength</h3>
+              </div>
+              <p className="font-display text-3xl font-semibold text-cyan-100">{completion.score}%</p>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-background/60">
+              <div className="h-full rounded-full bg-gradient-to-r from-cyan-400/70 via-gold/70 to-gold" style={{ width: `${completion.score}%` }} />
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-muted">Complete your creator profile to improve brand opportunities and build your Circle Trust.</p>
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {completionStages.map(({ label, complete }) => {
+                return (
+                  <span key={label} className={cn("flex min-w-0 items-center gap-1.5 text-xs", complete ? "text-foreground" : "text-muted")}>
+                    {complete ? <CheckCircle2 size={14} className="shrink-0 text-cyan-200" /> : <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-silver/40" />}
+                    <span className="truncate">{label}</span>
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+          <div className="flex flex-col justify-between rounded-xl border border-cyan-300/16 bg-cyan-400/[0.06] p-3">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.08em] text-cyan-200">Next best action</p>
+              <p className="mt-2 text-sm font-semibold text-foreground">{nextAction.label}</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted">{completion.completedCount} of {completion.totalCount} creator signals complete.</p>
+            </div>
+            <Link href={nextAction.href} className={cn(buttonVariants({ size: "sm" }), "mt-3 h-11 w-full gap-2")}>
+              {nextAction.label}<ArrowUpRight size={14} />
+            </Link>
+          </div>
+        </section>
+
+        <CircleTrustProgressPanel
+          trust={trust}
+          cardId={cardId}
+          cardType="CREATOR"
+          hasProAccess={!locked}
+          publicUrl={publicUrl}
+        />
+
+        {locked ? (
+          <div className="rounded-2xl border border-gold/22 bg-gold/8 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Creator Pro helps you showcase content, attract collaborations and build Circle Trust.</p>
+                <p className="mt-1 text-sm text-muted">Your Creator Card stays live on Free. Upgrade when you are ready to open the full studio.</p>
+              </div>
+              <CircleCardProCheckoutButtons monthlyLabel="£9.99/month" billingEnabled={billingEnabled} authenticated intent={{ source: "locked_module", capability: "explore_pro", cardId, returnPath: cardHref("creator-pro-studio") }} label="Unlock Creator Pro" earlyAccessLabel="Register for Creator Pro" showPrice={false} />
+            </div>
+          </div>
+        ) : null}
+
+        <section aria-labelledby="creator-studio-modules-title" className="rounded-2xl border border-cyan-300/14 bg-background/18 p-3 sm:p-4">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.08em] text-cyan-200">Studio tracks</p>
+              <h3 id="creator-studio-modules-title" className="mt-1 font-display text-xl text-foreground">Build your creator presence</h3>
+            </div>
+            <Badge variant="muted">{activeModuleCount} of {modules.length} modules started</Badge>
+          </div>
+          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {modules.map((module, index) => {
+              const Icon = module.icon;
+              const availableOnFree = module.name === "Featured Content" || module.name === "Brand Partnerships" || module.name === "Creator Offers" || module.name === "Press & Proof";
+              const content = (
+                <>
+                  <span className="flex items-start justify-between gap-3">
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-400/[0.07] text-cyan-100"><Icon size={17} /></span>
+                    <Badge variant={module.completion === "Not Started" ? "muted" : "outline"} className={module.completion !== "Not Started" ? "border-cyan-300/28 text-cyan-100" : undefined}>{module.completion}</Badge>
+                  </span>
+                  <span className="mt-4 text-[10px] font-medium uppercase tracking-[0.1em] text-silver">Studio {String(index + 1).padStart(2, "0")}</span>
+                  <span className="mt-1 text-base font-semibold text-foreground">{module.name}</span>
+                  <span className="mt-2 text-xs font-semibold text-silver">{module.metric}</span>
+                  <span className="mt-1 text-sm leading-relaxed text-muted">{module.benefit}</span>
+                  {locked && !availableOnFree ? <span className="mt-2 text-xs leading-relaxed text-gold">Completing this module helps strengthen your Circle Trust.</span> : null}
+                  <span className="mt-auto flex items-center gap-1.5 pt-4 text-xs font-semibold text-cyan-100">{locked && !availableOnFree ? "Unlock with Pro" : module.action}{module.href && (!locked || availableOnFree) ? <ArrowUpRight size={13} /> : null}</span>
+                </>
+              );
+
+              return module.href && (!locked || availableOnFree) ? (
+                <Link key={module.name} href={module.href} id={module.name === "Circle Trust" ? "creator-studio-circle-trust" : undefined} className="group flex min-h-48 min-w-0 flex-col rounded-2xl border border-silver/14 bg-card/48 p-4 transition hover:-translate-y-0.5 hover:border-cyan-300/30 hover:bg-cyan-400/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/50 sm:min-h-52">{content}</Link>
+              ) : (
+                <div key={module.name} id={module.name === "Circle Trust" ? "creator-studio-circle-trust" : undefined} className="flex min-h-48 min-w-0 flex-col rounded-2xl border border-silver/12 bg-card/32 p-4 sm:min-h-52">{content}</div>
+              );
+            })}
+          </div>
+        </section>
+
+        {!isPreview ? (
+          <CircleCardFeaturedContentManager
+            cardId={cardId}
+            cardName={fullName}
+            initialItems={featuredContentItems}
+            itemLimit={locked ? CIRCLE_CARD_FEATURED_CONTENT_FREE_LIMIT : CIRCLE_CARD_FEATURED_CONTENT_PRO_LIMIT}
+            hasProAccess={!locked}
+          />
+        ) : null}
+
+        {!isPreview ? (
+          <CircleCardMediaKitManager
+            cardId={cardId}
+            cardName={fullName}
+            initialMediaKit={mediaKit}
+            locked={locked}
+            billingEnabled={billingEnabled}
+          />
+        ) : null}
+
+        {!isPreview ? (
+          <CircleCardAudienceSnapshotManager
+            cardId={cardId}
+            cardName={fullName}
+            initialSnapshot={audienceSnapshot}
+            locked={locked}
+            billingEnabled={billingEnabled}
+          />
+        ) : null}
+
+        {!isPreview ? (
+          <CircleCardBrandPartnershipsManager
+            cardId={cardId}
+            cardName={fullName}
+            initialItems={brandPartnerships}
+            itemLimit={locked ? CIRCLE_CARD_BRAND_PARTNERSHIP_FREE_LIMIT : CIRCLE_CARD_BRAND_PARTNERSHIP_PRO_LIMIT}
+            hasProAccess={!locked}
+          />
+        ) : null}
+
+        {!isPreview ? (
+          <CircleCardCreatorOffersManager
+            cardId={cardId}
+            cardName={fullName}
+            initialItems={creatorOffers}
+            itemLimit={locked ? CIRCLE_CARD_CREATOR_OFFER_FREE_LIMIT : CIRCLE_CARD_CREATOR_OFFER_PRO_LIMIT}
+            hasProAccess={!locked}
+          />
+        ) : null}
+
+        {!isPreview ? (
+          <CircleCardPressProofManager
+            cardId={cardId}
+            cardName={fullName}
+            initialItems={pressProofItems}
+            itemLimit={locked ? CIRCLE_CARD_PRESS_PROOF_FREE_LIMIT : CIRCLE_CARD_PRESS_PROOF_PRO_LIMIT}
+            hasProAccess={!locked}
+          />
+        ) : null}
+
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <Link href={publicUrl} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-11 min-w-0 gap-2 px-3")}><Eye size={14} /><span className="truncate">View public Creator Card</span></Link>
+          <CircleCardCopyLinkButton publicUrl={publicUrl} label="Copy public link" size="sm" className="h-11 min-w-0 px-3" analytics={{ cardId, source: "creator_studio" }} />
+          <CircleCardShareButton title={`${fullName} | Circle Card`} publicUrl={publicUrl} cardId={cardId} analyticsSource="creator_studio" label="Share Creator Card" size="sm" className="min-w-0" buttonClassName="h-11 min-w-0 px-3" hideStatus />
+          <Link href={shareHref} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-11 min-w-0 gap-2 px-3")}><ShieldCheck size={14} /><span className="truncate">Build my Circle Trust</span></Link>
+        </div>
+      </div>
+    </CircleCardDashboardSection>
+  );
+}
+
+function UpgradeTriggerColumn({
+  title,
+  triggers,
+  href,
+  ctaLabel,
+  empty
+}: {
+  title: string;
+  triggers: CircleCardUpgradeTrigger[];
+  href: string;
+  ctaLabel: string;
+  empty: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border/70 bg-background/20 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-foreground">{title}</p>
+        <Link href={href} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 gap-2")}>
+          {ctaLabel}
+          <ArrowUpRight size={14} />
+        </Link>
+      </div>
+      <div className="mt-3 space-y-2">
+        {triggers.length ? (
+          triggers.slice(0, 3).map((trigger) => (
+            <div key={trigger.id} className="rounded-lg border border-silver/12 bg-card/50 p-3">
+              <p className="text-sm font-medium text-foreground">{trigger.title}</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted">{trigger.message}</p>
+            </div>
+          ))
+        ) : (
+          <p className="rounded-lg border border-silver/12 bg-card/40 p-3 text-xs leading-relaxed text-muted">
+            {empty}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CircleCardUpgradeSignalsPanel({
+  metrics,
+  proTriggers
+}: {
+  metrics: CircleCardUsageMetric[];
+  proTriggers: CircleCardUpgradeTrigger[];
+}) {
+  const allTriggers = [...proTriggers].sort((a, b) => b.priority - a.priority);
+  const primaryTrigger = allTriggers[0];
+
+  return (
+    <section className="rounded-2xl border border-silver/14 bg-card/66 p-3 shadow-panel-soft sm:p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.08em] text-gold">Usage awareness</p>
+          <h2 className="mt-1 font-display text-xl text-foreground">Your Circle Card signals</h2>
+        </div>
+        <Badge variant="outline" className="w-fit border-gold/28 text-gold">
+          Plan guidance
+        </Badge>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-5">
+        {metrics.map((metric) => {
+          const Icon = metric.icon;
+
+          return (
+            <div key={metric.label} className="min-h-24 rounded-xl border border-border/70 bg-background/25 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-muted">{metric.label}</p>
+                <Icon size={15} className="shrink-0 text-gold" />
+              </div>
+              <p className="mt-2 text-xl font-semibold text-foreground">{metric.value}</p>
+              <p className="mt-1 text-[11px] leading-snug text-muted">{metric.hint}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      <details className="group mt-3 rounded-xl border border-border/70 bg-background/20">
+        <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-3 [&::-webkit-details-marker]:hidden">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground">Upgrade triggers</p>
+            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted">
+              {primaryTrigger
+                ? `${primaryTrigger.title}. ${primaryTrigger.message}`
+                : "Keep building usage signals. Pro prompts appear when a working capability becomes useful."}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Badge variant="outline" className="normal-case tracking-normal">
+              {allTriggers.length} signal{allTriggers.length === 1 ? "" : "s"}
+            </Badge>
+            <ChevronDown size={16} className="text-silver transition-transform group-open:rotate-180" />
+          </div>
+        </summary>
+        <div className="grid gap-2 border-t border-border/70 p-3">
+          <UpgradeTriggerColumn
+            title="Pro signals"
+            triggers={proTriggers}
+            href={buildCircleCardProHref({ source: "dashboard", capability: "explore_pro", returnPath: "/dashboard/circle-card?section=settings#upgrade-signals" })}
+            ctaLabel="Explore Pro"
+            empty="Pro prompts appear when your card starts driving visibility, traffic and lead signals."
+          />
+        </div>
+      </details>
+    </section>
+  );
+}
+
+function circleCardCustomLinkEditHref(linkId: string) {
+  const params = new URLSearchParams({
+    section: "my-card",
+    editLink: linkId
+  });
+
+  return `/dashboard/circle-card?${params.toString()}#custom-link-${linkId}`;
+}
+
+const NOTICE_MESSAGES: Record<string, string> = {
+  "card-created": "Circle Card created.",
+  "onboarding-complete": "Your Circle Card is live.",
+  "card-updated": "Circle Card updated.",
+  "card-default-updated": "Default Circle Card updated.",
+  "card-order-updated": "Public card order updated.",
+  "card-order-unchanged": "That card is already in that position.",
+  "card-set-live": "Circle Card is now live.",
+  "card-hidden": "Circle Card hidden from public view.",
+  "card-already-live": "That Circle Card is already live.",
+  "card-already-hidden": "That Circle Card is already hidden.",
+  "card-archived": "Circle Card archived.",
+  "card-saved": "Contact saved to your Circle Wallet.",
+  "card-already-saved": "That card is already in your Circle Wallet.",
+  "card-removed": "Contact removed from your Circle Wallet.",
+  "favourite-added": "Contact marked as a favourite.",
+  "favourite-removed": "Contact removed from favourites.",
+  "relationship-updated": "Relationship details updated.",
+  "connection-request-sent": "Connection request sent.",
+  "connection-request-accepted": "Connection request accepted. You are now mutually saved.",
+  "connection-request-declined": "Connection request declined.",
+  "connection-request-cancelled": "Connection request cancelled.",
+  "connection-request-pending": "A connection request is already pending.",
+  "connection-request-incoming": "That contact has already sent you a request.",
+  "connection-already-connected": "You are already connected.",
+  "card-link-resolved": "Circle Card link resolved.",
+  "business-card-contact-created": "Scanned business card saved to your Circle Wallet.",
+  "business-card-match-found": "Existing Circle Card found for that business card.",
+  "business-card-duplicate": "That contact is already in your Circle Wallet.",
+  "claim-link-generated": "Claim link generated. Copy it from the selected contact.",
+  "recommendation-created": "Recommendation saved.",
+  "recommendation-updated": "Recommendation updated.",
+  "recommendation-hidden": "Recommendation hidden from public display.",
+  "recommendation-removed": "Recommendation removed.",
+  "introduction-created": "Introduction sent.",
+  "introduction-accepted": "Introduction accepted.",
+  "introduction-declined": "Introduction declined.",
+  "introduction-completed": "Introduction completed.",
+  "introduction-cancelled": "Introduction cancelled.",
+  "introduction-already-accepted": "You have already accepted this introduction.",
+  "referral-created": "Referral sent.",
+  "referral-accepted": "Referral accepted.",
+  "referral-declined": "Referral declined.",
+  "referral-won": "Referral marked won.",
+  "referral-lost": "Referral marked lost.",
+  "referral-cancelled": "Referral cancelled.",
+  "opportunity-created": "Opportunity created.",
+  "opportunity-updated": "Opportunity updated.",
+  "opportunity-won": "Opportunity marked won.",
+  "opportunity-lost": "Opportunity marked lost.",
+  "notification-read": "Notification marked as read.",
+  "notifications-read": "All notifications marked as read.",
+  "custom-link-created": "Custom link added.",
+  "custom-link-updated": "Custom link updated.",
+  "custom-link-deleted": "Custom link deleted.",
+  "custom-link-enabled": "Custom link enabled.",
+  "custom-link-disabled": "Custom link paused.",
+  "custom-link-reordered": "Custom links reordered.",
+  "service-created": "Service added to this Business Card.",
+  "service-updated": "Service updated.",
+  "service-shown": "Service is now visible on the public Business Card.",
+  "service-hidden": "Service hidden from the public Business Card.",
+  "service-deleted": "Service deleted from this Business Card.",
+  "gallery-item-created": "Gallery item added to this Business Card.",
+  "gallery-item-updated": "Gallery item updated.",
+  "gallery-item-shown": "Gallery item is now visible on the public Business Card.",
+  "gallery-item-hidden": "Gallery item hidden from the public Business Card.",
+  "gallery-item-deleted": "Gallery item deleted from this Business Card.",
+  "opening-hours-saved": "Opening hours saved to this Business Card.",
+  "opening-hours-preset-applied": "Opening hours preset applied to this Business Card.",
+  "identity-updated": "Circle Card identity updated.",
+  "smart-import-applied": "Smart Profile Import suggestions applied.",
+  "own-card": "This is already your Circle Card."
+};
+
+const ERROR_MESSAGES: Record<string, string> = {
+  "invalid-card": "Check the card fields and try again.",
+  "card-not-found": "That Circle Card could not be found.",
+  "card-hidden-default": "Set the Circle Card live before making it your public default.",
+  "card-limit": "You have reached the Circle Card limit for your current access.",
+  "card-plan-locked": "This saved extra card is read-only until Circle Card Pro is restored.",
+  "slug-taken": "That public card link is already taken.",
+  "card-save-failed": "The Circle Card could not be saved.",
+  "custom-link-invalid": "Check the custom link fields and try again.",
+  "custom-link-not-found": "That custom link could not be found.",
+  "custom-link-save-failed": "The custom link could not be saved.",
+  "custom-link-access-code-required": "Generate a 4-digit access code before saving a private link.",
+  "custom-link-active-limit": `Free Circle Cards can keep up to ${CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT} active custom links in this phase.`,
+  "custom-link-total-limit": "This Circle Card already has the maximum number of saved custom links.",
+  "service-invalid": "Check the service fields and try again.",
+  "service-not-found": "That service could not be found on this Business Card.",
+  "service-limit": `This Business Card can keep up to ${CIRCLE_CARD_SERVICE_LIMIT} services.`,
+  "services-locked": "Add services to your Business Card with Pro.",
+  "services-business-card-required": "Services can only be added to a Business Card.",
+  "gallery-item-invalid": "Upload an image and check the gallery item fields.",
+  "gallery-item-not-found": "That gallery item could not be found on this Business Card.",
+  "gallery-limit": `Circle Card Pro can keep up to ${CIRCLE_CARD_GALLERY_PRO_LIMIT} gallery images.`,
+  "gallery-locked": "Gallery is included with Circle Card Pro.",
+  "gallery-business-card-required": "Gallery can only be added to a Business Card.",
+  "opening-hours-invalid": "Check the opening hours and try again.",
+  "opening-hours-locked": "Add opening hours to your Business Card with Pro.",
+  "opening-hours-business-card-required": "Opening hours can only be added to a Business Card.",
+  "connection-invalid": "Check the connection request and try again.",
+  "connection-card-not-found": "That Circle Card could not be found.",
+  "connection-primary-card-required": "Create your own Circle Card before sending requests.",
+  "connection-save-first": "Save that Circle Card before sending a request.",
+  "connection-request-not-found": "That connection request is no longer pending.",
+  "connection-request-failed": "The connection request could not be sent.",
+  "connection-rate-limited": "You've sent several connection requests recently. Please try again later.",
+  "card-link-invalid": "Enter a valid Circle Card link or slug.",
+  "card-link-not-found": "No published Circle Card was found for that link.",
+  "wallet-contact-invalid": "Check the relationship details and try again.",
+  "wallet-contact-not-found": "That saved contact could not be found.",
+  "business-card-invalid": "Check the scanned business card details and try again.",
+  "claim-link-email-required": "Add an email before generating a claim link.",
+  "recommendation-invalid": "Check the recommendation fields and try again.",
+  "recommendation-primary-card-required": "Create your own Circle Card before recommending someone.",
+  "recommendation-self": "You cannot recommend yourself.",
+  "recommendation-public-card-required": "Public recommendations need a saved public Circle Card contact.",
+  "recommendation-duplicate": "You already publicly recommend this person in that category.",
+  "recommendation-not-found": "That recommendation could not be found.",
+  "introduction-invalid": "Check the introduction details and try again.",
+  "introduction-primary-card-required": "Create your own Circle Card before making introductions.",
+  "introduction-wallet-required": "Introductions need two saved published Circle Card contacts.",
+  "introduction-same-contact": "Choose two different people to introduce.",
+  "introduction-self": "You cannot introduce yourself.",
+  "introduction-duplicate": "You already have an active introduction for that pair.",
+  "introduction-not-found": "That introduction is no longer active.",
+  "introduction-already-accepted": "You have already accepted this introduction.",
+  "introduction-rate-limited": "You've created several introductions recently. Please try again later.",
+  "referral-invalid": "Check the referral fields and try again.",
+  "referral-primary-card-required": "Create your own Circle Card before sending referrals.",
+  "referral-recipient-not-found": "That referral recipient could not be found.",
+  "referral-self": "You cannot send a referral to yourself.",
+  "referral-not-found": "That referral could not be found.",
+  "referral-status-not-allowed": "That referral status change is not available.",
+  "referral-rate-limited": "You've sent several referrals recently. Please try again later.",
+  "opportunity-invalid": "Check the opportunity fields and try again.",
+  "opportunity-primary-card-required": "Create your own Circle Card before tracking opportunities.",
+  "opportunity-not-found": "That opportunity could not be found.",
+  "identity-invalid": "Choose an account type and try again.",
+  "smart-import-invalid": "Check the Smart Profile Import suggestions and try again.",
+  "smart-import-empty": "Choose at least one Smart Profile Import suggestion before saving.",
+  "notification-invalid": "Check the notification action and try again.",
+  "notification-not-found": "That notification could not be found."
+};
+
+const WALLET_VIEW_OPTIONS = [
+  { value: "all", label: "All" },
+  { value: "connected", label: "Connected" },
+  { value: "favourites", label: "Favourites" },
+  { value: "recommended", label: "People I Recommend" },
+  { value: "requests", label: "Requests" },
+  { value: "recent", label: "Recent" }
+] as const;
+
+const INTRODUCTION_VIEW_OPTIONS = [
+  { value: "incoming", label: "Incoming" },
+  { value: "outgoing", label: "Outgoing" },
+  { value: "completed", label: "Completed" }
+] as const;
+
+const REFERRAL_VIEW_OPTIONS = [
+  { value: "sent", label: "Sent" },
+  { value: "received", label: "Received" },
+  { value: "won", label: "Won" },
+  { value: "lost", label: "Lost" }
+] as const;
+
+const WALLET_FOLLOW_UP_FILTER_OPTIONS = [
+  { value: "", label: "Any follow-up" },
+  { value: "needs-follow-up", label: "Needs Follow-Up" }
+] as const;
+
+const FUTURE_ANALYTICS_FEATURES: CircleCardPlanFeature[] =
+  CIRCLE_CARD_PLAN_DEFINITIONS.FREE.lockedFeatures.filter((feature) =>
+    ["advanced-analytics", "lead-capture", "team-analytics"].includes(feature.id)
+  );
+
+const CUSTOM_LINK_TYPE_LABELS: Record<CircleCardLinkType, string> = {
+  GENERAL: "General",
+  BOOK_CALL: "Book a call",
+  PORTFOLIO: "Portfolio",
+  LATEST_OFFER: "Latest offer",
+  COMMUNITY: "Community",
+  DOWNLOAD: "Download",
+  REVIEW: "Review",
+  SHOP: "Shop",
+  MENU: "Menu",
+  CASE_STUDY: "Case study"
+};
+
+const CUSTOM_LINK_EXAMPLES = [
+  "Book a call",
+  "View portfolio",
+  "Latest offer",
+  "Join my community",
+  "Download brochure",
+  "Leave a review",
+  "Shop",
+  "Menu",
+  "Case studies"
+] as const;
+
+type WalletView = (typeof WALLET_VIEW_OPTIONS)[number]["value"];
+type IntroductionView = (typeof INTRODUCTION_VIEW_OPTIONS)[number]["value"];
+type ReferralView = (typeof REFERRAL_VIEW_OPTIONS)[number]["value"];
+type WalletFollowUpFilter = (typeof WALLET_FOLLOW_UP_FILTER_OPTIONS)[number]["value"];
+
+const ACTIVITY_FEED_PAGE_SIZE = 25;
+const ACTIVITY_FEED_MAX_ITEMS = 100;
+
+function resolveWalletView(value: string | undefined): WalletView {
+  return value === "connected" ||
+    value === "favourites" ||
+    value === "recommended" ||
+    value === "requests" ||
+    value === "recent"
+    ? value
+    : "all";
+}
+
+function resolveWalletFollowUpFilter(value: string | undefined): WalletFollowUpFilter {
+  return value === "needs-follow-up" ? value : "";
+}
+
+function resolveIntroductionView(value: string | undefined): IntroductionView {
+  return value === "outgoing" || value === "completed" ? value : "incoming";
+}
+
+function resolveReferralView(value: string | undefined): ReferralView {
+  return value === "received" || value === "won" || value === "lost" ? value : "sent";
+}
+
+function resolveActivityLimit(value: string | undefined) {
+  const parsed = Number.parseInt(value ?? "", 10);
+
+  if (!Number.isFinite(parsed) || parsed <= ACTIVITY_FEED_PAGE_SIZE) {
+    return ACTIVITY_FEED_PAGE_SIZE;
+  }
+
+  return Math.min(ACTIVITY_FEED_MAX_ITEMS, parsed);
+}
+
+function buildIntroductionHref(input: { introductionView?: IntroductionView }) {
+  const params = new URLSearchParams();
+  params.set("section", "network");
+
+  if (input.introductionView && input.introductionView !== "incoming") {
+    params.set("introductionView", input.introductionView);
+  }
+
+  const query = params.toString();
+  return `/dashboard/circle-card?${query}#introductions`;
+}
+
+function buildReferralHref(input: { referralView?: ReferralView }) {
+  const params = new URLSearchParams();
+  params.set("section", "business");
+
+  if (input.referralView && input.referralView !== "sent") {
+    params.set("referralView", input.referralView);
+  }
+
+  const query = params.toString();
+  return `/dashboard/circle-card?${query}#referrals`;
+}
+
+function buildOpportunityHref() {
+  return circleCardSectionHref("business", "opportunities");
+}
+
+function buildActivityFeedHref(input: {
+  activityFilter?: CircleCardActivityFilter;
+  activityLimit?: number;
+}) {
+  const params = new URLSearchParams();
+  params.set("section", "network");
+
+  if (input.activityFilter && input.activityFilter !== "all") {
+    params.set("activityFilter", input.activityFilter);
+  }
+
+  if (input.activityLimit && input.activityLimit > ACTIVITY_FEED_PAGE_SIZE) {
+    params.set("activityLimit", String(Math.min(input.activityLimit, ACTIVITY_FEED_MAX_ITEMS)));
+  }
+
+  const query = params.toString();
+  return `/dashboard/circle-card?${query}#activity`;
+}
+
+function buildWalletHref(input: {
+  walletQuery?: string;
+  walletView?: WalletView;
+  walletCategory?: string;
+  walletFollowUp?: WalletFollowUpFilter;
+  contactId?: string | null;
+}) {
+  const params = new URLSearchParams();
+
+  if (input.walletQuery) {
+    params.set("q", input.walletQuery);
+  }
+
+  if (input.walletView && input.walletView !== "all") {
+    const view =
+      input.walletView === "favourites"
+        ? "favourites"
+        : input.walletView === "recommended"
+          ? "recommended"
+          : input.walletView === "recent"
+            ? "recent"
+            : input.walletView === "connected"
+              ? "connected"
+              : "all";
+
+    if (view !== "all") {
+      params.set("view", view);
+    }
+  }
+
+  if (input.walletCategory) {
+    params.set("category", input.walletCategory);
+  }
+
+  if (input.walletFollowUp) {
+    params.set("view", "follow-ups");
+  }
+
+  if (input.contactId) {
+    params.set("contactId", input.contactId);
+  }
+
+  const query = params.toString();
+  return query ? `/dashboard/circle-card/wallet?${query}` : "/dashboard/circle-card/wallet";
+}
+
+function buildDiscoverHref(input: {
+  discoverQuery?: string;
+  discoverCategory?: string;
+  discoverAccountType?: string | null;
+  discoverIdentityTag?: string;
+  discoverProfileLayout?: string | null;
+  discoverLocation?: string;
+  discoverRecommended?: boolean;
+  discoverBcn?: boolean;
+}) {
+  const params = new URLSearchParams();
+  params.set("section", "network");
+
+  if (input.discoverQuery) {
+    params.set("discoverQuery", input.discoverQuery);
+  }
+
+  if (input.discoverCategory) {
+    params.set("discoverCategory", input.discoverCategory);
+  }
+
+  if (input.discoverAccountType) {
+    params.set("discoverAccountType", input.discoverAccountType);
+  }
+
+  if (input.discoverIdentityTag) {
+    params.set("discoverIdentityTag", input.discoverIdentityTag);
+  }
+
+  if (input.discoverProfileLayout) {
+    params.set("discoverProfileLayout", input.discoverProfileLayout);
+  }
+
+  if (input.discoverLocation) {
+    params.set("discoverLocation", input.discoverLocation);
+  }
+
+  if (input.discoverRecommended) {
+    params.set("discoverRecommended", "1");
+  }
+
+  if (input.discoverBcn) {
+    params.set("discoverBcn", "1");
+  }
+
+  const query = params.toString();
+  return `/dashboard/circle-card?${query}#discover`;
+}
+
+function walletContactMatchesQuery(input: {
+  query: string;
+  card: {
+    fullName: string;
+    businessName: string | null;
+    role: string | null;
+    tagline: string | null;
+    location: string | null;
+    email?: string | null;
+    phone?: string | null;
+    websiteUrl?: string | null;
+    address?: string | null;
+  };
+  notes: string | null;
+  metAt: string | null;
+  category: string | null;
+  tags: string[];
+}) {
+  if (!input.query) {
+    return true;
+  }
+
+  const haystack = [
+    input.card.fullName,
+    input.card.businessName,
+    input.card.role,
+    input.card.tagline,
+    input.card.location,
+    input.card.email,
+    input.card.phone,
+    input.card.websiteUrl,
+    input.card.address,
+    input.notes,
+    input.metAt,
+    input.category,
+    ...input.tags
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(input.query.toLowerCase());
+}
+
+function toDateInputValue(value: Date | string | null | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const year = date.getUTCFullYear();
+  const month = `${date.getUTCMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getUTCDate()}`.padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function formatRelationshipDate(value: Date | string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "medium"
+  }).format(new Date(value));
+}
+
+function formatTimeAgo(value: Date | string) {
+  const timestamp = new Date(value).getTime();
+  const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+
+  if (seconds < 60) {
+    return "Just now";
+  }
+
+  const minutes = Math.floor(seconds / 60);
+
+  if (minutes < 60) {
+    return `${minutes}m ago`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+
+  if (hours < 24) {
+    return `${hours}h ago`;
+  }
+
+  const days = Math.floor(hours / 24);
+
+  if (days < 14) {
+    return `${days}d ago`;
+  }
+
+  return formatRelationshipDate(value);
+}
+
+function utcDateNumber(value: Date | string) {
+  const date = new Date(value);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
+function getFollowUpStatus(followUpDate: Date | string | null | undefined, todayUtc: number) {
+  if (!followUpDate) {
+    return null;
+  }
+
+  const followUpUtc = utcDateNumber(followUpDate);
+
+  if (followUpUtc < todayUtc) {
+    return {
+      label: "Overdue",
+      className: "border-red-500/36 bg-red-500/12 text-red-200",
+      isDue: true
+    };
+  }
+
+  if (followUpUtc === todayUtc) {
+    return {
+      label: "Needs Follow-Up",
+      className: "border-amber-500/40 bg-amber-500/12 text-amber-200",
+      isDue: true
+    };
+  }
+
+  return {
+    label: "Upcoming",
+    className: "border-silver/18 bg-silver/10 text-silver",
+    isDue: false
+  };
+}
+
+function walletContactSourceLabel(source: string) {
+  if (source === "BUSINESS_CARD_SCAN") {
+    return "Scanned Business Card";
+  }
+
+  if (source === "LINK_IMPORT") {
+    return "Link Import";
+  }
+
+  if (source === "MANUAL") {
+    return "Manual";
+  }
+
+  return "Circle Card";
+}
+
+function activityBarWidth(value: number, maxValue: number) {
+  if (value <= 0) {
+    return "0%";
+  }
+
+  return `${Math.max(8, Math.round((value / Math.max(maxValue, 1)) * 100))}%`;
+}
+
+function readActivityDetail(metadata: unknown) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const record = metadata as Record<string, unknown>;
+  const label = record.label;
+
+  if (typeof label === "string" && label.trim()) {
+    return label.trim();
+  }
+
+  const method = record.method;
+  return typeof method === "string" ? method.replace(/_/g, " ") : null;
+}
+
+function resolveCustomLinkType(value: string | null | undefined): CircleCardLinkType {
+  return value && value in CUSTOM_LINK_TYPE_LABELS ? (value as CircleCardLinkType) : "GENERAL";
+}
+
+function customLinkTypeLabel(type: string | null | undefined) {
+  return CUSTOM_LINK_TYPE_LABELS[resolveCustomLinkType(type)];
+}
+
+function displayCustomLinkUrl(value: string | null | undefined) {
+  if (!value) {
+    return "Uploaded file";
+  }
+
+  try {
+    const url = new URL(value);
+    return `${url.hostname.replace(/^www\./, "")}${url.pathname === "/" ? "" : url.pathname}`;
+  } catch {
+    return value;
+  }
+}
+
+function formatReferralValue(value: { toString(): string } | string | number | null | undefined) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const amount = Number(value.toString());
+  return Number.isFinite(amount) ? formatCurrency(amount) : null;
+}
+
+function moneyToNumber(value: { toString(): string } | string | number | null | undefined) {
+  if (value === null || value === undefined) {
+    return 0;
+  }
+
+  const amount = Number(value.toString());
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+function formatOpportunityValue(
+  value: { toString(): string } | string | number | null | undefined,
+  currency = "GBP"
+) {
+  if (value === null || value === undefined) {
+    return "Value not set";
+  }
+
+  const amount = moneyToNumber(value);
+
+  if (!Number.isFinite(amount)) {
+    return "Value not set";
+  }
+
+  try {
+    return formatCurrency(amount, currency);
+  } catch {
+    return `${amount.toFixed(2)} ${currency}`;
+  }
+}
+
+function formatOpportunityTotals(
+  opportunities: Array<{
+    potentialValue: { toString(): string } | string | number | null;
+    currency: string;
+  }>
+) {
+  const totals = new Map<string, number>();
+
+  opportunities.forEach((opportunity) => {
+    const amount = moneyToNumber(opportunity.potentialValue);
+
+    if (amount > 0) {
+      totals.set(opportunity.currency, (totals.get(opportunity.currency) ?? 0) + amount);
+    }
+  });
+
+  if (!totals.size) {
+    return formatCurrency(0);
+  }
+
+  return Array.from(totals.entries())
+    .map(([currency, amount]) => formatOpportunityValue(amount, currency))
+    .join(" + ");
+}
+
+function getOpportunityFollowUpStatus(
+  followUpDate: Date | string | null | undefined,
+  todayUtc: number
+) {
+  if (!followUpDate) {
+    return null;
+  }
+
+  const followUpUtc = utcDateNumber(followUpDate);
+
+  if (followUpUtc < todayUtc) {
+    return {
+      label: "Overdue",
+      className: "border-red-500/36 bg-red-500/12 text-red-200"
+    };
+  }
+
+  if (followUpUtc === todayUtc) {
+    return {
+      label: "Follow-Up Due",
+      className: "border-amber-500/40 bg-amber-500/12 text-amber-200"
+    };
+  }
+
+  return null;
+}
+
+function referralContactLabel(referral: {
+  referredContactName: string;
+  referredContactBusiness: string | null;
+}) {
+  return [referral.referredContactName, referral.referredContactBusiness].filter(Boolean).join(" / ");
+}
+
+function referralRecipientLabel(referral: {
+  recipientCard: {
+    fullName: string;
+    businessName: string | null;
+  } | null;
+}) {
+  if (!referral.recipientCard) {
+    return "Manual/private recipient";
+  }
+
+  return [referral.recipientCard.fullName, referral.recipientCard.businessName]
+    .filter(Boolean)
+    .join(" / ");
+}
+
+function opportunityContactLabel(opportunity: {
+  walletContact: {
+    fullName: string | null;
+    businessName: string | null;
+    role: string | null;
+    card: {
+      fullName: string;
+      businessName: string | null;
+      role: string | null;
+    } | null;
+  } | null;
+}) {
+  if (!opportunity.walletContact) {
+    return "No contact linked";
+  }
+
+  const contactName =
+    opportunity.walletContact.card?.fullName ??
+    opportunity.walletContact.fullName ??
+    opportunity.walletContact.businessName ??
+    "Wallet contact";
+  const contactBusiness =
+    opportunity.walletContact.card?.businessName ??
+    opportunity.walletContact.businessName ??
+    opportunity.walletContact.card?.role ??
+    opportunity.walletContact.role;
+
+  return [contactName, contactBusiness].filter(Boolean).join(" / ");
+}
+
+function CustomLinkIcon({ icon, type }: { icon: string | null | undefined; type?: string | null }) {
+  switch (resolveCustomLinkType(type)) {
+    case "BOOK_CALL":
+      return <CalendarDays size={16} />;
+    case "PORTFOLIO":
+      return <ContactRound size={16} />;
+    case "LATEST_OFFER":
+      return <Crown size={16} />;
+    case "COMMUNITY":
+      return <WalletCards size={16} />;
+    case "DOWNLOAD":
+      return <Download size={16} />;
+    case "REVIEW":
+      return <Star size={16} />;
+    case "SHOP":
+      return <ShoppingBag size={16} />;
+    case "MENU":
+      return <MenuIcon size={16} />;
+    case "CASE_STUDY":
+      return <BookOpen size={16} />;
+    default:
+      break;
+  }
+
+  switch (icon) {
+    case "calendar":
+      return <CalendarDays size={16} />;
+    case "download":
+      return <Download size={16} />;
+    case "review":
+      return <Star size={16} />;
+    case "shop":
+      return <ShoppingBag size={16} />;
+    case "menu":
+      return <MenuIcon size={16} />;
+    case "case-studies":
+      return <BookOpen size={16} />;
+    case "offer":
+      return <Crown size={16} />;
+    case "portfolio":
+      return <ContactRound size={16} />;
+    case "community":
+      return <WalletCards size={16} />;
+    default:
+      return <LinkIcon size={16} />;
+  }
+}
+
+function mergeInitialCircleCardSocialLinks(
+  savedLinks: CircleCardSocialLink[],
+  fallbackLinks: Array<{ platform: CircleCardSocialPlatform; url?: string | null }>
+) {
+  const links = [...savedLinks].sort((a, b) => a.sortOrder - b.sortOrder);
+  const platformsWithSavedLinks = new Set(links.map((link) => link.platform));
+
+  for (const fallback of fallbackLinks) {
+    const url = fallback.url?.trim();
+
+    if (!url || platformsWithSavedLinks.has(fallback.platform)) {
+      continue;
+    }
+
+    links.push({
+      id: `fallback-${fallback.platform}`,
+      platform: fallback.platform,
+      label: null,
+      url,
+      isActive: true,
+      sortOrder: links.length
+    });
+    platformsWithSavedLinks.add(fallback.platform);
+  }
+
+  return links.map((link, index) => ({
+    ...link,
+    sortOrder: index
+  }));
+}
+
+function circleCardActivityIcon(type: string) {
+  switch (type) {
+    case "CARD_CREATED":
+    case "CARD_UPDATED":
+      return ContactRound;
+    case "CONTACT_SAVED":
+    case "CONTACT_UPDATED":
+      return WalletCards;
+    case "CONNECTION_REQUEST_SENT":
+    case "CONNECTION_ACCEPTED":
+      return MessageSquare;
+    case "RECOMMENDATION_CREATED":
+    case "RECOMMENDATION_RECEIVED":
+      return Star;
+    case "INTRODUCTION_CREATED":
+    case "INTRODUCTION_ACCEPTED":
+    case "INTRODUCTION_DECLINED":
+    case "INTRODUCTION_COMPLETED":
+      return UserCheck;
+    case "REFERRAL_CREATED":
+    case "REFERRAL_RECEIVED":
+    case "REFERRAL_ACCEPTED":
+    case "REFERRAL_WON":
+    case "REFERRAL_LOST":
+      return Handshake;
+    case "OPPORTUNITY_CREATED":
+    case "OPPORTUNITY_UPDATED":
+    case "OPPORTUNITY_WON":
+    case "OPPORTUNITY_LOST":
+      return BarChart3;
+    case "BUSINESS_CARD_SCANNED":
+    case "BUSINESS_CARD_CONTACT_CREATED":
+      return Camera;
+    case "SMART_LINK_CLICKED":
+      return MousePointerClick;
+    case "PRIVATE_LINK_UNLOCKED":
+      return Lock;
+    default:
+      return Activity;
+  }
+}
+
+export default async function CircleCardDashboardPage({ searchParams }: PageProps) {
+  const session = await requireCircleCardUser();
+  const existingCard = await prisma.circleCard.findFirst({
+    where: {
+      userId: session.user.id,
+      archivedAt: null
+    },
+    select: {
+      id: true,
+      cardType: true,
+      fullName: true,
+      profileImageUrl: true,
+      businessLogoUrl: true,
+      role: true,
+      businessName: true,
+      tagline: true,
+      about: true,
+      email: true,
+      phone: true,
+      websiteUrl: true,
+      socialLinks: true,
+      isPublished: true,
+      _count: { select: { customLinks: { where: { isActive: true } } } }
+    }
+  });
+
+  if (!existingCard) {
+    redirect("/dashboard/circle-card/onboarding");
+  }
+
+  const firstCardReadiness = calculateFirstCircleCardReadiness({
+    ...existingCard,
+    activeCustomLinkCount: existingCard._count.customLinks
+  });
+
+  if (firstCardReadiness.state !== "published") {
+    redirect("/dashboard/circle-card/onboarding");
+  }
+
+  const params = await searchParams;
+  const cookieStore = await cookies();
+  const activeSection = resolveCircleCardAppSection(firstValue(params.section));
+  const selectedCardId = firstValue(params.cardId) ?? "";
+  const persistedCardId = normalizeCircleCardCurrentCardId(
+    cookieStore.get(CIRCLE_CARD_CURRENT_CARD_COOKIE)?.value
+  );
+  const createCardRequested = firstValue(params.newCard) === "1";
+  const notice = firstValue(params.notice);
+  const created = firstValue(params.created) === "1";
+  const error = firstValue(params.error);
+  const focusedCustomLinkId = firstValue(params.editLink) ?? "";
+  const walletQuery = (firstValue(params.walletQuery) ?? "").trim();
+  const walletView = resolveWalletView(firstValue(params.walletView));
+  const walletCategory = (firstValue(params.walletCategory) ?? "").trim();
+  const walletFollowUp = resolveWalletFollowUpFilter(firstValue(params.walletFollowUp));
+  const selectedContactId = firstValue(params.contactId);
+  const testimonialForCardId = firstValue(params.testimonialFor) ?? "";
+  const connectCardSlug = resolveCircleCardLookupSlug(firstValue(params.connectCard));
+  const discoverQuery = (firstValue(params.discoverQuery) ?? "").trim();
+  const discoverCategory = (firstValue(params.discoverCategory) ?? "").trim();
+  const discoverAccountType = resolveCircleCardAccountType(firstValue(params.discoverAccountType));
+  const discoverIdentityTag =
+    normalizeCircleCardIdentityTags([firstValue(params.discoverIdentityTag) ?? ""])[0] ?? "";
+  const discoverProfileLayout = resolveCircleCardProfileLayoutFilter(
+    firstValue(params.discoverProfileLayout)
+  );
+  const discoverLocation = (firstValue(params.discoverLocation) ?? "").trim();
+  const discoverRecommended = firstValue(params.discoverRecommended) === "1";
+  const discoverBcn = firstValue(params.discoverBcn) === "1";
+  const introductionView = resolveIntroductionView(firstValue(params.introductionView));
+  const referralView = resolveReferralView(firstValue(params.referralView));
+  const activityFilter = resolveCircleCardActivityFilter(firstValue(params.activityFilter));
+  const activityLimit = resolveActivityLimit(firstValue(params.activityLimit));
+  const activityTypes =
+    activityFilter === "all" ? null : CIRCLE_CARD_ACTIVITY_FILTER_TYPE_MAP[activityFilter];
+  await createDueOpportunityNotificationsForUser(session.user.id);
+  const [
+    cards,
+    archivedCardCount,
+    member,
+    walletContacts,
+    connectionRequests,
+    rawConnectHubCard,
+    rawDiscoverCandidateCards,
+    introductions,
+    referrals,
+    opportunities,
+    notifications,
+    unreadNotificationCount,
+    activityItems,
+    referralCentre,
+    commissionEarnings,
+    actualCircleCardAccess
+  ] = await Promise.all([
+    prisma.circleCard.findMany({
+      where: {
+        userId: session.user.id,
+        archivedAt: null
+      },
+      orderBy: [
+        { displayOrder: "asc" },
+        { isDefaultCard: "desc" },
+        { isPrimary: "desc" },
+        { updatedAt: "desc" }
+      ],
+      include: {
+        customLinks: {
+          orderBy: [...CIRCLE_CARD_LINK_PLAN_ORDER]
+        },
+        walletTestimonialsReceived: {
+          where: { status: { in: ["PENDING", "APPROVED"] } },
+          orderBy: [{ createdAt: "desc" }],
+          select: {
+            id: true,
+            status: true,
+            reviewerName: true,
+            reviewerRoleOrCompany: true,
+            testimonialText: true,
+            rating: true,
+            relationship: true,
+            walletVerifiedAt: true,
+            createdAt: true
+          }
+        },
+        recommendationsReceived: {
+          where: { visibility: "PUBLIC", status: "ACTIVE" },
+          select: { id: true }
+        },
+        _count: {
+          select: {
+            activities: true,
+            events: true
+          }
+        }
+      }
+    }),
+    prisma.circleCard.count({
+      where: {
+        userId: session.user.id,
+        archivedAt: {
+          not: null
+        }
+      }
+    }),
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        name: true,
+        email: true,
+        image: true,
+        profile: {
+          select: {
+            headline: true,
+            bio: true,
+            location: true,
+            website: true,
+            linkedin: true,
+            instagram: true,
+            facebook: true,
+            tiktok: true,
+            youtube: true,
+            business: {
+              select: {
+                companyName: true,
+                website: true
+              }
+            }
+          }
+        }
+      }
+    }),
+    prisma.circleWalletContact.findMany({
+      where: { userId: session.user.id },
+      orderBy: [{ savedAt: "desc" }],
+      select: {
+        id: true,
+        cardId: true,
+        source: true,
+        savedAt: true,
+        favourite: true,
+        fullName: true,
+        businessName: true,
+        role: true,
+        phone: true,
+        mobilePhone: true,
+        email: true,
+        websiteUrl: true,
+        websiteDomain: true,
+        address: true,
+        socialLinks: true,
+        originalCardImageUrl: true,
+        claimToken: true,
+        claimTokenGeneratedAt: true,
+        notes: true,
+        metAt: true,
+        followUpDate: true,
+        lastInteractionDate: true,
+        category: true,
+        tags: true,
+        card: {
+          select: {
+            id: true,
+            userId: true,
+            cardType: true,
+            slug: true,
+            fullName: true,
+            businessName: true,
+            role: true,
+            tagline: true,
+            location: true,
+            profileImageUrl: true,
+            businessLogoUrl: true,
+            websiteUrl: true,
+            email: true,
+            phone: true,
+            isPublished: true,
+            archivedAt: true,
+            user: { select: { suspended: true } }
+          }
+        },
+        walletTestimonials: {
+          where: {
+            reviewerUserId: session.user.id,
+            status: "PENDING"
+          },
+          select: { id: true }
+        },
+        recommendations: {
+          where: {
+            recommenderUserId: session.user.id,
+            status: {
+              not: "REMOVED"
+            }
+          },
+          orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
+          select: {
+            id: true,
+            category: true,
+            reason: true,
+            visibility: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+            recommendedCardId: true,
+            walletContactId: true
+          }
+        }
+      }
+    }),
+    prisma.circleCardConnectionRequest.findMany({
+      where: {
+        OR: [{ requesterId: session.user.id }, { recipientId: session.user.id }]
+      },
+      orderBy: [{ createdAt: "desc" }],
+      select: {
+        id: true,
+        requesterId: true,
+        recipientId: true,
+        requesterCardId: true,
+        recipientCardId: true,
+        status: true,
+        message: true,
+        createdAt: true,
+        respondedAt: true,
+        requesterCard: {
+          select: {
+            id: true,
+            slug: true,
+            fullName: true,
+            businessName: true,
+            role: true,
+            profileImageUrl: true,
+            isPublished: true
+          }
+        },
+        recipientCard: {
+          select: {
+            id: true,
+            slug: true,
+            fullName: true,
+            businessName: true,
+            role: true,
+            profileImageUrl: true,
+            isPublished: true
+          }
+        }
+      }
+    }),
+    connectCardSlug
+      ? prisma.circleCard.findFirst({
+          where: {
+            slug: connectCardSlug,
+            isPublished: true,
+            user: {
+              suspended: false
+            }
+          },
+          select: {
+            id: true,
+            slug: true,
+            userId: true,
+            fullName: true,
+            businessName: true,
+            role: true,
+            tagline: true,
+            location: true,
+            profileImageUrl: true,
+            businessLogoUrl: true
+          }
+        })
+      : Promise.resolve(null),
+    prisma.circleCard.findMany({
+      where: {
+        ...CIRCLE_CARD_DISCOVER_VISIBLE_WHERE,
+        userId: {
+          not: session.user.id
+        },
+        ...buildCircleCardIdentityFilterWhere({
+          accountType: discoverAccountType,
+          identityTag: discoverIdentityTag
+        }),
+        ...buildCircleCardProfileLayoutFilterWhere({
+          profileLayout: discoverProfileLayout
+        }),
+        user: {
+          suspended: false,
+          ...(discoverBcn
+            ? {
+                OR: [
+                  { role: "ADMIN" },
+                  {
+                    subscription: {
+                      is: {
+                        status: {
+                          in: ["ACTIVE", "TRIALING"]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            : {})
+        }
+      },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+      take: 80,
+      select: {
+        id: true,
+        userId: true,
+        slug: true,
+        fullName: true,
+        businessName: true,
+        accountType: true,
+        identityTags: true,
+        profileLayout: true,
+        role: true,
+        tagline: true,
+        location: true,
+        profileImageUrl: true,
+        businessLogoUrl: true,
+        themePrimaryColor: true,
+        themeAccentColor: true,
+        themeButtonColor: true,
+        themeSurfaceStyle: true,
+        themePreset: true,
+        themeMetadata: true,
+        socialLinks: true,
+        createdAt: true,
+        updatedAt: true,
+        user: {
+          select: {
+            role: true,
+            membershipTier: true,
+            subscription: {
+              select: {
+                status: true
+              }
+            }
+          }
+        },
+        recommendationsReceived: {
+          where: {
+            visibility: "PUBLIC",
+            status: "ACTIVE",
+            recommenderCard: {
+              isPublished: true,
+              user: {
+                suspended: false
+              }
+            }
+          },
+          orderBy: [{ createdAt: "desc" }],
+          take: 8,
+          select: {
+            id: true,
+            category: true,
+            reason: true,
+            recommenderCardId: true,
+            recommenderCard: {
+              select: {
+                id: true,
+                userId: true,
+                slug: true,
+                fullName: true,
+                businessName: true,
+                role: true
+              }
+            }
+          }
+        }
+      }
+    }),
+    prisma.circleCardIntroduction.findMany({
+      where: {
+        OR: [
+          { introducerUserId: session.user.id },
+          { personAUserId: session.user.id },
+          { personBUserId: session.user.id }
+        ]
+      },
+      orderBy: [{ createdAt: "desc" }],
+      take: 80,
+      select: {
+        id: true,
+        introducerUserId: true,
+        introducerCardId: true,
+        personAUserId: true,
+        personACardId: true,
+        personBUserId: true,
+        personBCardId: true,
+        reason: true,
+        status: true,
+        personAAcceptedAt: true,
+        personBAcceptedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        respondedAt: true,
+        introducerCard: {
+          select: {
+            id: true,
+            slug: true,
+            fullName: true,
+            businessName: true,
+            role: true,
+            profileImageUrl: true
+          }
+        },
+        personACard: {
+          select: {
+            id: true,
+            slug: true,
+            fullName: true,
+            businessName: true,
+            role: true,
+            profileImageUrl: true
+          }
+        },
+        personBCard: {
+          select: {
+            id: true,
+            slug: true,
+            fullName: true,
+            businessName: true,
+            role: true,
+            profileImageUrl: true
+          }
+        }
+      }
+    }),
+    prisma.circleCardReferral.findMany({
+      where: {
+        OR: [{ referrerUserId: session.user.id }, { recipientUserId: session.user.id }]
+      },
+      orderBy: [{ createdAt: "desc" }],
+      take: 120,
+      select: {
+        id: true,
+        referrerUserId: true,
+        referrerCardId: true,
+        recipientUserId: true,
+        recipientCardId: true,
+        referredContactName: true,
+        referredContactBusiness: true,
+        referredContactEmail: true,
+        referredContactPhone: true,
+        referredContactWebsite: true,
+        reason: true,
+        status: true,
+        estimatedValue: true,
+        actualValue: true,
+        visibility: true,
+        createdAt: true,
+        updatedAt: true,
+        respondedAt: true,
+        completedAt: true,
+        referrerCard: {
+          select: {
+            id: true,
+            slug: true,
+            fullName: true,
+            businessName: true,
+            role: true,
+            profileImageUrl: true
+          }
+        },
+        recipientCard: {
+          select: {
+            id: true,
+            slug: true,
+            fullName: true,
+            businessName: true,
+            role: true,
+            profileImageUrl: true
+          }
+        }
+      }
+    }),
+    prisma.opportunity.findMany({
+      where: { userId: session.user.id },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+      take: 200,
+      select: {
+        id: true,
+        userId: true,
+        circleCardId: true,
+        walletContactId: true,
+        title: true,
+        description: true,
+        status: true,
+        potentialValue: true,
+        currency: true,
+        sourceType: true,
+        createdAt: true,
+        updatedAt: true,
+        closedAt: true,
+        lastActivityAt: true,
+        nextFollowUpAt: true,
+        notes: true,
+        walletContact: {
+          select: {
+            id: true,
+            fullName: true,
+            businessName: true,
+            role: true,
+            card: {
+              select: {
+                id: true,
+                slug: true,
+                fullName: true,
+                businessName: true,
+                role: true
+              }
+            }
+          }
+        }
+      }
+    }),
+    prisma.circleCardNotification.findMany({
+      where: { userId: session.user.id },
+      orderBy: [{ isRead: "asc" }, { createdAt: "desc" }],
+      take: 24,
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        message: true,
+        entityType: true,
+        entityId: true,
+        isRead: true,
+        readAt: true,
+        createdAt: true
+      }
+    }),
+    prisma.circleCardNotification.count({
+      where: {
+        userId: session.user.id,
+        isRead: false
+      }
+    }),
+    prisma.circleCardActivity.findMany({
+      where: {
+        userId: session.user.id,
+        ...(activityTypes ? { type: { in: [...activityTypes] } } : {})
+      },
+      orderBy: [{ createdAt: "desc" }],
+      take: activityLimit + 1,
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        message: true,
+        entityType: true,
+        entityId: true,
+        createdAt: true
+      }
+    }),
+    getCircleCardReferralCentreForUser(session.user.id),
+    getCircleCardCommissionEarningsForUser(session.user.id),
+    loadCircleCardAccessForUser(session.user.id)
+  ]);
+  const planVisibleExternalCards = await filterPublicCircleCardTargetsWithinOwnerPlans([
+    ...(rawConnectHubCard ? [rawConnectHubCard] : []),
+    ...rawDiscoverCandidateCards,
+    ...walletContacts.flatMap((contact) => (contact.card ? [contact.card] : [])),
+    ...rawDiscoverCandidateCards.flatMap((candidate) =>
+      candidate.recommendationsReceived.map((recommendation) => recommendation.recommenderCard)
+    )
+  ]);
+  const planVisibleExternalCardIds = new Set(planVisibleExternalCards.map((candidate) => candidate.id));
+  const connectHubCard =
+    rawConnectHubCard && planVisibleExternalCardIds.has(rawConnectHubCard.id)
+      ? rawConnectHubCard
+      : null;
+  const discoverCandidateCards = rawDiscoverCandidateCards.filter((candidate) =>
+    planVisibleExternalCardIds.has(candidate.id)
+  );
+  const platformOwnerDiagnostics = resolveCircleCardPlatformOwnerDiagnostics({
+    role: session.user.role,
+    email: session.user.email,
+    hasAdminAccess: isAdminRole(session.user.role)
+  });
+  const isPlatformOwner = platformOwnerDiagnostics.platformOwnerResolved;
+  const selectedOwnerPreviewMode = isPlatformOwner
+    ? resolveCircleCardPlatformOwnerPreviewMode(firstValue(params.ownerPreview))
+    : "platform-owner";
+  const selectedOwnerCardTypePreviewMode = isPlatformOwner
+    ? resolveCircleCardPlatformOwnerCardTypePreviewMode(firstValue(params.ownerCardType))
+    : "personal";
+  const actualCircleCardEntitlement = actualCircleCardAccess.entitlement;
+  const circleCardEntitlement = isPlatformOwner
+    ? resolveCircleCardPlatformOwnerPreviewEntitlement(
+        selectedOwnerPreviewMode,
+        actualCircleCardEntitlement
+      )
+    : actualCircleCardEntitlement;
+  const featureAccess = getCircleCardFeatureAccess(circleCardEntitlement.accessLevel);
+  const planAllowedCardIds = new Set(
+    selectCircleCardsWithinPlan(cards, actualCircleCardAccess.limits.circleCards).map(
+      (ownedCard) => ownedCard.id
+    )
+  );
+  const cardCount = cards.length;
+  const liveCardCount = cards.filter((ownedCard) => ownedCard.isPublished).length;
+  const canCreateAdditionalCard = canCreateCircleCard({
+    accessLevel: circleCardEntitlement.accessLevel,
+    existingCardCount: cardCount
+  });
+  const shouldShowNewCardForm = createCardRequested && canCreateAdditionalCard;
+  const liveCards = cards.filter((candidate) => candidate.isPublished);
+  const selectedExistingCard =
+    selectedCardId && !shouldShowNewCardForm
+      ? cards.find(
+          (candidate) => candidate.id === selectedCardId && (candidate.isPublished || !liveCards.length)
+        ) ?? null
+      : null;
+  const persistedCard = persistedCardId
+    ? cards.find((candidate) => candidate.id === persistedCardId && candidate.isPublished) ?? null
+    : null;
+  const defaultCard =
+    cards.find(
+      (candidate) => candidate.isPublished && (candidate.isDefaultCard || candidate.isPrimary)
+    ) ?? null;
+  const firstLiveCard = liveCards[0] ?? null;
+  const card = shouldShowNewCardForm
+    ? null
+    : selectedExistingCard ?? persistedCard ?? defaultCard ?? firstLiveCard ?? cards[0] ?? null;
+  const isSelectedCardLockedByPlan = Boolean(card && !planAllowedCardIds.has(card.id));
+  const normalizedWalletContacts = walletContacts.map((contact) => {
+    const socialLinks = readCircleWalletBusinessCardSocialLinks(contact.socialLinks);
+    const publicTargetAvailable = Boolean(
+      contact.card && planVisibleExternalCardIds.has(contact.card.id)
+    );
+    const fullName =
+      contact.card?.fullName ??
+      contact.fullName ??
+      contact.businessName ??
+      contact.email ??
+      "Scanned contact";
+    const display = {
+      fullName,
+      businessName: contact.card?.businessName ?? contact.businessName,
+      role: contact.card?.role ?? contact.role,
+      tagline: contact.card?.tagline ?? null,
+      location: contact.card?.location ?? null,
+      address: contact.address,
+      profileImageUrl: contact.card?.profileImageUrl ?? null,
+      businessLogoUrl: contact.card?.businessLogoUrl ?? null,
+      websiteUrl: contact.card?.websiteUrl ?? contact.websiteUrl,
+      email: contact.card?.email ?? contact.email,
+      phone: contact.card?.phone ?? contact.mobilePhone ?? contact.phone,
+      isPublished: Boolean(contact.card?.isPublished && publicTargetAvailable),
+      publicCardHref:
+        contact.card?.slug && publicTargetAvailable ? `/card/${contact.card.slug}` : null,
+      sourceLabel: walletContactSourceLabel(contact.source),
+      isScannedBusinessCard: contact.source === "BUSINESS_CARD_SCAN"
+    };
+
+    return {
+      ...contact,
+      publicTargetAvailable,
+      tags: readCircleWalletTags(contact.tags),
+      socialLinks,
+      display
+    };
+  });
+  const walletTestimonialContacts = normalizedWalletContacts
+    .filter(
+      (contact) =>
+        contact.publicTargetAvailable &&
+        isEligibleCircleCardWalletTestimonialTarget(contact.card, session.user.id)
+    )
+    .map((contact) => ({
+      walletContactId: contact.id,
+      targetCardId: contact.card!.id,
+      fullName: contact.card!.fullName,
+      businessName: contact.card!.businessName,
+      cardType: contact.card!.cardType,
+      profileImageUrl: contact.card!.profileImageUrl,
+      businessLogoUrl: contact.card!.businessLogoUrl,
+      hasPendingTestimonial: contact.walletTestimonials.length > 0
+    }));
+  const requestedWalletTestimonialContact = walletTestimonialContacts.find(
+    (contact) => contact.targetCardId === testimonialForCardId
+  );
+  const pendingIncomingRequests = connectionRequests.filter(
+    (request) => request.status === "PENDING" && request.recipientId === session.user.id
+  );
+  const pendingOutgoingRequests = connectionRequests.filter(
+    (request) => request.status === "PENDING" && request.requesterId === session.user.id
+  );
+  const acceptedConnectionRequests = connectionRequests.filter(
+    (request) => request.status === "ACCEPTED"
+  );
+  const recentAcceptedRequests = acceptedConnectionRequests
+    .filter((request) => request.respondedAt)
+    .sort((a, b) => Number(b.respondedAt) - Number(a.respondedAt))
+    .slice(0, 4);
+  const recentDeclinedRequests = connectionRequests
+    .filter((request) => request.status === "DECLINED" && request.respondedAt)
+    .sort((a, b) => Number(b.respondedAt) - Number(a.respondedAt))
+    .slice(0, 4);
+  function otherConnectionCard(request: (typeof connectionRequests)[number]) {
+    return request.requesterId === session.user.id ? request.recipientCard : request.requesterCard;
+  }
+  const pendingOutgoingByCardId = new Map(
+    pendingOutgoingRequests.map((request) => [request.recipientCardId, request])
+  );
+  const pendingIncomingByCardId = new Map(
+    pendingIncomingRequests.map((request) => [request.requesterCardId, request])
+  );
+  const connectedByCardId = new Map(
+    acceptedConnectionRequests.map((request) => [otherConnectionCard(request).id, request])
+  );
+  function walletConnectionState(cardId: string) {
+    const connected = connectedByCardId.get(cardId);
+
+    if (connected) {
+      return { kind: "connected" as const, request: connected };
+    }
+
+    const incoming = pendingIncomingByCardId.get(cardId);
+
+    if (incoming) {
+      return { kind: "pending_incoming" as const, request: incoming };
+    }
+
+    const outgoing = pendingOutgoingByCardId.get(cardId);
+
+    if (outgoing) {
+      return { kind: "pending_outgoing" as const, request: outgoing };
+    }
+
+    return { kind: "none" as const, request: null };
+  }
+
+  const todayUtc = utcDateNumber(new Date());
+  const savedContactCount = normalizedWalletContacts.length;
+  const connectedWalletContacts = normalizedWalletContacts.filter((contact) =>
+    contact.card?.id ? connectedByCardId.has(contact.card.id) : false
+  );
+  const favouriteWalletContacts = normalizedWalletContacts.filter((contact) => contact.favourite);
+  const recommendedWalletContacts = normalizedWalletContacts.filter(
+    (contact) => contact.recommendations.length > 0
+  );
+  const recentWalletContacts = normalizedWalletContacts.slice(0, 4);
+  const needsFollowUpWalletContacts = normalizedWalletContacts.filter((contact) => {
+    const status = getFollowUpStatus(contact.followUpDate, todayUtc);
+    return Boolean(status?.isDue);
+  });
+  const upcomingFollowUpWalletContacts = normalizedWalletContacts.filter((contact) => {
+    const status = getFollowUpStatus(contact.followUpDate, todayUtc);
+    return status ? !status.isDue : false;
+  });
+  const walletCategoryOptions = Array.from(
+    new Set(
+      [
+        ...CIRCLE_WALLET_CATEGORY_OPTIONS,
+        ...normalizedWalletContacts.map((contact) => contact.category),
+        walletCategory
+      ].filter((category): category is string => Boolean(category?.trim()))
+    )
+  );
+  const searchedWalletContacts = normalizedWalletContacts.filter((contact) =>
+    walletContactMatchesQuery({
+      query: walletQuery,
+      card: contact.display,
+      notes: contact.notes,
+      metAt: contact.metAt,
+      category: contact.category,
+      tags: contact.tags
+    })
+  );
+  const filteredWalletContacts = searchedWalletContacts.filter((contact) => {
+    const categoryMatches =
+      !walletCategory || contact.category?.toLowerCase() === walletCategory.toLowerCase();
+    const followUpMatches =
+      walletFollowUp !== "needs-follow-up" ||
+      Boolean(getFollowUpStatus(contact.followUpDate, todayUtc)?.isDue);
+
+    if (!categoryMatches || !followUpMatches) {
+      return false;
+    }
+
+    if (walletView === "connected") {
+      return contact.card?.id ? connectedByCardId.has(contact.card.id) : false;
+    }
+
+    if (walletView === "favourites") {
+      return contact.favourite;
+    }
+
+    if (walletView === "recommended") {
+      return contact.recommendations.length > 0;
+    }
+
+    if (walletView === "requests") {
+      return false;
+    }
+
+    return true;
+  });
+  const visibleWalletContacts =
+    walletView === "recent" ? filteredWalletContacts.slice(0, 8) : filteredWalletContacts;
+  const selectedWalletContact =
+    normalizedWalletContacts.find((contact) => contact.id === selectedContactId) ??
+    visibleWalletContacts[0] ??
+    normalizedWalletContacts[0] ??
+    null;
+  const selectedWalletConnection = selectedWalletContact
+    ? selectedWalletContact.card?.id
+      ? walletConnectionState(selectedWalletContact.card.id)
+      : null
+    : null;
+  const selectedWalletRecommendation =
+    selectedWalletContact?.recommendations.find((recommendation) => recommendation.status === "ACTIVE") ??
+    selectedWalletContact?.recommendations[0] ??
+    null;
+  const selectedRecommendationCategory =
+    selectedWalletRecommendation?.category &&
+    CIRCLE_CARD_RECOMMENDATION_CATEGORIES.includes(
+      selectedWalletRecommendation.category as (typeof CIRCLE_CARD_RECOMMENDATION_CATEGORIES)[number]
+    )
+      ? selectedWalletRecommendation.category
+      : "Other";
+  const selectedRecommendationVisibility =
+    selectedWalletRecommendation?.visibility === "PUBLIC" && selectedWalletContact?.card?.id
+      ? "PUBLIC"
+      : "PRIVATE";
+  const selectedFollowUpStatus = selectedWalletContact
+    ? getFollowUpStatus(selectedWalletContact.followUpDate, todayUtc)
+    : null;
+  const selectedClaimLink = selectedWalletContact?.claimToken
+    ? absoluteUrl(`/register?source=circle-card&claim=${selectedWalletContact.claimToken}`)
+    : null;
+  const walletReturnPath = buildWalletHref({
+    walletQuery,
+    walletView,
+    walletCategory,
+    walletFollowUp,
+    contactId: selectedWalletContact?.id ?? null
+  });
+  const walletViewCounts: Record<WalletView, number> = {
+    all: savedContactCount,
+    connected: connectedWalletContacts.length,
+    favourites: favouriteWalletContacts.length,
+    recommended: recommendedWalletContacts.length,
+    requests: pendingIncomingRequests.length + pendingOutgoingRequests.length,
+    recent: Math.min(savedContactCount, 8)
+  };
+  const activeWalletFilters = Boolean(walletQuery || walletCategory || walletFollowUp);
+  const connectHubSavedContact = connectHubCard
+    ? normalizedWalletContacts.find((contact) => contact.card?.id === connectHubCard.id) ?? null
+    : null;
+  const connectHubConnectionState = connectHubCard ? walletConnectionState(connectHubCard.id) : null;
+  const connectHubOwnCard = Boolean(connectHubCard && connectHubCard.userId === session.user.id);
+  const connectHubReturnPath = connectHubCard
+    ? `/dashboard/circle-card?section=network&connectCard=${encodeURIComponent(connectHubCard.slug)}#connect-hub`
+    : circleCardSectionHref("network", "connect-hub");
+  const discoverReturnPath = buildDiscoverHref({
+    discoverQuery,
+    discoverCategory,
+    discoverAccountType,
+    discoverIdentityTag,
+    discoverProfileLayout,
+    discoverLocation,
+    discoverRecommended,
+    discoverBcn
+  });
+  const discoverHasFilters = Boolean(
+    discoverQuery ||
+      discoverCategory ||
+      discoverAccountType ||
+      discoverIdentityTag ||
+      discoverProfileLayout ||
+      discoverLocation ||
+      discoverRecommended ||
+      discoverBcn
+  );
+  const discoverCategoryOptions = Array.from(
+    new Set([...CIRCLE_CARD_RECOMMENDATION_CATEGORIES, ...CIRCLE_WALLET_CATEGORY_OPTIONS])
+  );
+  const savedContactByCardId = new Map(
+    normalizedWalletContacts
+      .filter((contact) => Boolean(contact.card?.id))
+      .map((contact) => [contact.card?.id ?? "", contact])
+  );
+  const discoverQueryLower = discoverQuery.toLowerCase();
+  const discoverLocationLower = discoverLocation.toLowerCase();
+  const discoverCards = discoverCandidateCards
+    .map((candidate) => {
+      const candidateSocialLinks = readCircleCardSocialLinks(candidate.socialLinks);
+      const recommendations = candidate.recommendationsReceived.filter((recommendation) =>
+        planVisibleExternalCardIds.has(recommendation.recommenderCard.id)
+      );
+      const recommendedByKnown = recommendations.filter((recommendation) =>
+        connectedByCardId.has(recommendation.recommenderCardId)
+      );
+      const recommendationCategories = recommendations.map((recommendation) => recommendation.category);
+      const recommendationCategoryLabels = Array.from(new Set(recommendationCategories)).slice(0, 3);
+      const accountTypeLabel = getCircleCardAccountTypeLabel(candidate.accountType);
+      const identityTagLabels = candidate.identityTags.map(getCircleCardIdentityTagLabel).slice(0, 2);
+      const profileLayoutLabel = getCircleCardProfileLayoutLabel(candidate.profileLayout);
+      const knownRecommenderNames = Array.from(
+        new Set(recommendedByKnown.map((recommendation) => recommendation.recommenderCard.fullName))
+      ).slice(0, 3);
+      const isBcnMember =
+        candidate.user.role === "ADMIN" ||
+        candidate.user.subscription?.status === "ACTIVE" ||
+        candidate.user.subscription?.status === "TRIALING";
+      const savedContact = savedContactByCardId.get(candidate.id) ?? null;
+      const connectionState = walletConnectionState(candidate.id);
+      const searchable = [
+        candidate.fullName,
+        candidate.businessName,
+        candidate.role,
+        candidate.tagline,
+        candidate.location,
+        candidate.themeSurfaceStyle,
+        candidate.themePreset,
+        accountTypeLabel,
+        profileLayoutLabel,
+        ...candidate.identityTags.map(getCircleCardIdentityTagLabel),
+        ...Object.values(candidateSocialLinks),
+        ...recommendationCategories,
+        ...recommendations.map((recommendation) => recommendation.reason),
+        ...recommendations.map((recommendation) => recommendation.recommenderCard.fullName),
+        ...recommendations.map((recommendation) => recommendation.recommenderCard.businessName)
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return {
+        ...candidate,
+        socialLinks: candidateSocialLinks,
+        recommendationCount: recommendations.length,
+        recommendationCategories,
+        recommendationCategoryLabels,
+        accountTypeLabel,
+        identityTagLabels,
+        profileLayoutLabel,
+        recommendedByKnown,
+        knownRecommenderNames,
+        isBcnMember,
+        savedContact,
+        connectionState,
+        matchesSearch: !discoverQueryLower || searchable.includes(discoverQueryLower),
+        matchesLocation:
+          !discoverLocationLower || Boolean(candidate.location?.toLowerCase().includes(discoverLocationLower)),
+        matchesCategory: !discoverCategory || recommendationCategories.includes(discoverCategory),
+        matchesAccountType: !discoverAccountType || candidate.accountType === discoverAccountType,
+        matchesIdentityTag: !discoverIdentityTag || candidate.identityTags.includes(discoverIdentityTag),
+        matchesProfileLayout:
+          !discoverProfileLayout || candidate.profileLayout === discoverProfileLayout,
+        matchesRecommended: !discoverRecommended || recommendations.length > 0
+      };
+    })
+    .filter(
+      (candidate) =>
+        candidate.matchesSearch &&
+        candidate.matchesLocation &&
+        candidate.matchesCategory &&
+        candidate.matchesAccountType &&
+        candidate.matchesIdentityTag &&
+        candidate.matchesProfileLayout &&
+        candidate.matchesRecommended
+    )
+    .slice(0, 24);
+  const introductionReturnPath = buildIntroductionHref({ introductionView });
+  const introductionOutgoingReturnPath = buildIntroductionHref({ introductionView: "outgoing" });
+  const introductionActiveStatuses = new Set(["PENDING", "ACCEPTED"]);
+  const introductionTerminalStatuses = new Set(["COMPLETED", "DECLINED", "CANCELLED"]);
+  const incomingIntroductions = introductions.filter((introduction) => {
+    const viewerIsPersonA = introduction.personAUserId === session.user.id;
+    const viewerIsPersonB = introduction.personBUserId === session.user.id;
+    const viewerAccepted = viewerIsPersonA
+      ? introduction.personAAcceptedAt
+      : viewerIsPersonB
+        ? introduction.personBAcceptedAt
+        : null;
+
+    return (
+      (viewerIsPersonA || viewerIsPersonB) &&
+      introductionActiveStatuses.has(introduction.status) &&
+      !viewerAccepted
+    );
+  });
+  const outgoingIntroductions = introductions.filter(
+    (introduction) =>
+      introduction.introducerUserId === session.user.id &&
+      introductionActiveStatuses.has(introduction.status)
+  );
+  const completedIntroductions = introductions.filter((introduction) => {
+    const viewerIsPersonA = introduction.personAUserId === session.user.id;
+    const viewerIsPersonB = introduction.personBUserId === session.user.id;
+    const viewerAccepted = viewerIsPersonA
+      ? introduction.personAAcceptedAt
+      : viewerIsPersonB
+        ? introduction.personBAcceptedAt
+        : null;
+
+    return (
+      introductionTerminalStatuses.has(introduction.status) ||
+      (introduction.status === "ACCEPTED" && Boolean(viewerAccepted))
+    );
+  });
+  const introductionViewCounts: Record<IntroductionView, number> = {
+    incoming: incomingIntroductions.length,
+    outgoing: outgoingIntroductions.length,
+    completed: completedIntroductions.length
+  };
+  const visibleIntroductions =
+    introductionView === "outgoing"
+      ? outgoingIntroductions
+      : introductionView === "completed"
+        ? completedIntroductions
+        : incomingIntroductions;
+  const introducibleWalletContacts = normalizedWalletContacts.filter(
+    (contact) =>
+      contact.publicTargetAvailable &&
+      contact.card?.id &&
+      contact.card.userId !== session.user.id
+  );
+  const selectedIntroductionOptions =
+    selectedWalletContact?.card?.id
+      ? introducibleWalletContacts.filter(
+          (contact) =>
+            contact.id !== selectedWalletContact.id &&
+            contact.card?.id !== selectedWalletContact.card?.id
+        )
+      : [];
+  const canIntroduceSelectedContact = Boolean(
+    card &&
+    selectedWalletContact?.publicTargetAvailable &&
+    selectedWalletContact.card?.id &&
+    selectedWalletContact.card.userId !== session.user.id
+  );
+  const referralReturnPath = buildReferralHref({ referralView });
+  const referralSentReturnPath = buildReferralHref({ referralView: "sent" });
+  const referralReceivedReturnPath = buildReferralHref({ referralView: "received" });
+  const referralOpenStatuses = new Set<string>(CIRCLE_CARD_REFERRAL_OPEN_STATUSES);
+  const sentReferrals = referrals.filter((referral) => referral.referrerUserId === session.user.id);
+  const receivedReferrals = referrals.filter(
+    (referral) =>
+      referral.recipientUserId === session.user.id && referralOpenStatuses.has(referral.status)
+  );
+  const wonReferrals = referrals.filter((referral) => referral.status === "WON");
+  const lostReferrals = referrals.filter((referral) => referral.status === "LOST");
+  const referralViewCounts: Record<ReferralView, number> = {
+    sent: sentReferrals.length,
+    received: receivedReferrals.length,
+    won: wonReferrals.length,
+    lost: lostReferrals.length
+  };
+  const visibleReferrals =
+    referralView === "received"
+      ? receivedReferrals
+      : referralView === "won"
+        ? wonReferrals
+        : referralView === "lost"
+          ? lostReferrals
+          : sentReferrals;
+  const referrableWalletContacts = normalizedWalletContacts.filter(
+    (contact) =>
+      contact.publicTargetAvailable &&
+      contact.card?.id &&
+      contact.card.userId !== session.user.id
+  );
+  const referrableDiscoverCards = discoverCards.filter((candidate) => candidate.userId !== session.user.id);
+  const canSendReferralToSelectedContact = Boolean(
+    card &&
+    selectedWalletContact?.publicTargetAvailable &&
+    selectedWalletContact.card?.id &&
+    selectedWalletContact.card.userId !== session.user.id
+  );
+  const opportunityReturnPath = buildOpportunityHref();
+  const openOpportunities = opportunities.filter((opportunity) =>
+    isCircleCardOpportunityOpenStatus(opportunity.status)
+  );
+  const wonOpportunities = opportunities.filter((opportunity) => opportunity.status === "WON");
+  const lostOpportunities = opportunities.filter((opportunity) => opportunity.status === "LOST");
+  const opportunitiesByStatus = CIRCLE_CARD_OPPORTUNITY_STATUSES.reduce(
+    (accumulator, status) => {
+      accumulator[status] = opportunities.filter((opportunity) => opportunity.status === status);
+      return accumulator;
+    },
+    {} as Record<(typeof CIRCLE_CARD_OPPORTUNITY_STATUSES)[number], typeof opportunities>
+  );
+  const walletOpportunitiesByContactId = new Map<string, typeof opportunities>();
+  opportunities.forEach((opportunity) => {
+    if (!opportunity.walletContactId) {
+      return;
+    }
+
+    walletOpportunitiesByContactId.set(opportunity.walletContactId, [
+      ...(walletOpportunitiesByContactId.get(opportunity.walletContactId) ?? []),
+      opportunity
+    ]);
+  });
+  const selectedWalletOpportunities = selectedWalletContact
+    ? walletOpportunitiesByContactId.get(selectedWalletContact.id) ?? []
+    : [];
+  const dueOpportunityFollowUps = openOpportunities.filter((opportunity) =>
+    Boolean(getOpportunityFollowUpStatus(opportunity.nextFollowUpAt, todayUtc))
+  );
+  const followUpsDueCount = needsFollowUpWalletContacts.length + dueOpportunityFollowUps.length;
+  const notificationReturnPath = circleCardSectionHref("network", "notifications");
+  const visibleActivityItems = activityItems.slice(0, activityLimit);
+  const hasMoreActivityItems = activityItems.length > activityLimit;
+  const activeActivityFilterLabel =
+    CIRCLE_CARD_ACTIVITY_FILTER_OPTIONS.find((option) => option.value === activityFilter)?.label ?? "All";
+  const activityLoadMoreHref = buildActivityFeedHref({
+    activityFilter,
+    activityLimit: Math.min(activityLimit + ACTIVITY_FEED_PAGE_SIZE, ACTIVITY_FEED_MAX_ITEMS)
+  });
+  const connectHubRecentlyConnected = [...acceptedConnectionRequests]
+    .sort((a, b) => Number(b.respondedAt ?? b.createdAt) - Number(a.respondedAt ?? a.createdAt))
+    .map((request) => otherConnectionCard(request))
+    .slice(0, 5);
+  const connectHubLookupMissing = Boolean(connectCardSlug && !connectHubCard);
+  const accountLabel = circleCardEntitlement.label;
+  const isCircleCardFree = circleCardEntitlement.source === "FREE";
+  const canPreviewFutureCircleCardFoundation =
+    circleCardEntitlement.isAdminOverride || circleCardEntitlement.isEarlyAccess;
+  const activeCardLimitLabel = `${cardCount}/${featureAccess.cardLimit} active`;
+  const selectedCardReturnPath = card
+    ? circleCardManageHref({ cardId: card.id, section: "my-card", hash: "circle-card-form" })
+    : circleCardManageHref({ section: "my-card", hash: "circle-card-form", newCard: true });
+  const createCardHref = circleCardManageHref({
+    section: "my-card",
+    hash: "circle-card-form",
+    newCard: true
+  });
+  const isCreatingAdditionalCard = shouldShowNewCardForm && cardCount > 0;
+  const isFirstCardCreateFlow = !card && !isCreatingAdditionalCard;
+  const defaultNewCardType = cards.some((ownedCard) => ownedCard.cardType === "PERSONAL")
+    ? "BUSINESS"
+    : "PERSONAL";
+  const defaultFirstCardName = member?.name ?? session.user.name ?? "";
+  const defaultFirstCardBusinessName = member?.profile?.business?.companyName ?? "";
+  const defaultFirstCardSlug = slugify(defaultFirstCardBusinessName || defaultFirstCardName);
+  const customLinks = card?.customLinks ?? [];
+  const activeCustomLinkCount = customLinks.filter((link) => link.isActive).length;
+  const planVisibleLinkIds = new Set(
+    selectCircleCardLinksWithinPlan(customLinks, actualCircleCardAccess.limits.activeLinks).map(
+      (link) => link.id
+    )
+  );
+  const planHiddenActiveLinkCount = customLinks.filter(
+    (link) =>
+      isCircleCardLinkEligibleForPublicLaunch(link) && !planVisibleLinkIds.has(link.id)
+  ).length;
+  const customLinkLimitLabel = isCircleCardFree
+    ? `${activeCustomLinkCount}/${CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT} active links`
+    : `${activeCustomLinkCount} active links`;
+  const freeActiveCustomLinkLimitReached =
+    isCircleCardFree && activeCustomLinkCount >= CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT;
+  const socialLinks = readCircleCardSocialLinks(card?.socialLinks ?? null);
+  const socialLinkItems = mergeInitialCircleCardSocialLinks(socialLinks.links, [
+    { platform: "linkedin", url: member?.profile?.linkedin },
+    { platform: "instagram", url: member?.profile?.instagram },
+    { platform: "tiktok", url: member?.profile?.tiktok },
+    { platform: "facebook", url: member?.profile?.facebook },
+    { platform: "youtube", url: member?.profile?.youtube }
+  ]);
+  const activeSocialLinkCount = socialLinkItems.filter((link) => link.isActive && link.url.trim()).length;
+  const activeSocialLinkMap = socialLinkItems.reduce<Record<string, string | undefined>>(
+    (map, link) => {
+      if (link.isActive && link.url.trim() && !map[link.platform]) {
+        map[link.platform] = link.url;
+      }
+
+      return map;
+    },
+    {}
+  );
+  const publicUrl = card ? absoluteUrl(`/card/${card.slug}`) : null;
+  const currentCardTypeMeta = card ? circleCardHubTypeMeta(card.cardType) : null;
+  const currentCardDisplayName = card?.businessName || card?.fullName || "this Circle Card";
+  const currentCardContextLabel = card
+    ? `${currentCardDisplayName} - ${currentCardTypeMeta?.label ?? "Circle"} Card`
+    : "No Circle Card selected";
+  const currentCardSelectorOptions = (liveCards.length ? liveCards : cards).map((ownedCard) => {
+    const typeMeta = circleCardHubTypeMeta(ownedCard.cardType);
+    const statusMeta = circleCardHubStatusMeta({ isPublished: ownedCard.isPublished });
+
+    return {
+      id: ownedCard.id,
+      label: ownedCard.businessName || ownedCard.fullName,
+      detail: [ownedCard.fullName, ownedCard.role].filter(Boolean).join(" / "),
+      typeLabel: typeMeta.label,
+      statusLabel: statusMeta.label,
+      isDefault: ownedCard.isDefaultCard,
+      isLive: ownedCard.isPublished
+    };
+  });
+  const referralPath = referralCentre?.identity.code
+    ? buildCircleCardReferralPath(referralCentre.identity.code)
+    : "";
+  const referralUrl = referralPath ? absoluteUrl(referralPath) : null;
+  const referralShareUrl = referralUrl ? `${referralUrl}?source=referral_share` : null;
+  const referralQrUrl = referralUrl ? `${referralUrl}?source=referral_qr` : null;
+  const qrUrl = publicUrl ? buildCircleCardShareSourceUrl(publicUrl, "qr") : null;
+  const nfcUrl = publicUrl ? buildCircleCardShareSourceUrl(publicUrl, "nfc") : null;
+  const eventUrl = publicUrl ? buildCircleCardShareSourceUrl(publicUrl, "event") : null;
+  const defaultWebsite =
+    card?.websiteUrl ?? member?.profile?.website ?? member?.profile?.business?.website ?? "";
+  const analytics = card
+    ? await getCircleCardAnalyticsSummary({
+        cardId: card.id,
+        fallbackViewCount: card.viewCount
+      })
+    : null;
+  const cardViewCount = analytics?.counts.CARD_VIEW ?? card?.viewCount ?? 0;
+  const shareCount =
+    (analytics?.counts.SHARE ?? 0) +
+    (analytics?.counts.CONNECT_HUB_SHARE ?? 0) +
+    (analytics?.counts.CONNECT_HUB_COPY_LINK ?? 0);
+  const circleCardCompletion = calculateCircleCardCompletionForCard(
+    card
+      ? {
+          ...card,
+          user: {
+            image: member?.image,
+            profile: member?.profile
+          }
+        }
+      : null,
+    shareCount
+  );
+  const setupChecklistItems = buildCircleCardSetupChecklist({
+    cardId: card?.id,
+    profileImageUrl: card?.profileImageUrl,
+    about: card?.about,
+    activeFeaturedLinkCount: activeCustomLinkCount,
+    location: card?.location,
+    shareCount
+  });
+  const circleCardUpgradeTriggers = buildCircleCardUpgradeTriggers({
+    activeFeaturedLinks: activeCustomLinkCount,
+    featuredLinkLimit: CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT,
+    walletContacts: savedContactCount,
+    cardViews: cardViewCount,
+    shares: shareCount,
+    profileCompletion: circleCardCompletion.score,
+    socialProfiles: activeSocialLinkCount,
+    referrals: referrals.length,
+    introductions: introductions.length,
+    opportunities: opportunities.length,
+    accountType: card?.accountType,
+    businessName: card?.businessName,
+    role: card?.role,
+    tagline: card?.tagline,
+    about: card?.about,
+    identityTags: card?.identityTags ?? []
+  });
+  const circleCardUsageMetrics: CircleCardUsageMetric[] = [
+    {
+      label: "Featured links used",
+      value: `${activeCustomLinkCount}/${CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT}`,
+      hint: "Active profile links",
+      icon: LinkIcon
+    },
+    {
+      label: "Wallet contacts",
+      value: savedContactCount.toLocaleString("en-GB"),
+      hint: "Saved contacts",
+      icon: WalletCards
+    },
+    {
+      label: "Card views",
+      value: cardViewCount.toLocaleString("en-GB"),
+      hint: "Public views",
+      icon: Eye
+    },
+    {
+      label: "Shares",
+      value: shareCount.toLocaleString("en-GB"),
+      hint: "Shares and copied links",
+      icon: Share2
+    },
+    {
+      label: "Profile completion",
+      value: `${circleCardCompletion.score}%`,
+      hint: "Trust-building setup",
+      icon: CheckCircle2
+    }
+  ];
+
+  if (card) {
+    await syncCircleCardActivationLeadScore({
+      userId: session.user.id,
+      completion: circleCardCompletion
+    });
+    if (circleCardCompletion.activationComplete) {
+      await markCircleCardReferralActivationForUser({
+        userId: session.user.id,
+        circleCardId: card.id,
+        completionScore: circleCardCompletion.score
+      });
+    }
+  }
+
+  const analyticsOverview = [
+    {
+      label: "Total Views",
+      value: cardViewCount,
+      description: "Public card views",
+      icon: Eye
+    },
+    {
+      label: "Wallet Saves",
+      value: analytics?.counts.WALLET_SAVE ?? 0,
+      description: "People who saved this card",
+      icon: WalletCards
+    },
+    {
+      label: "Shares",
+      value: shareCount,
+      description: "Native shares and copied links",
+      icon: Share2
+    },
+    {
+      label: "Link Clicks",
+      value: analytics?.counts.CUSTOM_LINK_CLICK ?? 0,
+      description: "Custom link hub clicks",
+      icon: MousePointerClick
+    },
+    {
+      label: "Contact Downloads",
+      value: analytics?.counts.VCARD_DOWNLOAD ?? 0,
+      description: "vCard downloads",
+      icon: Download
+    }
+  ];
+  const analyticsActivityMix = [
+    { label: "QR views", value: analytics?.counts.QR_VIEW ?? 0 },
+    { label: "Website clicks", value: analytics?.counts.WEBSITE_CLICK ?? 0 },
+    { label: "Email clicks", value: analytics?.counts.EMAIL_CLICK ?? 0 },
+    { label: "Phone clicks", value: analytics?.counts.PHONE_CLICK ?? 0 },
+    { label: "Custom link clicks", value: analytics?.counts.CUSTOM_LINK_CLICK ?? 0 },
+    { label: "Connect Hub shares", value: analytics?.counts.CONNECT_HUB_SHARE ?? 0 },
+    { label: "Connect Hub copies", value: analytics?.counts.CONNECT_HUB_COPY_LINK ?? 0 },
+    { label: "Card link resolves", value: analytics?.counts.CARD_LINK_RESOLVED ?? 0 },
+    { label: "Business card scans", value: analytics?.counts.BUSINESS_CARD_SCANNED ?? 0 },
+    { label: "Business card matches", value: analytics?.counts.BUSINESS_CARD_MATCH_FOUND ?? 0 },
+    { label: "Scanned contacts", value: analytics?.counts.BUSINESS_CARD_CONTACT_CREATED ?? 0 },
+    { label: "Claim links", value: analytics?.counts.CLAIM_LINK_GENERATED ?? 0 },
+    { label: "Recommendations created", value: analytics?.counts.RECOMMENDATION_CREATED ?? 0 },
+    { label: "Recommendations updated", value: analytics?.counts.RECOMMENDATION_UPDATED ?? 0 },
+    { label: "Recommendations removed", value: analytics?.counts.RECOMMENDATION_REMOVED ?? 0 },
+    { label: "Public recommendations viewed", value: analytics?.counts.PUBLIC_RECOMMENDATION_VIEWED ?? 0 },
+    { label: "Discover searches", value: analytics?.counts.DISCOVER_SEARCH ?? 0 },
+    { label: "Discover card views", value: analytics?.counts.DISCOVER_CARD_VIEWED ?? 0 },
+    { label: "Discover saves", value: analytics?.counts.DISCOVER_CARD_SAVED ?? 0 },
+    { label: "Discover connection requests", value: analytics?.counts.DISCOVER_CONNECTION_REQUEST_SENT ?? 0 },
+    { label: "Introductions created", value: analytics?.counts.INTRODUCTION_CREATED ?? 0 },
+    { label: "Introductions accepted", value: analytics?.counts.INTRODUCTION_ACCEPTED ?? 0 },
+    { label: "Introductions declined", value: analytics?.counts.INTRODUCTION_DECLINED ?? 0 },
+    { label: "Introductions completed", value: analytics?.counts.INTRODUCTION_COMPLETED ?? 0 },
+    { label: "Referrals created", value: analytics?.counts.REFERRAL_CREATED ?? 0 },
+    { label: "Referrals accepted", value: analytics?.counts.REFERRAL_ACCEPTED ?? 0 },
+    { label: "Referrals declined", value: analytics?.counts.REFERRAL_DECLINED ?? 0 },
+    { label: "Referrals won", value: analytics?.counts.REFERRAL_WON ?? 0 },
+    { label: "Referrals lost", value: analytics?.counts.REFERRAL_LOST ?? 0 },
+    { label: "Referrals cancelled", value: analytics?.counts.REFERRAL_CANCELLED ?? 0 },
+    { label: "Opportunities created", value: analytics?.counts.OPPORTUNITY_CREATED ?? 0 },
+    { label: "Opportunities updated", value: analytics?.counts.OPPORTUNITY_UPDATED ?? 0 },
+    { label: "Opportunities won", value: analytics?.counts.OPPORTUNITY_WON ?? 0 },
+    { label: "Opportunities lost", value: analytics?.counts.OPPORTUNITY_LOST ?? 0 },
+    { label: "Opportunity follow-ups set", value: analytics?.counts.OPPORTUNITY_FOLLOWUP_SET ?? 0 },
+    { label: "Notifications read", value: analytics?.counts.NOTIFICATION_READ ?? 0 },
+    { label: "Notification mark-all reads", value: analytics?.counts.NOTIFICATION_MARK_ALL_READ ?? 0 },
+    { label: "Wallet removes", value: analytics?.counts.WALLET_REMOVE ?? 0 }
+  ];
+  const appSectionItems: Array<{
+    label: string;
+    section: CircleCardAppSection;
+    icon: typeof Activity;
+    targetId: string;
+    href?: string;
+    badge?: number;
+  }> = [
+    {
+      label: "Home",
+      section: "home",
+      icon: Activity,
+      targetId: "circle-card-home",
+      badge: unreadNotificationCount + pendingIncomingRequests.length + followUpsDueCount
+    },
+    {
+      label: "Cards",
+      section: "my-card",
+      icon: ContactRound,
+      targetId: "my-cards"
+    },
+    {
+      label: "Studio",
+      section: "my-card",
+      icon: Sparkles,
+      targetId: "circle-studio",
+      href: card ? `/dashboard/circle-card/studio?card=${card.id}` : "/dashboard/circle-card/studio"
+    },
+    {
+      label: "Wallet",
+      section: "network",
+      icon: WalletCards,
+      targetId: "wallet",
+      href: "/dashboard/circle-card/wallet",
+      badge: pendingIncomingRequests.length + incomingIntroductions.length
+    },
+    {
+      label: "Trust",
+      section: "my-card",
+      icon: ShieldCheck,
+      targetId: "circle-trust"
+    },
+    {
+      label: "Business",
+      section: "business",
+      icon: ShoppingBag,
+      targetId: "business-card-builder",
+      badge: receivedReferrals.length + dueOpportunityFollowUps.length
+    },
+    {
+      label: "Creator",
+      section: "my-card",
+      icon: Camera,
+      targetId: "creator-pro-studio"
+    },
+    {
+      label: "Referrals",
+      section: "referrals",
+      icon: Send,
+      targetId: "referral-centre",
+      badge: referralCentre?.stats.signups
+    },
+    { label: "Insights", section: "my-card", icon: BarChart3, targetId: "analytics" },
+    { label: "Settings", section: "settings", icon: MenuIcon, targetId: "circle-card-settings" }
+  ];
+  const homeQuickStats = [
+    {
+      label: "Notifications",
+      value: unreadNotificationCount,
+      href: circleCardSectionHref("network", "notifications"),
+      icon: Sparkles
+    },
+    {
+      label: "Pending requests",
+      value: pendingIncomingRequests.length,
+      href: circleCardSectionHref("network", "connect-hub"),
+      icon: MessageSquare
+    },
+    {
+      label: "Follow-ups due",
+      value: followUpsDueCount,
+      href: followUpsDueCount === dueOpportunityFollowUps.length
+        ? circleCardSectionHref("business", "opportunities")
+        : buildWalletHref({ walletFollowUp: "needs-follow-up" }),
+      icon: CalendarDays
+    },
+    {
+      label: "Public views",
+      value: analytics?.counts.CARD_VIEW ?? card?.viewCount ?? 0,
+      href: circleCardSectionHref("my-card", "analytics"),
+      icon: Eye
+    },
+    {
+      label: "Wallet contacts",
+      value: savedContactCount,
+      href: "/dashboard/circle-card/wallet",
+      icon: WalletCards
+    },
+    {
+      label: "Referral signups",
+      value: referralCentre?.stats.signups ?? 0,
+      href: circleCardSectionHref("referrals", "referral-centre"),
+      icon: Send
+    }
+  ];
+  const circleCardBillingReadiness = getCircleCardBillingReadiness();
+  const circleCardCheckoutAvailable =
+    circleCardBillingReadiness.billingEnabled &&
+    circleCardBillingReadiness.proLaunchConfigured &&
+    canUserStartCircleCardCheckout(session.user.id);
+  const showPlatformOwnerDiagnostics = platformOwnerDiagnostics.hasAdminAccess;
+  const platformOwnerDiagnosticItems = [
+    {
+      label: "Current User Email",
+      value: platformOwnerDiagnostics.currentUserEmail || "Not available"
+    },
+    {
+      label: "Current User Role",
+      value: platformOwnerDiagnostics.currentUserRole
+    },
+    {
+      label: "Owner Email Allowlist Present",
+      value: platformOwnerDiagnostics.ownerEmailAllowlistPresent ? "Yes" : "No"
+    },
+    {
+      label: "Platform Owner Resolved",
+      value: platformOwnerDiagnostics.platformOwnerResolved ? "True" : "False"
+    }
+  ];
+  const platformStatusItems: Array<{
+    label: string;
+    state: "Configured" | "Pending" | "Future";
+    tone: CircleCardPlatformStatusTone;
+    detail: string;
+    icon: typeof Activity;
+  }> = [
+    {
+      label: "Circle Card Status",
+      state: card ? "Configured" : "Pending",
+      tone: card ? "green" : "amber",
+      detail: `${cardCount} active card${cardCount === 1 ? "" : "s"} / ${featureAccess.cardLimit} available`,
+      icon: ContactRound
+    },
+    {
+      label: "Billing",
+      state: circleCardBillingReadiness.billingEnabled ? "Configured" : "Pending",
+      tone: circleCardBillingReadiness.billingEnabled ? "green" : "amber",
+      detail: circleCardBillingReadiness.billingEnabled
+        ? "Billing flag is enabled; prices are read-only here."
+        : "Billing is disabled for this foundation phase.",
+      icon: CreditCard
+    },
+    {
+      label: "Notifications",
+      state: "Configured",
+      tone: "green",
+      detail: `${unreadNotificationCount} unread / ${notifications.length} recent loaded`,
+      icon: Bell
+    },
+    {
+      label: "Referral Engine",
+      state: referralCentre ? "Configured" : "Pending",
+      tone: referralCentre ? "green" : "amber",
+      detail: `${referralCentre?.stats.signups ?? 0} signup${(referralCentre?.stats.signups ?? 0) === 1 ? "" : "s"} tracked`,
+      icon: Send
+    },
+    {
+      label: "Discover",
+      state: card?.showInDiscover ? "Configured" : "Pending",
+      tone: card?.showInDiscover ? "green" : "amber",
+      detail: `${discoverCards.length} visible candidate${discoverCards.length === 1 ? "" : "s"} in this view`,
+      icon: Compass
+    },
+    {
+      label: "Wallet",
+      state: "Configured",
+      tone: "green",
+      detail: `${savedContactCount} saved contact${savedContactCount === 1 ? "" : "s"}`,
+      icon: WalletCards
+    },
+    {
+      label: "Analytics",
+      state: analytics ? "Configured" : "Pending",
+      tone: analytics ? "green" : "amber",
+      detail: `${cardViewCount.toLocaleString("en-GB")} public view${cardViewCount === 1 ? "" : "s"}`,
+      icon: BarChart3
+    },
+    {
+      label: "PWA",
+      state: "Configured",
+      tone: "green",
+      detail: "Install prompt and manifest surfaces are present.",
+      icon: Gauge
+    }
+  ];
+  const platformOwnerQuickActions: Array<{
+    label: string;
+    href: string;
+    icon: typeof Activity;
+    external?: boolean;
+  }> = [
+    ...(card
+      ? [
+          {
+            label: "Open Public Card",
+            href: `/card/${card.slug}`,
+            icon: ArrowUpRight,
+            external: true
+          }
+        ]
+      : []),
+    {
+      label: "Open Circle Card",
+      href: circleCardSectionHref("home"),
+      icon: Activity
+    },
+    {
+      label: "Open Wallet",
+      href: "/dashboard/circle-card/wallet",
+      icon: WalletCards
+    },
+    {
+      label: "Open Discover",
+      href: circleCardSectionHref("network", "discover"),
+      icon: Compass
+    },
+    {
+      label: "Open Referrals",
+      href: circleCardSectionHref("referrals", "referral-centre"),
+      icon: Send
+    },
+    {
+      label: "Open Notifications",
+      href: circleCardSectionHref("network", "notifications"),
+      icon: Bell
+    },
+    {
+      label: "Open Analytics",
+      href: card
+        ? circleCardManageHref({ cardId: card.id, section: "my-card", hash: "analytics" })
+        : circleCardSectionHref("my-card", "analytics"),
+      icon: BarChart3
+    },
+    {
+      label: "Open Owner Console",
+      href: "/admin/circle-card",
+      icon: ShieldCheck
+    }
+  ];
+  const platformOwnerLaunchChecklist = buildCircleCardPlatformOwnerLaunchChecklist({
+    billingReadiness: circleCardBillingReadiness,
+    platformOwnerDiagnostics,
+    appUrlConfigured: Boolean(process.env.APP_URL?.trim()),
+    nextAuthUrlConfigured: Boolean(process.env.NEXTAUTH_URL?.trim()),
+    cronSecretConfigured: Boolean(process.env.CRON_SECRET?.trim()),
+    resendConfigured: Boolean(
+      process.env.RESEND_API_KEY?.trim() && process.env.RESEND_FROM_EMAIL?.trim()
+    ),
+    analyticsConfigured: Boolean(analytics),
+    cardAvailable: Boolean(card),
+    publicCardHref: card ? `/card/${card.slug}` : null,
+    referralCentreHref: circleCardSectionHref("referrals", "referral-centre"),
+    adminHref: "/admin/circle-card",
+    proHref: "/circle-card/pro",
+    teamsHref: "/circle-card/teams",
+    walletContactCount: savedContactCount,
+    discoverCandidateCount: discoverCards.length,
+    notificationCount: notifications.length
+  });
+  const platformOwnerPerformanceInspector = buildCircleCardPlatformOwnerPerformanceInspector({
+    appUrlConfigured: Boolean(process.env.APP_URL?.trim()),
+    nextAuthUrlConfigured: Boolean(process.env.NEXTAUTH_URL?.trim()),
+    cronSecretConfigured: Boolean(process.env.CRON_SECRET?.trim()),
+    resendConfigured: Boolean(
+      process.env.RESEND_API_KEY?.trim() && process.env.RESEND_FROM_EMAIL?.trim()
+    ),
+    billingFlagConfigured: process.env[CIRCLE_CARD_BILLING_FLAG_ENV] !== undefined,
+    billingEnabled: circleCardBillingReadiness.billingEnabled,
+    analyticsConfigured: Boolean(analytics),
+    cardAvailable: Boolean(card),
+    publicCardHref: card ? `/card/${card.slug}` : null,
+    dashboardHref: circleCardSectionHref("home"),
+    walletHref: "/dashboard/circle-card/wallet",
+    referralCentreHref: circleCardSectionHref("referrals", "referral-centre"),
+    discoverHref: circleCardSectionHref("network", "discover"),
+    notificationCount: notifications.length,
+    referralCount: referralCentre?.stats.signups ?? 0,
+    manifestPath: CIRCLE_CARD_MANIFEST_PATH,
+    logoAssetConfigured: true,
+    pwaIconConfigured: Boolean(CIRCLE_CARD_ICON_192),
+    uploadRouteConfigured: true,
+    imageFallbackHandlingPresent: true
+  });
+  const currentEnvironment = process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development";
+  const platformInformationItems = [
+    {
+      label: "Current Platform Version",
+      value: process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.0"
+    },
+    {
+      label: "Environment",
+      value: currentEnvironment
+    },
+    {
+      label: "Circle Card Billing Enabled",
+      value: circleCardBillingReadiness.billingEnabled ? "Yes" : "No"
+    },
+    {
+      label: "Current Circle Card Plan",
+      value: circleCardEntitlement.plan
+    },
+    {
+      label: "Current Entitlement",
+      value: circleCardEntitlement.label
+    },
+    {
+      label: "Actual Entitlement",
+      value: actualCircleCardEntitlement.label
+    },
+    {
+      label: "Admin Override Active",
+      value: circleCardEntitlement.isAdminOverride ? "Yes" : "No"
+    },
+    {
+      label: "Notification Count",
+      value: unreadNotificationCount.toLocaleString("en-GB")
+    },
+    {
+      label: "Referral Count",
+      value: referrals.length.toLocaleString("en-GB")
+    },
+    {
+      label: "Profile Completion",
+      value: `${circleCardCompletion.score}%`
+    }
+  ];
+  const recentHomeActivity = visibleActivityItems.slice(0, 3);
+  const servicesBuilderMode = resolveCircleCardServicesBuilderMode({
+    cardType: card?.cardType,
+    hasProAccess: !isCircleCardFree,
+    isPlatformOwner,
+    platformPreviewCardType: selectedOwnerCardTypePreviewMode
+  });
+  const productsBuilderMode = resolveCircleCardProductsBuilderMode({
+    cardType: card?.cardType,
+    hasProAccess: !isCircleCardFree,
+    isPlatformOwner,
+    platformPreviewCardType: selectedOwnerCardTypePreviewMode
+  });
+  const priceListBuilderMode = resolveCircleCardPriceListBuilderMode({
+    cardType: card?.cardType,
+    hasProAccess: !isCircleCardFree,
+    isPlatformOwner,
+    platformPreviewCardType: selectedOwnerCardTypePreviewMode
+  });
+  const menuOffersBuilderMode = resolveCircleCardMenuOffersBuilderMode({
+    cardType: card?.cardType,
+    hasProAccess: !isCircleCardFree,
+    isPlatformOwner,
+    platformPreviewCardType: selectedOwnerCardTypePreviewMode
+  });
+  const bookingBuilderMode = resolveCircleCardBookingBuilderMode({
+    cardType: card?.cardType,
+    hasProAccess: !isCircleCardFree,
+    isPlatformOwner,
+    platformPreviewCardType: selectedOwnerCardTypePreviewMode
+  });
+  const documentsBuilderMode = resolveCircleCardDocumentsBuilderMode({
+    cardType: card?.cardType,
+    hasProAccess: !isCircleCardFree,
+    isPlatformOwner,
+    platformPreviewCardType: selectedOwnerCardTypePreviewMode
+  });
+  const openingHoursBuilderMode = resolveCircleCardOpeningHoursBuilderMode({
+    cardType: card?.cardType,
+    hasProAccess: !isCircleCardFree,
+    isPlatformOwner,
+    platformPreviewCardType: selectedOwnerCardTypePreviewMode
+  });
+  const galleryBuilderMode = resolveCircleCardGalleryBuilderMode({
+    cardType: card?.cardType,
+    hasProAccess: !isCircleCardFree,
+    isPlatformOwner,
+    platformPreviewCardType: selectedOwnerCardTypePreviewMode
+  });
+  const reviewsBuilderMode = resolveCircleCardReviewsBuilderMode({
+    cardType: card?.cardType,
+    hasProAccess: !isCircleCardFree,
+    isPlatformOwner,
+    platformPreviewCardType: selectedOwnerCardTypePreviewMode
+  });
+  const creatorStudioMode = resolveCreatorStudioMode({
+    cardType: card?.cardType,
+    hasProAccess: !isCircleCardFree,
+    isPlatformOwner,
+    platformPreviewCardType: selectedOwnerCardTypePreviewMode
+  });
+  const selectedCardServices = card?.cardType === "BUSINESS"
+    ? readCircleCardServices(card.contentBlocks)
+    : [];
+  const selectedCardProducts = card?.cardType === "BUSINESS"
+    ? readCircleCardProductItems(card.contentBlocks)
+    : [];
+  const selectedCardPriceItems = card?.cardType === "BUSINESS"
+    ? readCircleCardPriceListItems(card.contentBlocks)
+    : [];
+  const selectedCardMenuOfferItems = card?.cardType === "BUSINESS"
+    ? readCircleCardMenuOfferItems(card.contentBlocks)
+    : [];
+  const selectedCardBooking = card?.cardType === "BUSINESS"
+    ? readCircleCardBookingEnquiry(card.contentBlocks)
+    : null;
+  const selectedCardDocuments = card?.cardType === "BUSINESS"
+    ? readCircleCardDocumentItems(card.contentBlocks)
+    : [];
+  const selectedCardGalleryItems = card?.cardType === "BUSINESS"
+    ? readCircleCardGalleryItems(card.contentBlocks)
+    : [];
+  const selectedCardReviews = card?.cardType === "BUSINESS"
+    ? readCircleCardReviewItems(card.contentBlocks)
+    : [];
+  const selectedCardPendingWalletTestimonials: CircleCardPendingWalletTestimonial[] =
+    card?.cardType === "BUSINESS"
+      ? card.walletTestimonialsReceived
+        .filter((testimonial) => testimonial.status === "PENDING")
+        .map((testimonial) => ({
+          id: testimonial.id,
+          reviewerName: testimonial.reviewerName,
+          reviewerRoleOrCompany: testimonial.reviewerRoleOrCompany,
+          testimonialText: testimonial.testimonialText,
+          rating: testimonial.rating,
+          relationship: testimonial.relationship,
+          createdAt: testimonial.createdAt.toISOString()
+        }))
+      : [];
+  const selectedCardApprovedWalletTestimonialCount = card?.cardType === "BUSINESS"
+    ? card.walletTestimonialsReceived.filter((testimonial) => testimonial.status === "APPROVED").length
+    : 0;
+  const selectedCardOpeningHours = card?.cardType === "BUSINESS"
+    ? readCircleCardOpeningHours(card.contentBlocks)
+    : null;
+  const selectedCardFeaturedContentItems = card?.cardType === "CREATOR"
+    ? readCircleCardFeaturedContentItems(card.contentBlocks)
+    : [];
+  const selectedCardCreatorOffers = card?.cardType === "CREATOR"
+    ? readCircleCardCreatorOffers(card.contentBlocks)
+    : [];
+  const selectedCardPressProofItems = card?.cardType === "CREATOR"
+    ? readCircleCardPressProofItems(card.contentBlocks)
+    : [];
+  const selectedCardMediaKit = card?.cardType === "CREATOR"
+    ? readCircleCardMediaKit(card.contentBlocks)
+    : null;
+  const selectedCardAudienceSnapshot = card?.cardType === "CREATOR"
+    ? readCircleCardAudienceSnapshot(card.contentBlocks)
+    : null;
+  const selectedCardBrandPartnerships = card?.cardType === "CREATOR"
+    ? readCircleCardBrandPartnerships(card.contentBlocks)
+    : [];
+  const selectedCardVerifiedTestimonials: CircleTrustTestimonial[] = card
+    ? card.walletTestimonialsReceived
+      .filter((testimonial) => testimonial.status === "APPROVED")
+      .map((testimonial) => ({
+        id: testimonial.id,
+        reviewerName: testimonial.reviewerName,
+        reviewerRoleOrCompany: testimonial.reviewerRoleOrCompany,
+        testimonialText: testimonial.testimonialText,
+        rating: testimonial.rating,
+        relationship: testimonial.relationship,
+        verifiedAt: testimonial.walletVerifiedAt
+      }))
+    : [];
+  const selectedCardVerifiedConnectionCount = card
+    ? connectionRequests.filter(
+      (request) => request.status === "ACCEPTED" &&
+        (request.requesterCardId === card.id || request.recipientCardId === card.id)
+    ).length
+    : 0;
+  const selectedCardTrust = card
+    ? buildCircleTrustSummary({
+      card: {
+        fullName: card.fullName,
+        businessName: card.businessName,
+        role: card.role,
+        tagline: card.tagline,
+        about: card.about,
+        profileImageUrl: card.profileImageUrl,
+        businessLogoUrl: card.businessLogoUrl,
+        websiteUrl: card.websiteUrl,
+        email: card.email,
+        phone: card.phone,
+        location: card.location,
+        isPublished: card.isPublished,
+        archivedAt: card.archivedAt,
+        hasHistoricalActivity:
+          card.viewCount > 0 || card._count.activities > 0 || card._count.events > 0
+      },
+      owner: {
+        role: session.user.role,
+        emailVerified: session.user.emailVerified,
+        foundingMember: session.user.foundingMember,
+        hasActiveSubscription: session.user.hasActiveSubscription
+      },
+      verifiedConnectionCount: selectedCardVerifiedConnectionCount,
+      verifiedTestimonials: selectedCardVerifiedTestimonials,
+      manualTestimonialCount:
+        card.cardType === "BUSINESS" ? readCircleCardReviewItems(card.contentBlocks).length : 0
+    })
+    : null;
+  const selectedCardCreatorTrustSignalCount = card?.cardType === "CREATOR"
+    ? selectedCardTrust?.signals.length ?? 0
+    : 0;
+  const showBusinessCardBuilder =
+    servicesBuilderMode !== "hidden" ||
+    productsBuilderMode !== "hidden" ||
+    priceListBuilderMode !== "hidden" ||
+    menuOffersBuilderMode !== "hidden" ||
+    bookingBuilderMode !== "hidden" ||
+    documentsBuilderMode !== "hidden" ||
+    galleryBuilderMode !== "hidden" ||
+    reviewsBuilderMode !== "hidden" ||
+    openingHoursBuilderMode !== "hidden";
+  const businessBuilderAccess: BusinessCardBuilderAccess = isPlatformOwner
+    ? "platform-preview"
+    : isCircleCardFree
+      ? "locked"
+      : "available";
+  const businessBuilderPreviewLabel =
+    businessBuilderAccess === "platform-preview"
+      ? "Platform Preview"
+      : businessBuilderAccess === "locked"
+        ? "Requires Pro"
+        : circleCardEntitlement.isEarlyAccess
+          ? "Early Access"
+          : circleCardEntitlement.isAdminOverride
+            ? "Admin Preview"
+            : "Pro Preview";
+  const businessBuilderCategory =
+    card?.identityTags[0]
+      ? getCircleCardIdentityTagLabel(card.identityTags[0])
+      : getCircleCardAccountTypeLabel(card?.accountType);
+
+  if (card && discoverHasFilters) {
+    await trackCircleCardEvent({
+      cardId: card.id,
+      eventType: "DISCOVER_SEARCH",
+      userId: session.user.id,
+      metadata: {
+        source: "discover",
+        query: discoverQuery || null,
+        category: discoverCategory || null,
+        accountType: discoverAccountType || null,
+        identityTag: discoverIdentityTag || null,
+        profileLayout: discoverProfileLayout || null,
+        location: discoverLocation || null,
+        recommendedOnly: discoverRecommended,
+        bcnOnly: discoverBcn,
+        resultCount: discoverCards.length
+      }
+    });
+  }
+  const showCircleCardProSuccess =
+    actualCircleCardAccess.source === "standalone_subscription" &&
+    actualCircleCardAccess.hasProAccess &&
+    actualCircleCardAccess.lifecycleStatus === "active" &&
+    firstValue(params.billing) === "success" &&
+    firstValue(params.plan) === "pro";
+  const confirmedProCapability = normalizeCircleCardProIntent({
+    capability: firstValue(params.capability) as CircleCardProCapability
+  }).capability;
+
+  return (
+    <div className="space-y-6">
+      <CircleCardSectionRouter />
+      <section className="member-accent-panel rounded-2xl border p-4 sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl">
+            <div className="hidden items-center gap-2 rounded-full border border-[hsl(var(--member-accent-border)/0.32)] bg-[hsl(var(--member-accent)/0.12)] px-3 py-1 text-xs uppercase tracking-[0.08em] text-[hsl(var(--member-accent-text))] sm:inline-flex">
+              <ContactRound size={14} />
+              Your Cards
+            </div>
+            <h1 className="font-display text-2xl text-foreground sm:mt-3 sm:text-5xl">
+              <span className="sm:hidden">Your Cards</span>
+              <span className="hidden sm:inline">Circle Card</span>
+            </h1>
+            <p className="mt-2 hidden text-sm text-[hsl(var(--member-accent-muted))] sm:block sm:text-base">
+              Your Cards
+            </p>
+            <div className="mt-4 grid gap-2">
+              <Link
+                href={
+                  card
+                    ? circleCardManageHref({ cardId: card.id, section: "share", hash: "share-assets-qr" })
+                    : circleCardSectionHref("share", "share-assets-qr")
+                }
+                className={cn(buttonVariants(), "h-12 w-full justify-center gap-2 shadow-gold-soft sm:w-44")}
+              >
+                <QrCode size={16} />
+                QR
+              </Link>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+                {card ? (
+                  <Link
+                    href={`/card/${card.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(buttonVariants({ variant: "outline" }), "h-10 min-w-0 justify-center gap-1.5 px-2 text-xs sm:text-sm")}
                   >
                     <Eye size={15} />
                     Public Card
