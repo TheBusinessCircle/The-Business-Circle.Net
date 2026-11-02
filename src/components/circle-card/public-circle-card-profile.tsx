@@ -9,6 +9,10 @@ import {
   sendCircleCardConnectionRequestAction,
   spinToConnectCircleCardAction
 } from "@/actions/circle-card.actions";
+import { LawrenceSevernCard } from "@/components/circle-card/lawrence-severn/lawrence-severn-card";
+import type { CircleCardPresentation } from "@/components/circle-card/lawrence-severn/sample-presentation";
+import { LawrenceSevernLogoFace } from "@/components/circle-card/lawrence-severn/lawrence-severn-logo";
+import { isLawrenceSevernCard } from "@/components/circle-card/lawrence-severn/content";
 import { CircleCardAboutExpander } from "@/components/circle-card/circle-card-about-expander";
 import { CircleCardBusinessHeroActions } from "@/components/circle-card/circle-card-business-hero-actions";
 import { CircleCardBusinessProjectCta, CircleCardBusinessSignature } from "@/components/circle-card/circle-card-business-experience";
@@ -127,6 +131,7 @@ type PublicCircleCardConnectionState = {
 };
 
 type PublicCircleCardProfileProps = {
+  presentation?: CircleCardPresentation;
   card: PublicCircleCard;
   publicUrl: string;
   analyticsCardId?: string;
@@ -1154,6 +1159,7 @@ function PublicRecommendations({
 }
 
 export function PublicCircleCardProfile({
+  presentation = "standard",
   card,
   publicUrl,
   analyticsCardId,
@@ -3163,6 +3169,33 @@ export function PublicCircleCardProfile({
           </main>
         </div>
       </div>
+    );
+  }
+
+  if (isLawrenceSevernCard(card) && presentation === "custom") {
+    return (
+      <LawrenceSevernCard
+        name={card.businessName || card.fullName}
+        phone={card.phone}
+        location={card.location}
+        isDemo={card.isDemo}
+        galleryEnabled={card.user.hasCircleCardProAccess && card.galleryItems.some(item => item.isActive)}
+        analyticsCardId={analyticsCardId}
+        heroImageUrl={card.profileImageUrl}
+        galleryItems={card.galleryItems}
+        contactHref={`${new URL(publicUrl).pathname.replace(/\/$/, "")}/vcard`}
+        feedback={noticeMessage || errorMessage ? <p role="status" className="px-6 py-3 text-sm">{errorMessage || noticeMessage}</p> : null}
+        wallet={renderWalletAction()}
+        qr={<CircleCardQrPanel publicUrl={publicUrl} slug={card.slug} label="Scan this Circle Card" analytics={analyticsCardId ? { cardId: analyticsCardId, source: "lawrence_custom" } : undefined} />}
+        share={<CircleCardShareButton title={`${card.fullName} | Circle Card`} publicUrl={publicUrl} cardId={analyticsCardId} label="Share" hideStatus size="sm" />}
+        spin={
+          <CircleCardSpinToConnect {...spinToConnectProps} className="h-full w-full" showAmbientRing={false}>
+            <div className="h-full w-full overflow-hidden rounded-full border border-[#b38a4b]">
+              {card.businessLogoUrl ? <CircleCardFramedImage src={card.businessLogoUrl} alt={`${card.fullName} logo`} positionX={card.businessLogoPositionX} positionY={card.businessLogoPositionY} scale={card.businessLogoScale}><LawrenceSevernLogoFace /></CircleCardFramedImage> : <LawrenceSevernLogoFace />}
+            </div>
+          </CircleCardSpinToConnect>
+        }
+      />
     );
   }
 
