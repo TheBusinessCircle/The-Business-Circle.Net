@@ -22,7 +22,10 @@ export const metadata: Metadata = createCircleCardPageMetadata({
 
 export const dynamic = "force-dynamic";
 
-export default async function CircleCardOnboardingPage() {
+export default async function CircleCardOnboardingPage({ searchParams }: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+} = {}) {
+  const query = await searchParams;
   const session = await requireCircleCardUser();
   const [card, member, circleCardAccess] = await Promise.all([
     prisma.circleCard.findFirst({
@@ -34,6 +37,9 @@ export default async function CircleCardOnboardingPage() {
         cardType: true,
         fullName: true,
         businessName: true,
+        businessPostcode: true,
+        businessCategory: true,
+        showInDiscover: true,
         role: true,
         tagline: true,
         profileImageUrl: true,
@@ -108,9 +114,12 @@ export default async function CircleCardOnboardingPage() {
       defaults={{
         cardId: card?.id ?? "",
         slug: card?.slug ?? "",
-        cardType: card?.cardType ?? "PERSONAL",
+        cardType: card?.cardType ?? (query?.cardType === "BUSINESS" ? "BUSINESS" : "PERSONAL"),
         fullName: card?.fullName ?? member?.name ?? "",
         businessName: card?.businessName ?? member?.profile?.business?.companyName ?? "",
+        businessPostcode: card?.businessPostcode ?? "",
+        businessCategory: card?.businessCategory ?? "other",
+        showInDiscover: card?.showInDiscover ?? false,
         role: card?.role ?? member?.profile?.headline ?? "",
         tagline: card?.tagline ?? "",
         email: card?.email ?? "",
@@ -132,3 +141,4 @@ export default async function CircleCardOnboardingPage() {
     />
   );
 }
+

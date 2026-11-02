@@ -107,6 +107,8 @@ function validCircleCardForm(overrides: Record<string, string> = {}) {
     cardType: "BUSINESS",
     fullName: "Asha Founder",
     businessName: "Asha Studio",
+    businessPostcode: "NG15 7AA",
+    businessCategory: "professional",
     accountType: "FOUNDER",
     profileLayout: "BUSINESS",
     role: "Founder",
@@ -535,6 +537,14 @@ describe("upsertCircleCardAction", () => {
         })
       })
     );
+  });
+
+  it("requires a postcode for a new business card", async () => {
+    const formData = validCircleCardForm();
+    formData.delete("businessPostcode");
+    const result = await upsertCircleCardAction(initialCircleCardSaveActionState, formData);
+    expect(result).toMatchObject({ success: false, fieldErrors: { businessPostcode: expect.any(Array) } });
+    expect(prismaMock.circleCard.create).not.toHaveBeenCalled();
   });
 
   it("returns success for a successful create", async () => {

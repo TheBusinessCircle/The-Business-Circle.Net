@@ -1,4 +1,5 @@
 "use client";
+import { BUSINESS_DIRECTORY_CATEGORIES, isValidBusinessPostcode } from "@/lib/circle-card/local-hubs";
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
@@ -48,6 +49,9 @@ type Values = {
   cardType: CircleCardType;
   fullName: string;
   businessName: string;
+  businessPostcode: string;
+  businessCategory: string;
+  showInDiscover: boolean;
   role: string;
   tagline: string;
   email: string;
@@ -183,6 +187,7 @@ export function CircleCardOnboardingFlow({
       if (!values.profileImageUrl && !values.businessLogoUrl) return "Add a profile photo or business logo.";
     }
     if (step === 1) {
+      if (values.cardType === "BUSINESS" && !isValidBusinessPostcode(values.businessPostcode)) return "Add your full UK business postcode.";
       if (!values.role.trim() && !values.businessName.trim()) return "Add your role, title or business name.";
       if (!values.tagline.trim()) {
         focusDescription();
@@ -452,6 +457,13 @@ export function CircleCardOnboardingFlow({
                     <div className="space-y-2"><Label htmlFor="first-card-role">Role or headline</Label><Input id="first-card-role" value={values.role} onChange={(event) => update("role", event.target.value)} placeholder="Founder, designer, creator" autoComplete="organization-title" /></div>
                     <div className="space-y-2"><Label htmlFor="first-card-business">{values.cardType === "CREATOR" ? "Creator or brand name" : "Business or organisation"}</Label><Input id="first-card-business" value={values.businessName} onChange={(event) => update("businessName", event.target.value)} autoComplete="organization" /></div>
                   </div>
+                    {values.cardType === "BUSINESS" ? <fieldset className="space-y-3 rounded-2xl border border-gold/25 p-4">
+                      <legend className="px-2 text-sm">Join your local business hub for free</legend>
+                      <label className="block space-y-2" htmlFor="first-card-postcode"><span>Business postcode</span><Input id="first-card-postcode" value={values.businessPostcode} onChange={event => update("businessPostcode", event.target.value)} maxLength={10} autoComplete="postal-code" placeholder="NG15 7AA" required /></label>
+                      <label className="block space-y-2" htmlFor="first-card-category"><span>Directory section</span><select id="first-card-category" value={values.businessCategory} onChange={event => update("businessCategory", event.target.value)} className="min-h-11 w-full rounded-xl border border-silver/25 bg-background px-3">{BUSINESS_DIRECTORY_CATEGORIES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+                      <label className="flex items-start gap-3"><input type="checkbox" checked={values.showInDiscover} onChange={event => update("showInDiscover", event.target.checked)} className="mt-1 h-5 w-5" /><span>Show my business in Discover and my local hub.<span className="mt-1 block text-xs text-muted">NG15 business cards appear in Hucknall &amp; NG15 when published. Your full postcode is not displayed in the directory. You can switch Discover off in Settings at any time.</span></span></label>
+                      <p className="text-xs text-muted">Free to join. Pro and custom design are optional and do not improve your ranking.</p>
+                    </fieldset> : null}
                   <div className="space-y-2">
                     <Label htmlFor="first-card-tagline">Short description</Label>
                     <Textarea
@@ -535,3 +547,4 @@ export function CircleCardOnboardingFlow({
     </main>
   );
 }
+

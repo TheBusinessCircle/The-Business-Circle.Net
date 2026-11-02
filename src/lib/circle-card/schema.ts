@@ -1,3 +1,4 @@
+import { HUCKNALL_HUB_SLUG, isValidBusinessPostcode, normalizeBusinessPostcode, isBusinessDirectoryCategory } from "@/lib/circle-card/local-hubs";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import {
@@ -190,6 +191,12 @@ const circleCardThemeSurfaceStyleInput = z.preprocess(
     ),
   z.enum(CIRCLE_CARD_THEME_SURFACE_STYLES)
 );
+const optionalBusinessPostcode = z.string().trim().max(10).optional().or(z.literal(""))
+  .refine(value => !value || isValidBusinessPostcode(value), "Enter a full valid UK business postcode.")
+  .transform(value => value ? normalizeBusinessPostcode(value) : value);
+const optionalBusinessCategory = z.string().optional().or(z.literal(""))
+  .refine(value => !value || isBusinessDirectoryCategory(value), "Choose a directory section.");
+
 const optionalSlug = z
   .string()
   .trim()
@@ -199,7 +206,7 @@ const optionalSlug = z
   .or(z.literal(""))
   .refine((value) => !value || /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value), {
     message: "Slug can only contain lowercase letters, numbers, and hyphens."
-  });
+  }).refine(value => value !== HUCKNALL_HUB_SLUG, "This link is reserved for the Hucknall hub.");
 const checkboxBoolean = z.preprocess(
   (value) => value === true || value === "true" || value === "on",
   z.boolean()
@@ -409,6 +416,8 @@ export const circleCardFormSchema = z.object({
   cardType: circleCardTypeInput,
   fullName: z.string().trim().min(2).max(120),
   businessName: optionalText(140),
+  businessPostcode: optionalBusinessPostcode,
+  businessCategory: optionalBusinessCategory,
   accountType: optionalCircleCardAccountType,
   identityTags: identityTagsInput,
   profileLayout: circleCardProfileLayoutInput,
@@ -457,6 +466,8 @@ export const circleCardOnboardingSchema = z.object({
   businessLogoScale: optionalImageScale,
   fullName: z.string().trim().min(2).max(120),
   businessName: optionalText(140),
+  businessPostcode: optionalBusinessPostcode,
+  businessCategory: optionalBusinessCategory,
   accountType: requiredCircleCardAccountType,
   identityTags: identityTagsInput,
   role: optionalText(120),
@@ -1069,7 +1080,8 @@ export function readCircleWalletTags(value: Prisma.JsonValue | null | undefined)
 
 export function buildCircleCardSlugBase(values: Pick<CircleCardFormValues, "slug" | "fullName" | "businessName">) {
   const candidate = values.slug || values.businessName || values.fullName || "circle-card";
-  return slugify(candidate) || "circle-card";
+  const base = slugify(candidate) || "circle-card";
+  return base === HUCKNALL_HUB_SLUG ? `${base}-business` : base;
 }
 
 export function buildCircleCardSocialLinks(
