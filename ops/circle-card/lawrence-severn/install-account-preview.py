@@ -94,9 +94,28 @@ def health(path, expected):
         conn.close()
 
 
+def compiled_preview(stage):
+    route = '/(member)/app/prepared/[preparedId]/preview/page'
+    for relative in ['.runtime/circle-card', '.next']:
+        dist_dir = stage / relative
+        manifest = dist_dir / 'server/app-paths-manifest.json'
+        if not manifest.is_file():
+            continue
+        entry = json.loads(manifest.read_text()).get(route)
+        if not isinstance(entry, str):
+            continue
+        compiled = dist_dir / 'server' / entry
+        if not compiled.resolve().is_relative_to(dist_dir.resolve()):
+            raise RuntimeError('Compiled preview path is outside its build directory.')
+        if compiled.is_file() and (dist_dir / 'BUILD_ID').is_file():
+            return dist_dir
+    raise RuntimeError('The compiled prepared preview is missing from the build manifests; live site unchanged.')
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--ref', required=True)
+    parser.add_argument('--resume-existing', type=Path, help='Verify and deploy an already completed staged build')
     args = parser.parse_args()
     if not re.fullmatch(r'[0-9a-f]{40}', args.ref):
         raise RuntimeError('A pinned 40-character Git commit is required.')
@@ -118,7 +137,7 @@ def main():
         if required not in source_page:
             raise RuntimeError('The prepared-preview source changed; no deployment was attempted.')
     available_kib = next(int(line.split()[1]) for line in Path('/proc/meminfo').read_text().splitlines() if line.startswith('MemAvailable:'))
-    if available_kib < 4096 * 1024:
+    if not args.resume_existing and available_kib < 4096 * 1024:
         raise RuntimeError(f'Build requires 4096 MiB available RAM; currently {available_kib // 1024} MiB. Live site unchanged.')
     with socket.socket() as probe:
         probe.bind(('127.0.0.1', NEW_PORT))
@@ -130,13 +149,26 @@ def main():
             env[os.fsdecode(key)] = os.fsdecode(value)
     for key in ['NOTIFY_SOCKET', 'JOURNAL_STREAM', 'INVOCATION_ID', 'LISTEN_PID', 'LISTEN_FDS', 'LISTEN_FDNAMES', 'WATCHDOG_PID', 'WATCHDOG_USEC']:
         env.pop(key, None)
-    stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d-%H%M%S')
-    stage = Path(f'/var/www/releases/circle-card-lawrence-{stamp}')
-    state = Path(f'/var/lib/circle-card-lawrence/{stamp}')
-    state.mkdir(parents=True, mode=0o700)
-    stage.mkdir(mode=0o755)
-    print('Copying the current release into', stage, flush=True)
-    run(['cp', '-a', '--reflink=auto', str(LIVE) + '/.', str(stage)])
+    if args.resume_existing:
+        stage = args.resume_existing
+        if not re.fullmatch(r'/var/www/releases/circle-card-lawrence-\d{8}-\d{6}', str(stage)) or stage.resolve() != stage or not stage.is_dir():
+            raise RuntimeError('Resume requires an existing isolated Lawrence release directory.')
+        stamp = stage.name.removeprefix('circle-card-lawrence-')
+        state = Path(f'/var/lib/circle-card-lawrence/{stamp}')
+        completed_log = state / 'build.log'
+        if not completed_log.is_file() or 'Circle Card production server-action exports verified.' not in completed_log.read_text(errors='replace'):
+            raise RuntimeError('The staged build has no successful build-verification log.')
+        if (state / 'deployment.json').exists():
+            raise RuntimeError('This release has already been deployed; inspect its deployment record.')
+        print('Verifying the completed staged build:', stage, flush=True)
+    else:
+        stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d-%H%M%S')
+        stage = Path(f'/var/www/releases/circle-card-lawrence-{stamp}')
+        state = Path(f'/var/lib/circle-card-lawrence/{stamp}')
+        state.mkdir(parents=True, mode=0o700)
+        stage.mkdir(mode=0o755)
+        print('Copying the current release into', stage, flush=True)
+        run(['cp', '-a', '--reflink=auto', str(LIVE) + '/.', str(stage)])
     archive_url = f'https://github.com/{REPO}/archive/{args.ref}.tar.gz'
     print('Fetching the pinned, approved custom-card files.', flush=True)
     with urllib.request.urlopen(archive_url, timeout=90) as response:
@@ -163,13 +195,24 @@ def main():
                 route_bytes = data
             else:
                 target = stage / relative
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(data)
-                target.chmod(0o644)
+                if args.resume_existing:
+                    if not target.is_file() or target.read_bytes() != data:
+                        raise RuntimeError(f'Staged source differs from pinned payload: {relative}')
+                else:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(data)
+                    target.chmod(0o644)
                 selected += 1
     if route_bytes is None or selected < 8:
         raise RuntimeError('The approved custom-card payload is incomplete.')
-    (stage / PAGE).write_bytes(route_bytes)
+    if args.resume_existing:
+        if (stage / PAGE).read_bytes() != route_bytes:
+            raise RuntimeError('The staged preview route differs from the pinned payload.')
+        for name in ['package.json', 'next.config.ts', 'next.config.mjs', 'next.config.js']:
+            if (LIVE / name).is_file() and (stage / name).read_bytes() != (LIVE / name).read_bytes():
+                raise RuntimeError(f'The staged runtime configuration differs: {name}')
+    else:
+        (stage / PAGE).write_bytes(route_bytes)
     # Never copy the repository's older shared profile renderer over the active release.
     profile = Path('src/components/circle-card/public-circle-card-profile.tsx')
     if (stage / profile).read_bytes() != (LIVE / profile).read_bytes():
@@ -177,39 +220,41 @@ def main():
     build_script = json.loads((stage / 'package.json').read_text())['scripts']['build']
     if not re.fullmatch(r'next build(?:\s+&&\s+node scripts/verify-circle-card-action-build\.mjs)?', build_script):
         raise RuntimeError('Unrecognised build script; refusing to run database or deployment tasks.')
-    next_dir = stage / '.next'
-    if next_dir.is_symlink():
-        next_dir.unlink()
-    elif next_dir.exists():
-        shutil.rmtree(next_dir)
+    if not args.resume_existing:
+        for relative in ['.next', '.runtime/circle-card']:
+            next_dir = stage / relative
+            if next_dir.is_symlink():
+                next_dir.unlink()
+            elif next_dir.exists():
+                shutil.rmtree(next_dir)
     env.update({'PWD': str(stage), 'NODE_ENV': 'production', 'PORT': str(NEW_PORT), 'HOSTNAME': '127.0.0.1', 'NEXT_TELEMETRY_DISABLED': '1'})
     env['NODE_OPTIONS'] = env.get('NODE_OPTIONS', '') + ' --max-old-space-size=3072'
     for key, value in list(env.items()):
         if value.startswith(str(LIVE) + '/'):
             env[key] = str(stage) + value[len(str(LIVE)):]
-    log_path = state / 'build.log'
-    print('Building the new release. The live site remains on port 3371.', flush=True)
+    log_path = state / ('resume-verification.log' if args.resume_existing else 'build.log')
+    print('Checking the completed build.' if args.resume_existing else 'Building the new release. The live site remains on port 3371.', flush=True)
     with log_path.open('w') as log:
         log_path.chmod(0o600)
         # Release files may intentionally lack executable bits. Node reads the
         # existing Next CLI directly, without changing live dependency permissions.
-        result = subprocess.run(['node', 'node_modules/next/dist/bin/next', 'build'], cwd=stage, env=env, stdout=log, stderr=subprocess.STDOUT)
+        result = subprocess.CompletedProcess([], 0) if args.resume_existing else subprocess.run(['node', 'node_modules/next/dist/bin/next', 'build'], cwd=stage, env=env, stdout=log, stderr=subprocess.STDOUT)
         if result.returncode == 0 and 'verify-circle-card-action-build.mjs' in build_script:
             result = subprocess.run(['node', 'scripts/verify-circle-card-action-build.mjs'], cwd=stage, env=env, stdout=log, stderr=subprocess.STDOUT)
     if result.returncode:
         print(redact(log_path.read_text(errors='replace')[-16000:], env))
         raise RuntimeError(f'Build failed. The live site was not switched. Build log: {log_path}')
-    built_page = stage / '.next/server/app/(member)/app/prepared/[preparedId]/preview/page.js'
-    if not built_page.is_file():
-        raise RuntimeError('The expected prepared preview was not compiled; live site unchanged.')
-    standalone = stage / '.next/standalone'
+    dist_dir = compiled_preview(stage)
+    print('Verified compiled preview in', dist_dir, flush=True)
+    standalone = dist_dir / 'standalone'
     if (standalone / 'server.js').is_file():
         shutil.copytree(stage / 'public', standalone / 'public', dirs_exist_ok=True)
-        shutil.copytree(stage / '.next/static', standalone / '.next/static', dirs_exist_ok=True)
+        relative_dist = dist_dir.relative_to(stage)
+        shutil.copytree(dist_dir / 'static', standalone / relative_dist / 'static', dirs_exist_ok=True)
     # The original runtime user owns its new cache, not the application source.
     runtime_user = property_value('User') or 'root'
     account = pwd.getpwnam(runtime_user) if not runtime_user.isdigit() else pwd.getpwuid(int(runtime_user))
-    cache = stage / '.next/cache'
+    cache = dist_dir / 'cache'
     if cache.exists():
         run(['chown', '-R', f'{account.pw_uid}:{account.pw_gid}', str(cache)])
     fragment = Path(property_value('FragmentPath'))

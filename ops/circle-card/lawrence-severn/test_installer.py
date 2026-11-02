@@ -1,6 +1,8 @@
 import importlib.util
 from pathlib import Path
 import unittest
+import tempfile
+import json
 
 spec = importlib.util.spec_from_file_location('installer', Path(__file__).with_name('install-account-preview.py'))
 installer = importlib.util.module_from_spec(spec)
@@ -36,6 +38,31 @@ class DeploymentGuards(unittest.TestCase):
         self.assertTrue(installer.allowed_payload(installer.ASSETS + 'shopfront.jpg'))
         for filename in ['src/components/circle-card/public-circle-card-profile.tsx', 'prisma/schema.prisma', installer.CUSTOM + 'content.test.ts']:
             self.assertFalse(installer.allowed_payload(filename))
+
+    def test_custom_build_directory_is_resolved_from_manifest(self):
+        with tempfile.TemporaryDirectory() as folder:
+            stage = Path(folder)
+            dist = stage / '.runtime/circle-card'
+            page = dist / 'server/app/(member)/app/prepared/[preparedId]/preview/page.js'
+            page.parent.mkdir(parents=True)
+            page.write_text('compiled preview')
+            (dist / 'BUILD_ID').write_text('new-build')
+            (dist / 'server/app-paths-manifest.json').write_text(json.dumps({'/(member)/app/prepared/[preparedId]/preview/page': 'app/(member)/app/prepared/[preparedId]/preview/page.js'}))
+            self.assertEqual(installer.compiled_preview(stage), dist)
+
+    def test_missing_compiled_preview_is_rejected(self):
+        with tempfile.TemporaryDirectory() as folder:
+            with self.assertRaises(RuntimeError):
+                installer.compiled_preview(Path(folder))
+
+    def test_manifest_cannot_point_outside_build(self):
+        with tempfile.TemporaryDirectory() as folder:
+            stage = Path(folder)
+            server = stage / '.runtime/circle-card/server'
+            server.mkdir(parents=True)
+            (server / 'app-paths-manifest.json').write_text(json.dumps({'/(member)/app/prepared/[preparedId]/preview/page': '../../outside.js'}))
+            with self.assertRaises(RuntimeError):
+                installer.compiled_preview(stage)
 
     def test_build_errors_redact_credentials(self):
         self.assertEqual(installer.redact('Failure: private-database-value', {'DATABASE_URL': 'private-database-value'}), 'Failure: [redacted]')
