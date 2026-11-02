@@ -29,3 +29,23 @@ In the **active release's** existing prepared preview route:
 5. Pass returned `presentation` into `PublicCircleCardProfile`. Custom's canonical URL is `?plan=pro&presentation=custom`; `?plan=custom` never grants a new plan.
 
 The relevant helpers live beside the custom component. This wiring cannot be applied here because the active prepared preview route is absent from the repository. It must be reconciled into the server's active source before deployment. A repository push alone will not add the third live sample option.
+
+## Existing account deployment
+
+The live prepared-card source is newer than repository main. The deployment in
+`ops/circle-card/lawrence-severn/install-account-preview.py` therefore clones the
+identified active release, adds only the Lawrence component folder and its four
+photo assets, and replaces only the authenticated prepared-preview route using
+the adjacent template. It never overlays the shared public renderer, database
+schema, authentication, billing, or prepared-card services from this repository.
+
+The installer requires a pinned commit, verifies the known live service and
+Nginx target, builds on port 3372, checks login, private-route protection and a
+photo asset, then switches Nginx. It keeps the old service running and saves the
+previous Nginx configuration. A failure before switching leaves the current site
+in service. Service drop-in overrides or custom stop handling require review.
+
+After deployment, verify the signed-in record's Custom, Free and Pro tabs at
+`/app/prepared/cmvzmvkzm00g7u7ah42orvyi8/preview?plan=pro&presentation=custom`.
+The record remains private; preview spins do not save connections until claimed
+and published. Custom remains a presentation of Pro, not a billing plan.
