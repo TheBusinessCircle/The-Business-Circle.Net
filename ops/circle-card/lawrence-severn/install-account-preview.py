@@ -188,7 +188,11 @@ def main():
     print('Building the new release. The live site remains on port 3371.', flush=True)
     with log_path.open('w') as log:
         log_path.chmod(0o600)
-        result = subprocess.run(['npm', 'run', 'build'], cwd=stage, env=env, stdout=log, stderr=subprocess.STDOUT)
+        # Release files may intentionally lack executable bits. Node reads the
+        # existing Next CLI directly, without changing live dependency permissions.
+        result = subprocess.run(['node', 'node_modules/next/dist/bin/next', 'build'], cwd=stage, env=env, stdout=log, stderr=subprocess.STDOUT)
+        if result.returncode == 0 and 'verify-circle-card-action-build.mjs' in build_script:
+            result = subprocess.run(['node', 'scripts/verify-circle-card-action-build.mjs'], cwd=stage, env=env, stdout=log, stderr=subprocess.STDOUT)
     if result.returncode:
         print(redact(log_path.read_text(errors='replace')[-16000:], env))
         raise RuntimeError(f'Build failed. The live site was not switched. Build log: {log_path}')
