@@ -1,6 +1,7 @@
 import importlib.util
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 import tempfile
 import json
 
@@ -38,6 +39,29 @@ class DeploymentGuards(unittest.TestCase):
         self.assertTrue(installer.allowed_payload(installer.ASSETS + 'shopfront.jpg'))
         for filename in ['src/components/circle-card/public-circle-card-profile.tsx', 'prisma/schema.prisma', installer.CUSTOM + 'content.test.ts']:
             self.assertFalse(installer.allowed_payload(filename))
+
+    def test_launcher_preserves_identity_and_billing_checks(self):
+        original = '/opt/thebusinesscircle/circle-card-launchers/0539b3999fa8d626805270633d8d393c309dcffb/launch-959.mjs'
+        source = (
+            "if(process.getuid()===0||process.env.USER!=='circle-card-app'||process.env.LOGNAME!=='circle-card-app'||realpathSync(process.cwd())!==\"" + str(installer.LIVE) + "\")throw Error('Exact Circle runtime identity required');"
+            "const values=readEnvironmentJson('/etc/thebusinesscircle/circle-card/runtime.env.json');"
+            "validateProtectedStandaloneBilling(values,{applicationSha:'0539b3999fa8d626805270633d8d393c309dcffb'});"
+            "process.execve('/usr/bin/node',['/usr/bin/node','" + str(installer.LIVE) + "/node_modules/next/dist/bin/next','start','-p','3371'],{...values,PORT:'3371'});"
+        )
+        stage = Path('/var/www/releases/circle-card-lawrence-20261102-222341')
+        with patch.object(Path, 'read_text', return_value=source):
+            _, result, _ = installer.prepare_launcher('ExecStart=/usr/bin/node ' + original, stage)
+        self.assertNotIn(str(installer.LIVE), result)
+        self.assertIn(str(stage), result)
+        self.assertIn("'-p','3372'", result)
+        self.assertIn("PORT:'3372'", result)
+        self.assertIn("process.getuid()===0||process.env.USER!=='circle-card-app'||process.env.LOGNAME!=='circle-card-app'", result)
+        self.assertIn("validateProtectedStandaloneBilling(values,{applicationSha:'0539b3999fa8d626805270633d8d393c309dcffb'});", result)
+        self.assertIn("readEnvironmentJson('/etc/thebusinesscircle/circle-card/runtime.env.json')", result)
+
+    def test_unknown_launcher_is_rejected(self):
+        with self.assertRaises(RuntimeError):
+            installer.prepare_launcher('ExecStart=/usr/bin/node /unknown/launch.mjs', Path('/staged'))
 
     def test_custom_build_directory_is_resolved_from_manifest(self):
         with tempfile.TemporaryDirectory() as folder:

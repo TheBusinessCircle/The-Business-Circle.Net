@@ -94,6 +94,25 @@ def health(path, expected):
         conn.close()
 
 
+def prepare_launcher(unit_text, stage):
+    original = Path('/opt/thebusinesscircle/circle-card-launchers/0539b3999fa8d626805270633d8d393c309dcffb/launch-959.mjs')
+    if str(original) not in unit_text:
+        raise RuntimeError('The source service uses an unrecognised launcher; live site unchanged.')
+    source = original.read_text()
+    required = ["process.getuid()===0", "process.env.USER!=='circle-card-app'", "process.env.LOGNAME!=='circle-card-app'", 'realpathSync(process.cwd())!==', 'readEnvironmentJson', 'validateProtectedStandaloneBilling']
+    for token in required:
+        if token not in source:
+            raise RuntimeError('The expected protected launcher checks changed.')
+    updated = source.replace(str(LIVE), str(stage))
+    for old, new in [("'-p','3371'", "'-p','3372'"), ("PORT:'3371'", "PORT:'3372'")]:
+        if updated.count(old) != 1:
+            raise RuntimeError('The launcher port configuration changed; live site unchanged.')
+        updated = updated.replace(old, new)
+    # Retain every user, environment and billing certification check. Only the
+    # exact cloned release path and its loopback port change in this new launcher.
+    return original, updated, unit_text
+
+
 def compiled_preview(stage):
     route = '/(member)/app/prepared/[preparedId]/preview/page'
     for relative in ['.runtime/circle-card', '.next']:
@@ -259,6 +278,14 @@ def main():
         run(['chown', '-R', f'{account.pw_uid}:{account.pw_gid}', str(cache)])
     fragment = Path(property_value('FragmentPath'))
     unit_text = fragment.read_text()
+    original_launcher, launcher_source, unit_text = prepare_launcher(unit_text, stage)
+    launcher_dir = Path('/opt/thebusinesscircle/circle-card-launchers') / f'lawrence-{stamp}'
+    launcher_dir.mkdir(mode=0o755, exist_ok=True)
+    launcher_path = launcher_dir / 'launch.mjs'
+    launcher_path.write_text(launcher_source)
+    launcher_path.chmod(0o644)
+    run(['node', '--check', str(launcher_path)], stdout=subprocess.DEVNULL)
+    unit_text = unit_text.replace(str(original_launcher), str(launcher_path))
     overrides = state / 'runtime-override.env'
     overrides.write_text(f'PORT={NEW_PORT}\nHOSTNAME=127.0.0.1\n')
     overrides.chmod(0o600)
@@ -316,6 +343,8 @@ def main():
     except Exception:
         if not switched:
             subprocess.run(['systemctl', 'stop', unit_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        diagnostic = subprocess.run(['journalctl', '-u', unit_name, '-n', '20', '--no-pager'], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        print(redact(diagnostic.stdout[-10000:], env), file=sys.stderr)
         raise
 
 
