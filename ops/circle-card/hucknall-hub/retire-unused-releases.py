@@ -21,11 +21,34 @@ def output(args):
 
 def referenced_ports(config):
     config = '\n'.join(line.split('#', 1)[0] for line in config.splitlines())
+    upstreams = {}
+    address = r'(?:127\.0\.0\.1|localhost|\[::1\]):(\d+)'
+    for name, body in re.findall(r'\bupstream\s+([A-Za-z0-9_-]+)\s*\{([^{}]*)\}', config):
+        backends = re.findall(r'\bserver\s+([^\s;]+)[^;]*;', body)
+        ports = []
+        for backend in backends:
+            match = re.fullmatch(address, backend)
+            if not match:
+                # Keep unresolved groups explicitly unknown, never silently ignore them.
+                upstreams[name] = None
+                break
+            ports.append(int(match.group(1)))
+        else:
+            if ports and (name not in upstreams or upstreams[name] is not None):
+                upstreams.setdefault(name, set()).update(ports)
+            else:
+                upstreams[name] = None
+    protected = {int(port) for port in re.findall(address + r'\b', config)}
     for target in re.findall(r'\bproxy_pass\s+([^;]+);', config):
-        if not re.fullmatch(r'https?://(?:127\.0\.0\.1|localhost|\[::1\]):\d+(?:/[^\s;]*)?', target.strip()):
-            raise RuntimeError('A non-numeric or non-loopback proxy target requires review; no services retired.')
-    # Also protect local upstream server declarations, URLs and static config references.
-    return {int(port) for port in re.findall(r'(?:127\.0\.0\.1|localhost|\[::1\]):(\d+)\b', config)}
+        target = target.strip()
+        if re.fullmatch(r'https?://' + address + r'(?:/[^\s;]*)?', target):
+            continue
+        named = re.fullmatch(r'https?://([A-Za-z0-9_-]+)(?:/[^\s;]*)?', target)
+        if named and upstreams.get(named.group(1)):
+            protected.update(upstreams[named.group(1)])
+            continue
+        raise RuntimeError('An unresolved proxy target requires review; no services retired.')
+    return protected
 
 
 def descendant_pids(main_pid, process_rows):

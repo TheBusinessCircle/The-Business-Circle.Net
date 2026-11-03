@@ -22,6 +22,33 @@ upstream test { server localhost:3380; }
             with self.subTest(target=target), self.assertRaises(RuntimeError):
                 retire.referenced_ports('proxy_pass ' + target + ';')
 
+    def test_named_livekit_upstream_protects_its_backend_ports(self):
+        config = '''upstream livekit_signal {
+          zone livekit 64k;
+          server 127.0.0.1:7880;
+          server [::1]:7881 backup;
+          keepalive 32;
+        }
+        proxy_pass http://127.0.0.1:3374;
+        proxy_pass http://127.0.0.1:8787;
+        proxy_pass http://livekit_signal;
+        proxy_pass http://127.0.0.1:3000;
+        '''
+        protected = retire.referenced_ports(config)
+        self.assertEqual(protected, {3374, 8787, 3000, 7880, 7881})
+        self.assertFalse(retire.may_retire('circle-card-release-0539b39-owned.service', {7880}, protected, set()))
+
+    def test_named_upstream_with_an_unknown_backend_is_refused(self):
+        for backend in ['unix:/tmp/livekit.sock', '$backend', 'otherhost:7880']:
+            with self.subTest(backend=backend), self.assertRaises(RuntimeError):
+                retire.referenced_ports('upstream livekit_signal { server ' + backend + '; } proxy_pass http://livekit_signal;')
+
+    def test_empty_or_conflicting_upstream_is_refused(self):
+        for blocks in ['upstream livekit_signal { keepalive 32; }',
+                       'upstream livekit_signal { server 127.0.0.1:7880; } upstream livekit_signal { server unknown:7881; }']:
+            with self.subTest(blocks=blocks), self.assertRaises(RuntimeError):
+                retire.referenced_ports(blocks + ' proxy_pass http://livekit_signal;')
+
     def test_descendant_listeners_are_included(self):
         pids = retire.descendant_pids(20, '20 1\n21 20\n22 21\n30 1')
         self.assertEqual(pids, {20, 21, 22})
