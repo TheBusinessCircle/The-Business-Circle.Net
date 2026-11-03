@@ -78,6 +78,15 @@ def allowed_payload(name):
     return name in PAYLOAD_FILES
 
 
+def build_heap_mib(available_kib):
+    available_mib = available_kib // 1024
+    # Keep the existing 1 GiB allowance for native overhead and memory fluctuations.
+    for heap_mib in (3072, 2560):
+        if available_mib >= heap_mib + 1024:
+            return heap_mib
+    raise RuntimeError(f'Build requires at least 3584 MiB available RAM; currently {available_mib} MiB. Live site unchanged.')
+
+
 def patch_prepared_preview(source):
     marker = 'const row = await getOwnedPreparedCard(preparedId);'
     if source.count(marker) != 1:
@@ -233,8 +242,8 @@ def main():
             raise RuntimeError('The prepared-preview source changed; no deployment was attempted.')
     route_bytes = patch_prepared_preview(source_page).encode('utf-8')
     available_kib = next(int(line.split()[1]) for line in Path('/proc/meminfo').read_text().splitlines() if line.startswith('MemAvailable:'))
-    if not args.resume_existing and available_kib < 4096 * 1024:
-        raise RuntimeError(f'Build requires 4096 MiB available RAM; currently {available_kib // 1024} MiB. Live site unchanged.')
+    heap_mib = 2560 if args.resume_existing else build_heap_mib(available_kib)
+    print(f'Build memory budget: Node heap {heap_mib} MiB; available RAM {available_kib // 1024} MiB.', flush=True)
     with socket.socket() as probe:
         probe.bind(('127.0.0.1', NEW_PORT))
     env = dict(os.environ)
@@ -321,7 +330,8 @@ def main():
             elif next_dir.exists():
                 shutil.rmtree(next_dir)
     env.update({'PWD': str(stage), 'NODE_ENV': 'production', 'PORT': str(NEW_PORT), 'HOSTNAME': '127.0.0.1', 'NEXT_TELEMETRY_DISABLED': '1'})
-    env['NODE_OPTIONS'] = env.get('NODE_OPTIONS', '') + ' --max-old-space-size=3072'
+    previous_options = re.sub(r'--max[-_]old[-_]space[-_]size(?:=|\s+)\d+', '', env.get('NODE_OPTIONS', ''))
+    env['NODE_OPTIONS'] = previous_options.strip() + f' --max-old-space-size={heap_mib}'
     for key, value in list(env.items()):
         if value.startswith(str(LIVE) + '/'):
             env[key] = str(stage) + value[len(str(LIVE)):]

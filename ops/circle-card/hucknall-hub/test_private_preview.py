@@ -6,7 +6,7 @@ import unittest
 
 SOURCE = Path(__file__).with_name('install-private-preview.py').read_text(encoding='utf-8')
 PARSED = ast.parse(SOURCE)
-FUNCTIONS = {'allowed_payload', 'patch_prepared_preview', 'rewrite_nginx', 'rewrite_unit'}
+FUNCTIONS = {'allowed_payload', 'build_heap_mib', 'patch_prepared_preview', 'rewrite_nginx', 'rewrite_unit'}
 NS = {
     're': re, 'Path': Path, 'OLD_PORT': 3373, 'NEW_PORT': 3374,
     'DRAFT_ID': 'cmvzwzm3y000amkahigz25s8r',
@@ -19,6 +19,17 @@ exec(compile(ast.Module(body=[node for node in PARSED.body if isinstance(node, a
 
 
 class PrivatePreviewContract(unittest.TestCase):
+    def test_reported_server_memory_selects_smaller_heap(self):
+        self.assertEqual(NS['build_heap_mib'](3866 * 1024), 2560)
+
+    def test_original_budget_is_preserved_when_memory_allows(self):
+        self.assertEqual(NS['build_heap_mib'](4096 * 1024), 3072)
+
+    def test_smaller_budget_still_reserves_headroom(self):
+        self.assertEqual(NS['build_heap_mib'](3584 * 1024), 2560)
+        with self.assertRaisesRegex(RuntimeError, 'Live site unchanged'):
+            NS['build_heap_mib'](3583 * 1024)
+
     def test_owner_lookup_precedes_special_render(self):
         original = 'export default async function Page() {\n  const row = await getOwnedPreparedCard(preparedId);\n  const card = buildPreparedCardPreview(row, plan);\n  return <Existing card={card} />;\n}'
         patched = NS['patch_prepared_preview'](original)
