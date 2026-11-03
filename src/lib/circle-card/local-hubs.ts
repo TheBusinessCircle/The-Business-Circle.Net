@@ -60,6 +60,7 @@ export type LocalHubBusiness = {
   slug: string;
   name: string;
   description: string | null;
+  imageUrl?: string | null;
   category: BusinessDirectoryCategory;
   trustScore: number;
   verifiedTestimonials: number;

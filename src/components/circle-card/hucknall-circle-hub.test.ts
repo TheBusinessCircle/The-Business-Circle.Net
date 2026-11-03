@@ -5,6 +5,14 @@ import { HucknallCircleHub } from "./hucknall-circle-hub";
 import { HucknallHubDraftPreview, HUCKNALL_PREVIEW_BUSINESSES } from "./hucknall-hub-draft-preview";
 
 describe("Hucknall public hub rendering", () => {
+  it("makes town photography and business pictures part of the rendered presentation", () => {
+    const html = renderToStaticMarkup(createElement(HucknallCircleHub, { businesses: [{ id: "shop", slug: "shop", name: "Local Shop", description: null, category: "shopping", trustScore: 0, verifiedTestimonials: 0, imageUrl: "https://example.com/shop.jpg" }], joinPath: "/join", proPath: "/pro" }));
+    expect(html).toContain('src="https://example.com/shop.jpg"');
+    expect(html).toContain('/hucknall/photos/st-mary.jpg');
+    expect(html).toContain('/hucknall/photos/titchfield-park.jpg');
+    expect(html).toContain("Town photography &amp; credits");
+    expect(html).not.toContain('/branding/circle-card-logo.png');
+  });
   it("shows an honest empty directory and free joining route", () => {
     const html = renderToStaticMarkup(createElement(HucknallCircleHub, { businesses: [], joinPath: "/register", proPath: "/pro" }));
     expect(html).toContain("Your local Circle starts here");

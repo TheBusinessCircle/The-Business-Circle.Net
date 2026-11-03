@@ -30,6 +30,7 @@ export async function getHucknallHubBusinesses(): Promise<LocalHubBusiness[]> {
       if (!stillEligible) continue;
       businesses.push({ id: card.id, slug: card.slug, name: card.businessName || card.fullName,
         description: card.tagline,
+        imageUrl: card.businessLogoUrl || card.profileImageUrl || null,
         category: candidate.businessCategory && isBusinessDirectoryCategory(candidate.businessCategory)
           ? candidate.businessCategory : "other",
         trustScore: directoryCircleTrustScore(card.trust),

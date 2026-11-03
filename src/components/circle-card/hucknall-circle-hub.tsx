@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 import { HUCKNALL_ABOUT_PATH } from "@/lib/circle-card/hucknall-content";
-import { ArrowUpRight, Building2, Check, MapPin, Search, Share2, ShieldCheck, Store, Heart, Utensils, ShoppingBag, Hammer, Sparkles, BriefcaseBusiness, Car, Compass, UsersRound, Shapes } from "lucide-react";
-import { CircleCardLogoMark } from "@/components/circle-card/circle-card-logo-mark";
+import { ArrowUpRight, Building2, Check, MapPin, Search, Share2, ShieldCheck, Utensils, ShoppingBag, Hammer, Sparkles, BriefcaseBusiness, Car, Compass, UsersRound, Shapes } from "lucide-react";
+import { HucknallPhoto } from "@/components/circle-card/hucknall-photo";
+import { HUCKNALL_PHOTOS, HUCKNALL_PROFILE_PHOTO } from "@/lib/circle-card/hucknall-media";
 import { BUSINESS_DIRECTORY_CATEGORIES, HUCKNALL_HUB_PATH, type LocalHubBusiness } from "@/lib/circle-card/local-hubs";
 
 const CATEGORY_ICONS = [Utensils, ShoppingBag, Hammer, Sparkles, BriefcaseBusiness, Car, Compass, UsersRound, Shapes];
@@ -40,29 +41,32 @@ export function HucknallCircleHub({ businesses, joinPath, proPath, previewMode =
     }
   }
 
-  return <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-8 sm:px-6 sm:py-12">
+  return <div data-hucknall-presentation="photographic" className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 sm:px-6 sm:py-10">
     <nav aria-label="Hucknall hub navigation" className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-gold"><a href="#hub-directory-title" className="inline-flex min-h-11 items-center">Local directory</a><Link href={HUCKNALL_ABOUT_PATH} className="inline-flex min-h-11 items-center">About Hucknall</Link>{nativeIdentity ? <a href="#hub-connect" className="inline-flex min-h-11 items-center">Connect with Hucknall</a> : null}</nav>
     {previewMode ? <div role="status" className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-5 py-4 text-sm text-amber-100"><strong>Private hub design preview.</strong> Search and category filters work with clearly marked illustrative listings. These are not joined businesses. Public enrolment and real business links are not active.</div> : null}
-    <section className="relative overflow-hidden rounded-[2rem] border border-[#d8b868]/40 bg-[#07101f] p-6 text-white shadow-[0_0_70px_rgba(35,115,255,0.12)] sm:p-12">
-      <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-blue-500/15 blur-3xl" />
-      <svg aria-hidden="true" viewBox="0 0 1000 180" className="pointer-events-none absolute bottom-0 left-0 h-36 w-full text-[#e5c779]/10" fill="none"><path d="M0 170H50V112L80 94L110 112V170H140V88H160V67H180V88H202V170H240V120L275 94L310 120V170H350V60H370V35H380V14H396V35H408V60H430V170H466V112H520V93H550V112H590V170H620V106L655 80L690 106V170H725V122L755 105L785 122V170H820V100H880V170H920V124L960 99L1000 124V170" stroke="currentColor" strokeWidth="3" /><path d="M55 127H105M145 108H195M245 134H305M356 80H424M472 130H584M625 124H685M731 138H779M826 119H874M927 139H993" stroke="currentColor" strokeWidth="3" /></svg>
-      <div className="relative flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-        <div className="max-w-2xl">
-          <div className="mb-8 flex items-center gap-4">{nativeIdentity || <CircleCardLogoMark className="h-12 w-12" />}<div><p className="text-sm font-semibold text-white">Hucknall Circle Hub</p><p className="text-[10px] uppercase tracking-[0.2em] text-[#e5c779]">Powered by Circle Card</p><p className="mt-2 text-xs text-slate-300">Independent. Local. Run by Trev.</p></div></div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#e5c779]">One town. One Circle.</p>
-          <h1 className="mt-3 font-display text-5xl font-semibold leading-[1.05] tracking-tight sm:text-7xl">Hucknall.<br /><span className="text-[#e5c779]">All together.</span></h1>
-          <p className="mt-5 max-w-xl text-lg leading-relaxed text-slate-200 sm:text-xl">Your high street. Your people. Your Circle.</p>
-          <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-300 sm:text-base">Find the independent shops, local services and familiar faces that make our town. Discover your next favourite, right here in Hucknall.</p>
-          <p className="mt-5 inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-400/10 px-4 py-2 text-sm text-blue-100"><MapPin size={16} /> Hucknall &amp; NG15</p>
-        </div>
-        <div className="flex shrink-0 flex-col items-start gap-4"><div aria-hidden="true" className="relative grid h-36 w-36 place-items-center rounded-full border border-[#e5c779]/30 bg-[radial-gradient(circle_at_50%_40%,rgba(229,199,121,0.2),rgba(34,95,216,0.15)_55%,transparent)] shadow-[0_0_60px_rgba(38,109,255,0.18)]"><div className="text-center"><Store size={30} className="mx-auto mb-2 text-[#e5c779]" /><span className="text-4xl font-semibold tracking-tight text-[#e5c779]">NG15</span><p className="mt-1 text-[10px] uppercase tracking-[0.24em] text-slate-200">Keep it local</p></div></div>{!previewMode ? <button type="button" onClick={share} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#d8b868]/40 px-5 text-sm text-[#e5c779]"><Share2 size={16} /> Share this hub</button> : <span className="rounded-full border border-amber-200/25 px-4 py-2 text-xs text-amber-100">Private presentation</span>}</div>
+    <section aria-label="Welcome to Hucknall" className="relative isolate overflow-hidden rounded-[2rem] border border-[#d9c498]/40 bg-[#102c29] text-white shadow-2xl">
+      <HucknallPhoto src="/hucknall/photos/town-centre.jpg" alt="Hucknall town centre, library and St Mary Magdalene Church" eager className="absolute inset-0 -z-20 h-full w-full object-cover" />
+      <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(6,28,26,0.18),rgba(6,28,26,0.65)_35%,rgba(6,28,26,0.98))]" />
+      <div className="flex min-h-[580px] flex-col justify-end p-6 pt-28 sm:min-h-[650px] sm:p-12 sm:pt-40">
+        <p className="absolute left-6 top-6 rounded-full border border-white/30 bg-[#102c29]/80 px-4 py-2 text-xs uppercase tracking-[0.2em] text-[#f5e6c7] sm:left-12 sm:top-10">Nottinghamshire · NG15</p>
+        <div className="mb-7 flex items-center gap-4">{nativeIdentity || <HucknallPhoto src={HUCKNALL_PROFILE_PHOTO} alt="St Mary Magdalene Church, Hucknall" className="h-20 w-20 shrink-0 rounded-full border-2 border-[#ead4a3] object-cover" />}<div><p className="text-lg font-semibold">Hucknall Circle Hub</p><p className="mt-1 text-xs text-[#eee0c7]">Independent. Local. Run by Trev.</p><p className="mt-2 text-[9px] uppercase tracking-[0.2em] text-white/70">Powered by Circle Card</p></div></div>
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#ead4a3]">One town. One Circle.</p>
+        <h1 className="mt-3 font-display text-5xl font-semibold leading-[1.02] tracking-tight sm:text-8xl">Hucknall.<br /><span className="text-[#ead4a3]">All together.</span></h1>
+        <p className="mt-5 max-w-xl text-lg text-white sm:text-2xl">Your high street. Your people. Your Circle.</p>
+        <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/80">The shops you know. The people you trust. The places you are yet to discover. A local home for the town we call ours.</p>
+        <div className="mt-6 flex flex-wrap gap-3"><a href="#hub-directory-title" className="inline-flex min-h-12 items-center gap-2 rounded-full bg-[#ead4a3] px-6 font-semibold text-[#102c29]">Explore the directory <ArrowUpRight size={18} /></a>{!previewMode ? <button type="button" onClick={share} className="inline-flex min-h-12 items-center gap-2 rounded-full border border-white/40 px-5 text-sm text-white"><Share2 size={16} />Share this hub</button> : <span className="self-center text-xs text-amber-100">Private presentation</span>}</div>
+        <p role="status" className="mt-2 text-sm text-white">{shareStatus}</p>
+        {nativeActions ? <div id="hub-connect" className="mt-5 flex scroll-mt-24 flex-wrap items-center gap-3 border-t border-white/20 pt-5">{nativeActions}</div> : null}
       </div>
-      <p role="status" className="mt-2 text-sm text-blue-100">{shareStatus}</p>
-      {nativeActions ? <div id="hub-connect" className="relative mt-6 flex scroll-mt-24 flex-wrap items-center gap-3 border-t border-gold/25 pt-6">{nativeActions}</div> : null}
-      <div className="relative mt-8 flex flex-wrap items-center gap-3 border-t border-white/10 pt-6">
-        <span className="mr-auto inline-flex items-center gap-2 text-sm text-slate-300"><Heart size={17} className="text-[#e5c779]" />{previewMode ? "A local home for local businesses" : <><strong className="text-white">{businesses.length}</strong> local {businesses.length === 1 ? "business" : "businesses"} · Free to join</>}</span>
-        {previewMode ? <a href="#hub-directory-title" className="inline-flex min-h-12 items-center gap-2 rounded-full bg-[#e5c779] px-6 font-semibold text-[#07101f]">Explore the directory <ArrowUpRight size={18} /></a> : <Link href={joinPath} className="inline-flex min-h-12 items-center gap-2 rounded-full bg-[#e5c779] px-6 font-semibold text-[#07101f]">Add your business free <ArrowUpRight size={18} /></Link>}
-      </div>
+    </section>
+    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#b6c9bd]/25 bg-[#163c35] px-5 py-4 text-sm text-[#eee4cf]"><MapPin size={18} /><span className="mr-auto">Hucknall &amp; NG15 · {previewMode ? "A local home for local businesses" : `${businesses.length} local businesses · Free to join`}</span>{!previewMode ? <Link href={joinPath} className="inline-flex min-h-11 items-center gap-2 font-semibold underline underline-offset-4">Add your business free <ArrowUpRight size={16} /></Link> : null}</div>
+    <section aria-labelledby="hucknall-in-pictures" className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs uppercase tracking-[0.2em] text-[#d9c498]">A place to belong</p><h2 id="hucknall-in-pictures" className="mt-2 font-display text-3xl text-white">This is our Hucknall.</h2></div><Link href={HUCKNALL_ABOUT_PATH} className="text-sm text-[#ead4a3] underline underline-offset-4">Discover our town</Link></div>
+      <div className="grid gap-4 sm:grid-cols-3">{HUCKNALL_PHOTOS.filter(photo => photo.id !== "town").map(photo => <Link key={photo.id} href={`${HUCKNALL_ABOUT_PATH}#${photo.id === "church" ? "heritage" : "visit"}`} className="group relative isolate block overflow-hidden rounded-2xl border border-white/15 bg-[#163c35]">
+        <HucknallPhoto src={photo.src} alt={photo.alt} className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-105" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent" /><div className="absolute bottom-5 left-5 right-5"><p className="text-[10px] uppercase tracking-[0.2em] text-[#ead4a3]">{photo.id === "church" ? "Our heritage" : photo.id === "park" ? "Room to breathe" : "Keep it local"}</p><h3 className="mt-1 text-xl font-semibold text-white">{photo.title}</h3></div>
+      </Link>)}</div>
+      <details className="text-xs leading-relaxed text-slate-400"><summary className="min-h-8 cursor-pointer">Town photography &amp; credits</summary><p className="mt-2">Photographs show Hucknall at their stated dates, with display crops. <a href="https://creativecommons.org/licenses/by-sa/2.0/" className="underline">CC BY-SA 2.0</a>. No photographer endorsement is implied. Display adaptations remain under the same licence.</p><ul className="mt-2 space-y-1">{HUCKNALL_PHOTOS.map(photo => <li key={photo.id}><a href={photo.source} className="underline">{photo.title}</a> · {photo.author} · {photo.year}</li>)}</ul></details>
     </section>
 
     {nativeDetails}
@@ -86,7 +90,7 @@ export function HucknallCircleHub({ businesses, joinPath, proPath, previewMode =
         return <section key={key} aria-labelledby={`hub-section-${key}`} className="space-y-4 pt-4">
           <h3 id={`hub-section-${key}`} className="flex items-center gap-3 font-display text-2xl text-foreground">{label}<span className="rounded-full border border-silver/20 px-2.5 py-1 font-sans text-xs text-muted">{items.length}</span></h3>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{visible.map(business => <article key={business.id} className="flex flex-col rounded-2xl border border-silver/20 bg-card/70 p-5">
-            <div className="flex items-start justify-between gap-3"><Building2 size={23} className="text-gold" /><span className="inline-flex items-center gap-1.5 rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-xs text-gold"><ShieldCheck size={13} /> {previewMode ? "Example listing" : `Circle Trust ${business.trustScore}`}</span></div>
+            <div className="mb-4 overflow-hidden rounded-xl border border-white/10 bg-[#163c35]"><HucknallPhoto src={business.imageUrl} alt={`${business.name} profile picture`} fallback={business.name.split(" ").filter(Boolean).slice(0, 2).map(word => word[0]).join("")} className="h-40 w-full object-contain p-4" /></div><div className="flex items-start justify-between gap-3"><Building2 size={23} className="text-gold" /><span className="inline-flex items-center gap-1.5 rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-xs text-gold"><ShieldCheck size={13} /> {previewMode ? "Example listing" : `Circle Trust ${business.trustScore}`}</span></div>
             <h4 className="mt-4 break-words text-lg font-semibold text-foreground">{previewMode ? business.name : <Link href={`/card/${business.slug}`}>{business.name}</Link>}</h4>
             <p className="mt-2 flex-1 break-words text-sm leading-relaxed text-muted">{business.description || "Meet this local business through their Circle Card."}</p>
             <p className="mt-4 text-xs text-muted">NG15 · {business.verifiedTestimonials ? `${business.verifiedTestimonials} verified ${business.verifiedTestimonials === 1 ? "testimonial" : "testimonials"}` : "Building their Circle Trust"}</p>

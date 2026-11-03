@@ -51,7 +51,7 @@ try {
     fs.writeFileSync(statePath, JSON.stringify({ id, owner, before: current }), { mode: 0o600, flag: 'wx' });
     const values = { fullName: 'Hucknall Circle Hub', businessName: 'Hucknall Circle Hub', role: 'Independent local community hub',
       tagline: 'Your high street. Your people. Your Circle.', about,
-      profileImageUrl: 'https://circlecard.co.uk/branding/circle-card-logo.png', businessLogoUrl: 'https://circlecard.co.uk/branding/circle-card-logo.png',
+      profileImageUrl: 'https://circlecard.co.uk/hucknall/photos/st-mary.jpg', businessLogoUrl: 'https://circlecard.co.uk/hucknall/photos/st-mary.jpg',
       websiteUrl: 'https://circlecard.co.uk/card/hucknall-circle-hub/about', location: 'Hucknall, Nottinghamshire',
       themePrimaryColor: '#07101f', themeAccentColor: '#e5c779', themeButtonColor: '#e5c779', cardType: 'BUSINESS',
       isPublished: true, showInDiscover: true, discoverOptedInAt: new Date(), archivedAt: null };

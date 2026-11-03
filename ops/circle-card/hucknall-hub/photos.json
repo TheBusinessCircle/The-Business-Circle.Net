@@ -1,0 +1,42 @@
+[
+  {
+    "id": "church",
+    "file": "st-mary.jpg",
+    "title": "St Mary Magdalene",
+    "alt": "St Mary Magdalene Church in Hucknall",
+    "author": "Phil Evans",
+    "year": "2008",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/9/90/Hucknall_Church_St_Mary_Magdalene.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Hucknall_Church_St_Mary_Magdalene.jpg"
+  },
+  {
+    "id": "town",
+    "file": "town-centre.jpg",
+    "title": "Our town centre",
+    "alt": "Hucknall town centre with the library and parish church",
+    "author": "John Sutton",
+    "year": "2014",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/0/0b/A_rainy_morning_in_Hucknall_-_geograph.org.uk_-_3925304.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:A_rainy_morning_in_Hucknall_-_geograph.org.uk_-_3925304.jpg"
+  },
+  {
+    "id": "street",
+    "file": "high-street.jpg",
+    "title": "The High Street",
+    "alt": "Hucknall High Street viewed from St Mary Magdalene Church",
+    "author": "Phil Evans",
+    "year": "2008",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/a/af/High_St%2C_Hucknall_-_geograph.org.uk_-_892807.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:High_St,_Hucknall_-_geograph.org.uk_-_892807.jpg"
+  },
+  {
+    "id": "park",
+    "file": "titchfield-park.jpg",
+    "title": "Titchfield Park",
+    "alt": "Green space and mature trees at Titchfield Park in Hucknall",
+    "author": "Alan Murray-Rust",
+    "year": "2025",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/5/50/Titchfield_Park%2C_Hucknall_-_geograph.org.uk_-_8108031.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Titchfield_Park,_Hucknall_-_geograph.org.uk_-_8108031.jpg"
+  }
+]

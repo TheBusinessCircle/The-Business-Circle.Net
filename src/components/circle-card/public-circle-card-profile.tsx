@@ -3206,7 +3206,7 @@ export function PublicCircleCardProfile({
   if (card.id === "cmvzwzm3y000amkahigz25s8r" && card.slug === "hucknall-circle-hub" && !card.isDemo) {
     return <HucknallPublicHub
       businesses={localHubBusinesses}
-      identity={<CircleCardSpinToConnect {...spinToConnectProps} className="h-24 w-24 shrink-0" showAmbientRing={true}><CircleCardLogoMark className="h-full w-full" /></CircleCardSpinToConnect>}
+      identity={<CircleCardSpinToConnect {...spinToConnectProps} className="h-24 w-24 shrink-0" showAmbientRing={true}><img src="/hucknall/photos/st-mary.jpg" alt="St Mary Magdalene Church, Hucknall" className="h-full w-full rounded-full object-cover" /></CircleCardSpinToConnect>}
       actions={<>{renderWalletAction()}<CircleCardShareButton title="Hucknall Circle Hub" publicUrl={publicUrl} cardId={analyticsCardId} label="Share Hucknall" /><a href={`${new URL(publicUrl).pathname}/vcard`} className="inline-flex min-h-11 items-center rounded-full border border-gold/30 px-5 text-sm text-gold">Save contact</a></>}
       connection={renderConnectionAction()}
       feedback={noticeMessage || errorMessage ? <p role="status" className="rounded-xl border border-gold/30 p-4 text-sm">{errorMessage || noticeMessage}</p> : null}

@@ -12,6 +12,13 @@ const publicCard = (slug: string, score = 0) => ({ id: slug, slug, businessName:
   isDemo: false, localHubPath: HUCKNALL_HUB_PATH, trust: { verifiedTestimonialCount: 0, signals: [{ id: "verified-connections", scoreContribution: score }] } });
 
 describe("public Hucknall hub directory", () => {
+  it("uses the canonical public business logo, falling back to its profile photograph", async () => {
+    mocks.findMany.mockResolvedValue([candidate("shop")]);
+    mocks.getPublicCard.mockResolvedValue({ ...publicCard("shop"), businessLogoUrl: "https://example.com/logo.jpg", profileImageUrl: "https://example.com/owner.jpg" });
+    expect((await getHucknallHubBusinesses())[0].imageUrl).toBe("https://example.com/logo.jpg");
+    mocks.getPublicCard.mockResolvedValue({ ...publicCard("shop"), businessLogoUrl: null, profileImageUrl: "https://example.com/owner.jpg" });
+    expect((await getHucknallHubBusinesses())[0].imageUrl).toBe("https://example.com/owner.jpg");
+  });
   beforeEach(() => { vi.clearAllMocks(); mocks.findMany.mockResolvedValue([]); mocks.findFirst.mockResolvedValue({ id: "eligible" }); mocks.getPublicCard.mockImplementation(async slug => publicCard(slug)); });
   it("enforces opt-in, publication, location, type, archive and suspended-account predicates", async () => {
     await getHucknallHubBusinesses();
@@ -30,7 +37,7 @@ describe("public Hucknall hub directory", () => {
     const result = await getHucknallHubBusinesses();
     expect(result).toHaveLength(1);
     expect(JSON.stringify(result)).not.toContain("NG15 7AA");
-    expect(Object.keys(result[0]).sort()).toEqual(["category", "description", "id", "name", "slug", "trustScore", "verifiedTestimonials"]);
+    expect(Object.keys(result[0]).sort()).toEqual(["category", "description", "id", "imageUrl", "name", "slug", "trustScore", "verifiedTestimonials"]);
   });
   it("rechecks consent and location from the fresh canonical card read", async () => {
     mocks.findMany.mockResolvedValue([candidate("changed")]);

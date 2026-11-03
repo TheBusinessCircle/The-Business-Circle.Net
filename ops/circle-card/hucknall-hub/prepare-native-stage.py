@@ -37,6 +37,7 @@ def main():
         target = stage / relative
         if target.exists() and not target.resolve().is_relative_to(stage):
             raise RuntimeError('The Prisma dependency store is shared; scoped generation needs review.')
+    subprocess.run(['python3', 'ops/circle-card/hucknall-hub/fetch-photos.py'], check=True)
     log = state / 'prisma-generate.log'
     with log.open('w') as output:
         log.chmod(0o600)
