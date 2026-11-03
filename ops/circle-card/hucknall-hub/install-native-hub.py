@@ -23,6 +23,8 @@ NGINX = Path('/etc/nginx/sites-enabled/circlecard.co.uk')
 OLD_PORT, NEW_PORT = None, None
 PAGE = Path('src/app/(member)/app/prepared/[preparedId]/preview/page.tsx')
 PAYLOAD_FILES = {
+    "public/hucknall/photos/hucknall-market.jpg",
+    "public/hucknall/photos/pedestrian-high-street.jpg",
     "src/components/circle-card/hucknall-circle-hub.tsx",
     "src/components/circle-card/hucknall-hub-draft-preview.tsx",
     "src/components/circle-card/hucknall-public-hub.tsx",
@@ -90,7 +92,32 @@ def rewrite_nginx(text, old_root, new_root):
         if resolved == old_root or resolved.startswith(old_root + '/'):
             mapped = new_root + resolved[len(old_root):]
             result = result.replace(match.group(0), match.group(1) + mapped + match.group(3))
-    return result
+    return pedestrian_photo_routes(result, new_root)
+
+
+def pedestrian_photo_routes(text, release_root):
+    """Extend the already verified photo block without touching sibling hosts."""
+    marker = '# Hucknall pedestrianised town photographs'
+    names = ('hucknall-market.jpg', 'pedestrian-high-street.jpg')
+    paths = [f'/hucknall/photos/{name}' for name in names]
+    if marker in text:
+        for name, path in zip(names, paths):
+            expected = f'alias {release_root}/public/hucknall/photos/{name};'
+            if text.count('location = ' + path + ' {') != 1 or text.count(expected) != 1:
+                raise RuntimeError('Existing pedestrian photo routes differ; review required.')
+        return text
+    old_marker = '# Hucknall public town photographs'
+    if text.count(old_marker) != 1 or any(path in text for path in paths):
+        raise RuntimeError('Expected one previously verified Hucknall photo block.')
+    additions = marker + '\n'
+    for name, path in zip(names, paths):
+        additions += (f'    location = {path} {{\n'
+                      f'        alias {release_root}/public/hucknall/photos/{name};\n'
+                      '        default_type image/jpeg;\n'
+                      '        add_header X-Content-Type-Options nosniff always;\n'
+                      '        add_header Cache-Control "public, max-age=3600" always;\n'
+                      '    }\n')
+    return text.replace(old_marker, additions + '    ' + old_marker)
 
 
 def allowed_payload(name):

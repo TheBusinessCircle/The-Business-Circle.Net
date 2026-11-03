@@ -7,27 +7,30 @@
     "author": "Phil Evans",
     "year": "2008",
     "url": "https://upload.wikimedia.org/wikipedia/commons/9/90/Hucknall_Church_St_Mary_Magdalene.jpg",
-    "source": "https://commons.wikimedia.org/wiki/File:Hucknall_Church_St_Mary_Magdalene.jpg"
+    "source": "https://commons.wikimedia.org/wiki/File:Hucknall_Church_St_Mary_Magdalene.jpg",
+    "bundled": false
   },
   {
     "id": "town",
-    "file": "town-centre.jpg",
-    "title": "Our town centre",
-    "alt": "Hucknall town centre with the library and parish church",
-    "author": "John Sutton",
-    "year": "2014",
-    "url": "https://upload.wikimedia.org/wikipedia/commons/0/0b/A_rainy_morning_in_Hucknall_-_geograph.org.uk_-_3925304.jpg",
-    "source": "https://commons.wikimedia.org/wiki/File:A_rainy_morning_in_Hucknall_-_geograph.org.uk_-_3925304.jpg"
+    "file": "hucknall-market.jpg",
+    "title": "Hucknall market",
+    "alt": "Market stalls and shoppers on Hucknall pedestrianised High Street",
+    "author": "Image supplied by Trev",
+    "year": "Date not provided",
+    "source": "",
+    "bundled": true,
+    "sha256": "1a010f28fd54cc17bf178d562f9db7ad68af39b9b282f7439bb7c88f2cbdb35e"
   },
   {
     "id": "street",
-    "file": "high-street.jpg",
+    "file": "pedestrian-high-street.jpg",
     "title": "The High Street",
-    "alt": "Hucknall High Street viewed from St Mary Magdalene Church",
-    "author": "Phil Evans",
-    "year": "2008",
-    "url": "https://upload.wikimedia.org/wikipedia/commons/a/af/High_St%2C_Hucknall_-_geograph.org.uk_-_892807.jpg",
-    "source": "https://commons.wikimedia.org/wiki/File:High_St,_Hucknall_-_geograph.org.uk_-_892807.jpg"
+    "alt": "Hucknall pedestrianised High Street with shops and open walking space",
+    "author": "Image supplied by Trev",
+    "year": "Date not provided",
+    "source": "",
+    "bundled": true,
+    "sha256": "ee68f186c4aa2d76123990ec3223fc257f00e8283737a34de373b318d37413bc"
   },
   {
     "id": "park",
@@ -37,6 +40,7 @@
     "author": "Alan Murray-Rust",
     "year": "2025",
     "url": "https://upload.wikimedia.org/wikipedia/commons/5/50/Titchfield_Park%2C_Hucknall_-_geograph.org.uk_-_8108031.jpg",
-    "source": "https://commons.wikimedia.org/wiki/File:Titchfield_Park,_Hucknall_-_geograph.org.uk_-_8108031.jpg"
+    "source": "https://commons.wikimedia.org/wiki/File:Titchfield_Park,_Hucknall_-_geograph.org.uk_-_8108031.jpg",
+    "bundled": false
   }
 ]
