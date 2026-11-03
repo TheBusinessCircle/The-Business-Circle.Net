@@ -1,0 +1,550 @@
+diff --git a/src/app/(member)/app/share/commissions/commission-hub.test.ts b/src/app/(member)/app/share/commissions/commission-hub.test.ts
+new file mode 100644
+index 0000000..62ba2f9
+--- /dev/null
++++ b/src/app/(member)/app/share/commissions/commission-hub.test.ts
+@@ -0,0 +1,45 @@
++import { createElement } from "react";
++import { renderToStaticMarkup } from "react-dom/server";
++import { beforeEach, describe, expect, it, vi } from "vitest";
++
++const mocks = vi.hoisted(() => ({ user: vi.fn(), access: vi.fn(), controls: vi.fn(), legacy: vi.fn() }));
++vi.mock("next/link", () => ({ default: ({ children, ...props }: Record<string, unknown>) => createElement("a", props, children as string) }));
++vi.mock("next/navigation", () => ({ redirect: vi.fn(() => { throw new Error("redirect"); }) }));
++vi.mock("@/config/runtime-brand", () => ({ getRuntimeBrand: () => ({ key: "circle-card", canonicalOrigin: "https://circlecard.co.uk" }) }));
++vi.mock("@/lib/session", () => ({ requireCircleCardUser: mocks.user }));
++vi.mock("@/server/circle-card/billing.service", () => ({ loadCircleCardAccessForUser: mocks.access }));
++vi.mock("@/server/circle-card/commission-programme.service", () => ({ getCircleCommissionMemberControls: mocks.controls }));
++vi.mock("@/server/circle-card/commission.service", () => ({ getCircleCardCommissionEarningsForUser: mocks.legacy }));
++vi.mock("@/components/circle-card/circle-card-commission-member-area", () => ({ CircleCardCommissionMemberArea: () => createElement("div", null, "Owned commission controls") }));
++vi.mock("@/components/circle-card/circle-card-copy-link-button", () => ({ CircleCardCopyLinkButton: ({ publicUrl, label }: {publicUrl:string;label:string}) => createElement("button", {"data-link":publicUrl}, label) }));
++import CommissionsPage from "./page";
++
++describe("commission hub data failures and attribution", () => {
++  beforeEach(() => {
++    mocks.user.mockResolvedValue({ user: { id: "signed-in-owner" } });
++    mocks.access.mockResolvedValue({ hasProAccess: true });
++    mocks.controls.mockResolvedValue({ enabled: false });
++    mocks.legacy.mockResolvedValue({ referralCode: "OWNER123", pendingPence: 0, paidPence: 0 });
++  });
++  const render = async () => renderToStaticMarkup(await CommissionsPage({searchParams: Promise.resolve({})}));
++  it("loads only the signed-in member and puts their referral copy control in the hub", async () => {
++    const html = await render();
++    expect(mocks.controls).toHaveBeenCalledWith("signed-in-owner");
++    expect(mocks.legacy).toHaveBeenCalledWith("signed-in-owner");
++    expect(html).toContain("Copy referral link"); expect(html).toContain('data-link="https://circlecard.co.uk/r/owner123"');
++  });
++  it("hides mutation controls when setup status cannot be read", async () => {
++    mocks.controls.mockRejectedValue(new Error("database unavailable"));
++    const html = await render();
++    expect(html).toContain("We could not check your setup status");
++    expect(html).not.toContain("Owned commission controls");
++    expect(html).not.toContain("database unavailable");
++  });
++  it("keeps setup usable if old programme history cannot be checked", async () => {
++    mocks.legacy.mockRejectedValue(new Error("history unavailable"));
++    const html = await render();
++    expect(html).toContain("Owned commission controls");
++    expect(html).toContain("Previous programme history could not be checked");
++    expect(html).not.toContain("Copy referral link");
++  });
++});
+diff --git a/src/app/(member)/app/share/commissions/page.tsx b/src/app/(member)/app/share/commissions/page.tsx
+index 4ab8f96..b1be14d 100644
+--- a/src/app/(member)/app/share/commissions/page.tsx
++++ b/src/app/(member)/app/share/commissions/page.tsx
+@@ -6,11 +6,32 @@ import { loadCircleCardAccessForUser } from "@/server/circle-card/billing.servic
+ import { getCircleCommissionMemberControls } from "@/server/circle-card/commission-programme.service";
+ import { getCircleCardCommissionEarningsForUser } from "@/server/circle-card/commission.service";
+ import { CircleCardCommissionMemberArea } from "@/components/circle-card/circle-card-commission-member-area";
++import { CircleCardCopyLinkButton } from "@/components/circle-card/circle-card-copy-link-button";
++import { buildCircleCardReferralPath } from "@/lib/circle-card/referral-engine";
+ 
+ export default async function CommissionsPage({ searchParams }: { searchParams: Promise<{ commissionStatus?: string }> }) {
+  if (getRuntimeBrand().key !== "circle-card") redirect("/dashboard/circle-card");
+  const session = await requireCircleCardUser(), access = await loadCircleCardAccessForUser(session.user.id);
+- const controls = access.hasProAccess ? await getCircleCommissionMemberControls(session.user.id) : null;
+- const legacy = await getCircleCardCommissionEarningsForUser(session.user.id), params = await searchParams;
+- return <div className="mx-auto max-w-3xl space-y-5"><Link href="/app/share" className="inline-flex min-h-11 items-center text-sm text-slate-300">← Share</Link><h1 className="font-display text-3xl font-semibold">Commissions</h1><Link href="/app/share/referrals" className="inline-flex min-h-11 items-center text-cyan-200 underline">Your referral link</Link><CircleCardCommissionMemberArea userId={session.user.id} hasProAccess={access.hasProAccess} controls={controls} status={params.commissionStatus} legacyHistory={legacy ? { pendingPence: legacy.pendingPence, paidPence: legacy.paidPence } : null} /></div>;
++ let controls = null;
++ let controlsUnavailable = false;
++ if (access.hasProAccess) {
++   try { controls = await getCircleCommissionMemberControls(session.user.id); }
++   catch { controlsUnavailable = true; console.warn("Circle commission setup status unavailable"); }
++ }
++ let legacy = null;
++ let legacyUnavailable = false;
++ try { legacy = await getCircleCardCommissionEarningsForUser(session.user.id); }
++ catch { legacyUnavailable = true; console.warn("Circle commission legacy history unavailable"); }
++ const params = await searchParams;
++ return <div className="mx-auto max-w-3xl space-y-5">
++   <header className="rounded-3xl border border-gold/25 bg-gradient-to-br from-gold/10 to-blue-500/10 p-6 sm:p-8">
++     <p className="text-xs font-semibold uppercase tracking-[.18em] text-gold">YOUR CIRCLE. YOUR REWARDS.</p>
++     <h1 className="mt-3 font-display text-3xl font-semibold sm:text-4xl">Your commissions hub</h1>
++     <p className="mt-3 text-sm leading-relaxed text-slate-300">Set up your rewards, check your status and follow your earnings. Earn £2 for each eligible paid Pro referral month while your commissions and eligibility are active.</p>
++     <nav aria-label="Commission tools" className="mt-5 flex flex-wrap gap-3"><Link href="/app/share/referrals" className="inline-flex min-h-11 items-center rounded-xl border border-gold/30 px-4 text-sm text-gold">Your personal referral link</Link><Link href="/commissions" className="inline-flex min-h-11 items-center px-2 text-sm text-cyan-200 underline">How it works & FAQs</Link></nav>
++   </header>
++   {legacy?.referralCode ? <section aria-label="Your referral link" className="rounded-2xl border border-blue-400/20 bg-blue-500/5 p-5"><h2 className="font-semibold">Your personal referral link</h2><p className="mt-2 break-all text-sm text-slate-300">{new URL(buildCircleCardReferralPath(legacy.referralCode), getRuntimeBrand().canonicalOrigin).toString()}</p><div className="mt-4"><CircleCardCopyLinkButton publicUrl={new URL(buildCircleCardReferralPath(legacy.referralCode), getRuntimeBrand().canonicalOrigin).toString()} label="Copy referral link" /></div><p className="mt-3 text-xs text-slate-400">Only qualifying payments made while your commissions and eligibility are active can earn. Tell people that you may receive commission.</p></section> : null}
++   {controlsUnavailable ? <section role="alert" className="rounded-2xl border border-amber-300/30 bg-amber-300/5 p-5"><h2 className="font-semibold">We could not check your setup status</h2><p className="mt-2 text-sm text-slate-300">Your terms, Stripe setup and saved preferences have not been changed. Reload this page before trying to change them.</p><a href="/app/share/commissions" className="mt-3 inline-flex min-h-11 items-center text-cyan-200 underline">Check again</a><a href="mailto:support@circlecard.co.uk" className="ml-5 inline-flex min-h-11 items-center text-cyan-200 underline">Get help</a></section> : <CircleCardCommissionMemberArea userId={session.user.id} hasProAccess={access.hasProAccess} controls={controls} status={params.commissionStatus} legacyHistory={legacy ? { pendingPence: legacy.pendingPence, paidPence: legacy.paidPence } : null} />}
++   {legacyUnavailable ? <p role="status" className="text-sm text-slate-300">Previous programme history could not be checked right now. Saved records are retained; try again later.</p> : null}
++ </div>;
+ }
+diff --git a/src/app/(public)/circle-card/pro/page.tsx b/src/app/(public)/circle-card/pro/page.tsx
+index 3d8a45f..e50e412 100644
+--- a/src/app/(public)/circle-card/pro/page.tsx
++++ b/src/app/(public)/circle-card/pro/page.tsx
+@@ -81,6 +81,7 @@ const PRO_FEATURES = [
+   "Expanded creator content, offers, proof and partnerships",
+   "Paid business presentation modules",
+   "Subscription management",
++  "Optional £2 Pro referral commissions after setup",
+   "Automatic downgrade preservation and restoration"
+ ] as const;
+ 
+@@ -270,6 +271,14 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
+         </div>
+       </section>
+ 
++      <section aria-labelledby="pro-commissions-heading" className="rounded-[1.75rem] border border-gold/25 bg-gradient-to-br from-gold/10 to-blue-500/5 p-6 sm:p-8">
++        <p className="premium-kicker">Share something useful. Get rewarded.</p>
++        <h2 id="pro-commissions-heading" className="mt-3 font-display text-3xl text-foreground">Your Pro comes with the option to earn.</h2>
++        <p className="mt-4 max-w-3xl text-sm leading-relaxed text-muted">Earn £2 for each eligible £9.99 paid monthly Pro invoice from a direct referral. Commissions are optional and OFF by default. Accept the terms, complete Stripe verification and switch ON before qualifying payments. Upgrading alone does not start earnings.</p>
++        <p className="mt-3 text-xs leading-relaxed text-muted">30-day clearing and provider checks. £20 normal payout minimum. Monthly owner-reviewed payouts. Earnings are not guaranteed.</p>
++        <div className="mt-5 flex flex-wrap gap-3"><Link href="/commissions" className="inline-flex min-h-11 items-center rounded-xl bg-gold px-4 py-2 text-sm font-semibold text-black">How commissions work</Link><Link href="/app/share/commissions" className="inline-flex min-h-11 items-center rounded-xl border border-gold/30 px-4 py-2 text-sm text-gold">Open my commissions hub</Link></div>
++      </section>
++
+       <section className="grid gap-4 lg:grid-cols-3">
+         <article className="rounded-2xl border border-gold/22 bg-card/62 p-6"><BriefcaseBusiness size={22} className="text-gold" /><h2 className="mt-4 font-display text-2xl text-foreground">For a business people need to understand quickly</h2><p className="mt-3 text-sm leading-relaxed text-muted">Use Business Card Builder to present services, products, prices, opening hours, booking routes, galleries and reviews as one coherent professional identity.</p></article>
+         <article className="rounded-2xl border border-cyan-300/20 bg-card/62 p-6"><UserRound size={22} className="text-cyan-200" /><h2 className="mt-4 font-display text-2xl text-foreground">For a creator brands need to assess clearly</h2><p className="mt-3 text-sm leading-relaxed text-muted">Build a live Media Kit and Audience Snapshot, then add creator content, offers, proof and partnership context without turning your card into a generic landing page.</p></article>
+diff --git a/src/app/(public)/commissions/page.tsx b/src/app/(public)/commissions/page.tsx
+new file mode 100644
+index 0000000..411a4f0
+--- /dev/null
++++ b/src/app/(public)/commissions/page.tsx
+@@ -0,0 +1,10 @@
++import { CommissionPublicPage } from "@/components/circle-card/commission-public-page";
++import { createCircleCardPageMetadata } from "@/lib/circle-card/metadata";
++
++export const metadata = createCircleCardPageMetadata({
++  title: "Circle Commissions | Share Circle Card. Get rewarded.",
++  description: "Earn £2 for each eligible paid Pro referral month. See how Circle Commissions works, set up Stripe payouts and manage your optional rewards in one hub.",
++  path: "/commissions",
++}, "circle-card");
++
++export default function CommissionsPage() { return <CommissionPublicPage />; }
+diff --git a/src/app/sitemap.ts b/src/app/sitemap.ts
+index f0e20a2..05ca8ff 100644
+--- a/src/app/sitemap.ts
++++ b/src/app/sitemap.ts
+@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
+ const CIRCLE_CARD_PUBLIC_ROUTES = [
+   "/",
+   "/pro",
++  "/commissions",
+   "/install",
+   "/teams",
+   "/community-standards",
+diff --git a/src/components/circle-card/circle-card-commission-panel.test.ts b/src/components/circle-card/circle-card-commission-panel.test.ts
+index f6be63b..395a3cb 100644
+--- a/src/components/circle-card/circle-card-commission-panel.test.ts
++++ b/src/components/circle-card/circle-card-commission-panel.test.ts
+@@ -4,8 +4,31 @@ import { renderToStaticMarkup } from "react-dom/server";
+ vi.mock("@/actions/circle-card-commission-member.actions", () => ({ changeCircleCommissionMemberAction: async () => {}, beginCircleCommissionOnboardingAction: async () => {} }));
+ vi.mock("./circle-card-runtime-link", () => ({ CircleCardRuntimeLink: ({ children, ...props }: Record<string, unknown>) => createElement("a", props, children as string) }));
+ import { CircleCardCommissionPanel } from "./circle-card-commission-panel";
++import { CIRCLE_COMMISSION_TERMS_VERSION } from "@/lib/circle-card/commission-member-controls";
+ 
+ describe("member commission placement", () => {
++  const verified = { enabled: false, revision: 13, termsVersion: CIRCLE_COMMISSION_TERMS_VERSION, onboardingStatus: "VERIFIED" as const, payoutEligibility: true };
++  it("remembers accepted terms and enables ON without asking for consent again", () => {
++    const html = renderToStaticMarkup(createElement(CircleCardCommissionPanel, { hasProAccess: true, controls: verified }));
++    expect(html).toContain("Current terms accepted and saved");
++    expect(html).not.toContain('name="acceptTerms"');
++    expect(html).not.toMatch(/role="switch"[^>]*\sdisabled(?:=|\s|>)/);
++    expect(html).toContain('name="revision" value="13"');
++    expect(html).toContain('aria-current="step"');
++  });
++  it("prevents ON until terms have been saved, even after Stripe verification", () => {
++    const html = renderToStaticMarkup(createElement(CircleCardCommissionPanel, { hasProAccess: true, controls: { ...verified, termsVersion: "old" } }));
++    expect(html).toMatch(/role="switch"[^>]*\sdisabled(?:=|\s|>)/);
++    expect(html).toContain("Next: read the terms");
++  });
++  it("shows the sharing step after ON and warns if eligibility later becomes restricted", () => {
++    const active = renderToStaticMarkup(createElement(CircleCardCommissionPanel, { hasProAccess: true, controls: { ...verified, enabled: true } }));
++    expect(active).toContain("Copy my personal referral link");
++    const restricted = renderToStaticMarkup(createElement(CircleCardCommissionPanel, { hasProAccess: true, controls: { ...verified, enabled: true, payoutEligibility: false } }));
++    expect(restricted).toContain("setup or eligibility needs attention");
++    expect(restricted).not.toContain("Copy my personal referral link");
++    expect(restricted).not.toMatch(/role="switch"[^>]*\sdisabled(?:=|\s|>)/);
++  });
+   it("shows only the Pro CTA to Free members even if someone passes a stale enabled state", () => {
+     const html = renderToStaticMarkup(createElement(CircleCardCommissionPanel, { hasProAccess: false, controls: { enabled: true, revision: 2, termsVersion: "old", onboardingStatus: "VERIFIED", payoutEligibility: true } }));
+     expect(html).toContain("Explore Pro"); expect(html).toContain("£9.99/month");
+diff --git a/src/components/circle-card/circle-card-commission-panel.tsx b/src/components/circle-card/circle-card-commission-panel.tsx
+index c4837e9..86ed5ba 100644
+--- a/src/components/circle-card/circle-card-commission-panel.tsx
++++ b/src/components/circle-card/circle-card-commission-panel.tsx
+@@ -5,6 +5,8 @@ import {
+   CIRCLE_COMMISSION_PROGRAMME_OPEN, CIRCLE_COMMISSION_CONNECT_ONBOARDING_OPEN, type CommissionMemberControls,
+ } from "@/lib/circle-card/commission-member-controls";
+ import type { CircleCommissionMemberSummary } from "@/server/circle-card/commission-member-summary.service";
++import { commissionSetupProgress } from "@/lib/circle-card/commission-journey";
++import { CommissionSubmitButton } from "./commission-submit-button";
+ import { CIRCLE_CARD_REFERRAL_HEADLINE } from "@/lib/circle-card/public-content";
+ 
+ const pounds = (pence: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(pence / 100);
+@@ -27,6 +29,8 @@ export function CircleCardCommissionPanel({ hasProAccess, controls, status, earn
+   earningsUnavailable?: boolean;
+   legacyHistory?: { pendingPence: number; paidPence: number } | null;
+ }) {
++  const state = controls ?? { enabled: false, revision: 0, termsVersion: null, onboardingStatus: "NOT_STARTED", payoutEligibility: false };
++  const progress = commissionSetupProgress(hasProAccess, state, CIRCLE_COMMISSION_PROGRAMME_OPEN);
+   if (!hasProAccess) return (
+     <section id="circle-commissions" className="rounded-2xl border border-gold/25 bg-gradient-to-br from-gold/10 to-card/70 p-5">
+       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gold">More with Pro</p>
+@@ -34,12 +38,12 @@ export function CircleCardCommissionPanel({ hasProAccess, controls, status, earn
+       <p className="mt-3 text-sm leading-relaxed text-muted">Circle Commissions is a Pro feature. Upgrade for Liquid Studio and advanced card features, plus access to the optional £2 referral programme{CIRCLE_COMMISSION_PROGRAMME_OPEN ? "." : " when it opens."}</p>
+       <p className="mt-2 text-xs leading-relaxed text-muted">Commissions require accepted terms and verified payout setup. Upgrading alone does not start earnings. Any previously recorded balances are preserved.</p>
+       <Link href="/circle-card/pro?source=commissions" className="mt-4 inline-flex rounded-xl bg-gold px-4 py-2.5 text-sm font-semibold text-black">Explore Pro — £9.99/month</Link>
++      <ol aria-label="Commission setup progress" className="mt-5 grid gap-3 sm:grid-cols-2">{progress.steps.map((step, index) => <li key={step.title} aria-current={progress.nextStep === index ? "step" : undefined} className={`rounded-xl border p-4 ${step.complete ? "border-emerald-400/25 bg-emerald-400/5" : "border-silver/15 bg-background/30"}`}><p className="text-xs text-muted">Step {index + 1} · {step.complete ? "Complete" : progress.nextStep === index ? "Next step" : "To do"}</p><p className="mt-1 text-sm font-semibold text-foreground">{step.title}</p><p className="mt-1 text-xs leading-relaxed text-muted">{step.detail}</p></li>)}</ol>
+       <CommissionEarnings summary={earnings} unavailable={earningsUnavailable} />
+       {legacyHistory && (legacyHistory.pendingPence > 0 || legacyHistory.paidPence > 0) ? <p className="mt-3 text-xs text-muted">Previous programme records: pending {pounds(legacyHistory.pendingPence)}, recorded paid {pounds(legacyHistory.paidPence)}. Historical amounts are retained unchanged.</p> : null}
+     </section>
+   );
+-  const state = controls ?? { enabled: false, revision: 0, termsVersion: null, onboardingStatus: "NOT_STARTED", payoutEligibility: false };
+-  const canEnable = CIRCLE_COMMISSION_PROGRAMME_OPEN && state.onboardingStatus === "VERIFIED" && state.payoutEligibility;
++  const canEnable = progress.canEnable;
+   const messages: Record<string, string> = {
+     "terms-saved": "Your current commission terms have been saved.",
+     "enabled": "Commissions are on.",
+@@ -48,7 +52,7 @@ export function CircleCardCommissionPanel({ hasProAccess, controls, status, earn
+     "programme-not-open": "The programme has not opened yet. No earnings are being created.", "complete-payout-setup": "Complete Stripe payout setup before turning commissions on.",
+     "accept-current-terms": "Accept the current terms to continue.", "pro-required": "Active Pro access is required to turn commissions on.",
+     "save-failed": "We could not save your preference. Please try again.", "invalid-request": "Please check your selection and try again.", "account-unavailable": "Your account is unavailable for commissions.",
+-    "activation-permission-unavailable": "Commissions activation is temporarily unavailable because a required database permission is missing. Your saved terms and Stripe setup are retained. Please contact support.",
++    "activation-permission-unavailable": "We could not activate commissions right now. Your saved terms and Stripe setup are retained. Please contact support so we can check activation.",
+     "referral-history-needs-review": "Your referral history needs review before commissions can be activated. Your saved terms and Stripe setup are retained. Please contact support.",
+     "payout-setup-not-open": "Stripe payout setup is preparing for launch.",
+     "payout-setup-requires-review": "Your payout setup needs an operator review. Please contact support; we will check the existing request before trying again.",
+@@ -60,16 +64,18 @@ export function CircleCardCommissionPanel({ hasProAccess, controls, status, earn
+     <section id="circle-commissions" className="rounded-2xl border border-gold/25 bg-gradient-to-br from-gold/10 to-card/70 p-5">
+       <div className="flex items-center justify-between gap-3"><h3 className="text-lg font-semibold text-foreground">Circle Commissions</h3><span className="rounded-full border border-gold/30 px-3 py-1 text-xs text-gold">Pro</span></div>
+       <p className="mt-2 text-sm text-muted">Optional rewards for introducing people to Circle Card Pro.</p>
+-      <p className="mt-2 text-sm text-muted">{!state.enabled ? "Your referrals stay linked to you, but you are not earning commission." : state.payoutEligibility ? CIRCLE_CARD_REFERRAL_HEADLINE : "Payout setup needs attention. New earnings are paused until your eligibility is restored."}</p>
++      <p className="mt-2 text-sm text-muted">{!state.enabled ? "Your referrals stay linked to you, but you are not earning commission." : progress.earning ? CIRCLE_CARD_REFERRAL_HEADLINE : "Your switch is ON, but setup or eligibility needs attention before new earnings can accrue."}</p>
++      <ol aria-label="Commission setup progress" className="mt-5 grid gap-3 sm:grid-cols-2">{progress.steps.map((step, index) => <li key={step.title} aria-current={progress.nextStep === index ? "step" : undefined} className={`rounded-xl border p-4 ${step.complete ? "border-emerald-400/25 bg-emerald-400/5" : "border-silver/15 bg-background/30"}`}><p className="text-xs text-muted">Step {index + 1} · {step.complete ? "Complete" : progress.nextStep === index ? "Next step" : "To do"}</p><p className="mt-1 text-sm font-semibold text-foreground">{step.title}</p><p className="mt-1 text-xs leading-relaxed text-muted">{step.detail}</p></li>)}</ol>
+       <CommissionEarnings summary={earnings} unavailable={earningsUnavailable} />
+       {legacyHistory && (legacyHistory.pendingPence > 0 || legacyHistory.paidPence > 0) ? <details className="mt-3 rounded-xl border border-silver/15 p-3"><summary className="min-h-11 cursor-pointer text-sm text-foreground">Previous programme history</summary><p className="text-xs text-muted">Recorded pending: {pounds(legacyHistory.pendingPence)}. Recorded paid: {pounds(legacyHistory.paidPence)}. Historical amounts are retained unchanged.</p></details> : null}
+       {status && messages[status] ? <p role="status" className="mt-3 text-sm text-gold">{messages[status]}</p> : null}
++      {!state.enabled && !canEnable ? <p className="mt-3 text-sm text-muted">{!CIRCLE_COMMISSION_PROGRAMME_OPEN ? "The programme has not opened yet." : !progress.termsAccepted ? "Next: read the terms below and save your acceptance." : "Next: complete or resume Stripe payout verification, then return here."}</p> : null}
+       <form action={changeCircleCommissionMemberAction} className="mt-4">
+         <input type="hidden" name="revision" value={state.revision} />
+         <input type="hidden" name="termsVersion" value={CIRCLE_COMMISSION_TERMS_VERSION} />
+         <div className="flex items-center justify-between gap-3 rounded-xl border border-silver/15 bg-background/30 p-3">
+           <div><p className="text-sm font-semibold text-foreground">Commissions {state.enabled ? "on" : "off"}</p><p className="mt-1 text-xs text-muted">You control whether you participate.</p></div>
+-          <button type="submit" name="intent" value={state.enabled ? "disable" : "enable"} role="switch" aria-checked={state.enabled} aria-label="Circle Commissions" disabled={!state.enabled && !canEnable} className="min-h-11 min-w-20 rounded-full border border-gold/40 bg-gold/10 px-4 py-2 text-sm font-semibold text-gold disabled:opacity-50">{state.enabled ? "Turn off" : "Turn on"}</button>
++          <CommissionSubmitButton name="intent" value={state.enabled ? "disable" : "enable"} role="switch" aria-checked={state.enabled} aria-label="Circle Commissions" disabled={!state.enabled && !canEnable} className="min-h-11 min-w-20 rounded-full border border-gold/40 bg-gold/10 px-4 py-2 text-sm font-semibold text-gold disabled:opacity-50">{state.enabled ? "Turn off" : "Turn on"}</CommissionSubmitButton>
+         </div>
+         <div className="mt-3 text-xs leading-relaxed text-muted">
+           {!CIRCLE_COMMISSION_PROGRAMME_OPEN ? <p>The programme is preparing for launch. No new earnings are created until it opens.</p> : null}
+@@ -80,13 +86,15 @@ export function CircleCardCommissionPanel({ hasProAccess, controls, status, earn
+           <p className="mt-2 text-xs text-muted">Version {CIRCLE_COMMISSION_TERMS_VERSION}</p>
+           <ol className="mt-3 list-decimal space-y-2 pl-5 text-xs leading-relaxed text-muted">{CIRCLE_COMMISSION_TERMS.map(term => <li key={term}>{term}</li>)}</ol>
+         </details>
+-        <label className="mt-3 flex items-start gap-2 text-xs leading-relaxed text-muted"><input name="acceptTerms" type="checkbox" className="mt-0.5 size-4 shrink-0" /><span>I have read and accept these commission terms. Acceptance does not complete Stripe verification or turn commissions on.</span></label>
+-        <button type="submit" name="intent" value="accept-terms" className="mt-3 min-h-11 rounded-xl border border-silver/25 px-4 py-2 text-xs font-semibold text-foreground">Save terms acceptance</button>
++        {progress.termsAccepted ? <p className="mt-4 rounded-xl border border-emerald-400/25 bg-emerald-400/5 p-3 text-sm text-emerald-200">Current terms accepted and saved. You do not need to tick the box again to turn commissions ON.</p> : <><label className="mt-3 flex items-start gap-2 text-xs leading-relaxed text-muted"><input name="acceptTerms" type="checkbox" className="mt-0.5 size-4 shrink-0" /><span>I have read and accept these commission terms. Acceptance does not complete Stripe verification or turn commissions on.</span></label>
++        <CommissionSubmitButton name="intent" value="accept-terms" className="mt-3 min-h-11 rounded-xl border border-silver/25 px-4 py-2 text-xs font-semibold text-foreground">Save terms acceptance</CommissionSubmitButton></>}
+       </form>
+       <form action={beginCircleCommissionOnboardingAction} className="mt-4">
+-        <button type="submit" disabled={!CIRCLE_COMMISSION_CONNECT_ONBOARDING_OPEN || state.termsVersion !== CIRCLE_COMMISSION_TERMS_VERSION} className="min-h-11 rounded-xl border border-gold/35 px-4 py-2 text-sm font-semibold text-gold disabled:opacity-50">{state.onboardingStatus === "NOT_STARTED" ? "Set up Stripe payouts" : "Review Stripe payout setup"}</button>
++        <CommissionSubmitButton disabled={!CIRCLE_COMMISSION_CONNECT_ONBOARDING_OPEN || state.termsVersion !== CIRCLE_COMMISSION_TERMS_VERSION} className="min-h-11 rounded-xl border border-gold/35 px-4 py-2 text-sm font-semibold text-gold disabled:opacity-50">{state.onboardingStatus === "NOT_STARTED" ? "Set up Stripe payouts" : "Review Stripe payout setup"}</CommissionSubmitButton>
+         <p className="mt-2 text-xs leading-relaxed text-muted">Accept the terms above first. Stripe securely collects your identity and payout details. Setting up payouts does not turn commissions on or send a payment.</p>
+       </form>
++      {progress.earning ? <Link href="/app/share/referrals" className="mt-5 inline-flex min-h-12 items-center rounded-xl bg-gold px-5 py-3 text-sm font-semibold text-black">Copy my personal referral link</Link> : null}
++      <div className="mt-5 flex flex-wrap gap-4 text-xs"><Link href="/commissions" className="inline-flex min-h-11 items-center text-cyan-200 underline">How commissions work</Link><a href="mailto:support@circlecard.co.uk" className="inline-flex min-h-11 items-center text-cyan-200 underline">Get setup help</a></div>
+     </section>
+   );
+ }
+diff --git a/src/components/circle-card/circle-card-landing.tsx b/src/components/circle-card/circle-card-landing.tsx
+index b141b1b..e688626 100644
+--- a/src/components/circle-card/circle-card-landing.tsx
++++ b/src/components/circle-card/circle-card-landing.tsx
+@@ -395,6 +395,7 @@ export function CircleCardLanding({
+                 "Business Card Builder",
+                 "Creator Media Kit & Audience Snapshot",
+                 "Your Pro content preserved if you downgrade",
++              "Optional £2 Pro referral commissions",
+               ].map((text) => (
+                 <li key={text}>
+                   <Check size={16} />
+@@ -488,8 +489,8 @@ export function CircleCardLanding({
+             Share Circle Card through your personal referral link. The optional
+             programme rewards qualifying paid Pro referrals{CIRCLE_COMMISSION_PROGRAMME_OPEN ? "." : " after it opens."}
+           </p>
+-          <Link href={primaryHref} className={styles.primary}>
+-            Start building your Circle
++          <Link href="/commissions" className={styles.primary}>
++            Explore commissions
+             <ArrowRight size={17} />
+           </Link>
+         </div>
+diff --git a/src/components/circle-card/circle-card-public-navbar.tsx b/src/components/circle-card/circle-card-public-navbar.tsx
+index 5992bfe..566c7fe 100644
+--- a/src/components/circle-card/circle-card-public-navbar.tsx
++++ b/src/components/circle-card/circle-card-public-navbar.tsx
+@@ -16,6 +16,7 @@ const CIRCLE_CARD_PUBLIC_NAVIGATION = [
+   { label: "Use cases", href: "/#use-cases" },
+   { label: "Pricing", href: "/#pricing" },
+   { label: "Pro", href: "/pro" },
++  { label: "Commissions", href: "/commissions" },
+ ] as const;
+ 
+ type CircleCardPublicNavbarProps = {
+diff --git a/src/components/circle-card/circle-card-public-shell.tsx b/src/components/circle-card/circle-card-public-shell.tsx
+index cce5a21..611a5b6 100644
+--- a/src/components/circle-card/circle-card-public-shell.tsx
++++ b/src/components/circle-card/circle-card-public-shell.tsx
+@@ -11,6 +11,7 @@ const PRODUCT_LINKS = [
+   { label: "Home", href: "/" },
+   { label: "Install Circle Card", href: "/install" },
+   { label: "Circle Card Pro", href: "/pro" },
++  { label: "Commissions", href: "/commissions" },
+   { label: "Circle Card Teams", href: "/teams" },
+   { label: "Community Standards", href: "/community-standards" },
+ ] as const;
+diff --git a/src/components/circle-card/circle-experience-shell.tsx b/src/components/circle-card/circle-experience-shell.tsx
+index 6b8b43e..7b151ab 100644
+--- a/src/components/circle-card/circle-experience-shell.tsx
++++ b/src/components/circle-card/circle-experience-shell.tsx
+@@ -2,17 +2,17 @@
+ import Link from "next/link";
+ import {usePathname} from "next/navigation";
+ import {useEffect,useRef,type ReactNode} from "react";
+-import {ContactRound,Users,Share2,Settings,ChevronRight} from "lucide-react";
++import {ContactRound,Users,Share2,Coins,Settings,ChevronRight} from "lucide-react";
+ import {CircleCardLogoMark} from "./circle-card-logo-mark";
+ import {circlePrimaryDestination} from "@/lib/circle-card/experience";
+-const destinations=[{key:"card",label:"My Card",href:"/app",Icon:ContactRound},{key:"circle",label:"My Circle",href:"/app/circle",Icon:Users},{key:"share",label:"Share",href:"/app/share",Icon:Share2}] as const;
++const destinations=[{key:"card",label:"My Card",href:"/app",Icon:ContactRound},{key:"circle",label:"My Circle",href:"/app/circle",Icon:Users},{key:"share",label:"Share",href:"/app/share",Icon:Share2},{key:"commissions",label:"Commissions",href:"/app/share/commissions",Icon:Coins}] as const;
+ export function CircleExperienceShell({children,name,notifications,accountActions,ownerAllowed}:{children:ReactNode;name:string;notifications:ReactNode;accountActions:ReactNode;ownerAllowed:boolean}){
+  const pathname=usePathname();const current=circlePrimaryDestination(pathname);const onboarding=pathname==="/app/onboarding"||pathname==="/dashboard/circle-card/onboarding";
+  const accountMenuRef=useRef<HTMLDetailsElement>(null);
+  function closeAccountMenu(){if(accountMenuRef.current)accountMenuRef.current.open=false;}
+  useEffect(()=>{if(accountMenuRef.current)accountMenuRef.current.open=false;},[pathname]);
+  useEffect(()=>{function closeOutside(event:PointerEvent){const menu=accountMenuRef.current;if(menu?.open&&event.target instanceof Node&&!menu.contains(event.target))menu.open=false;}document.addEventListener("pointerdown",closeOutside);return()=>document.removeEventListener("pointerdown",closeOutside);},[]);
+- function navigation(mobile=false){return <nav aria-label={mobile?"Primary mobile navigation":"Primary navigation"} className={mobile?"grid grid-cols-3":"space-y-2"}>{destinations.map(({key,label,href,Icon})=><Link key={key} href={href} aria-current={current===key?"page":undefined} className={`flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300 ${mobile?"flex-col gap-1 text-xs":""} ${current===key?"bg-blue-500/15 text-cyan-200":"text-slate-300 hover:bg-white/5"}`}><Icon size={mobile?21:18}/>{label}</Link>)}</nav>;}
++ function navigation(mobile=false){return <nav aria-label={mobile?"Primary mobile navigation":"Primary navigation"} className={mobile?"grid grid-cols-4":"space-y-2"}>{destinations.map(({key,label,href,Icon})=><Link key={key} href={href} aria-current={current===key?"page":undefined} className={`flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300 ${mobile?"flex-col gap-1 px-1 text-[11px]":""} ${current===key?"bg-blue-500/15 text-cyan-200":"text-slate-300 hover:bg-white/5"}`}><Icon size={mobile?21:18}/>{label}</Link>)}</nav>;}
+  return <div className="min-h-dvh bg-[#081429] text-slate-100"><a href="#workspace-content" className="sr-only focus:not-sr-only">Skip to content</a>
+   <header className="circle-card-safe-header sticky top-0 z-40 border-b border-white/10 bg-[#081429]/95 backdrop-blur"><div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6"><Link href="/app" aria-label="Circle Card workspace" className="flex items-center gap-3"><CircleCardLogoMark className="h-8 w-8"/><span className="font-display text-lg font-semibold">Circle Card</span></Link><div className="flex items-center gap-2">{notifications}<details ref={accountMenuRef} className="relative" onKeyDown={event=>{if(event.key==="Escape"){closeAccountMenu();accountMenuRef.current?.querySelector("summary")?.focus();}}}><summary aria-label="Account menu" className="grid h-11 w-11 cursor-pointer list-none place-items-center rounded-full border border-blue-400/30 bg-blue-500/10 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300">{name.trim().slice(0,1).toUpperCase()||"C"}</summary><div className="absolute right-0 mt-3 w-64 rounded-2xl border border-white/15 bg-[#102039] p-3 shadow-xl" onClickCapture={event=>{if(event.target instanceof Element&&event.target.closest("a[href],button:not(:disabled)"))closeAccountMenu();}} onSubmitCapture={closeAccountMenu}><p className="truncate px-3 py-2 text-sm font-semibold">{name}</p><Link className="flex min-h-11 items-center gap-3 rounded-lg px-3 hover:bg-white/5" href="/app/settings"><Settings size={17}/>Settings</Link><Link className="flex min-h-11 items-center justify-between rounded-lg px-3 hover:bg-white/5" href="/pro">Your plan<ChevronRight size={17}/></Link>{ownerAllowed?<Link className="block min-h-11 rounded-lg px-3 py-3 hover:bg-white/5" href="/app/owner">Owner dashboard</Link>:null}<Link className="block min-h-11 rounded-lg px-3 py-3 hover:bg-white/5" href="/community-standards">Community standards</Link>{accountActions}</div></details></div></div></header>
+   <div className="mx-auto grid max-w-7xl lg:grid-cols-[200px_minmax(0,1fr)]"><aside className="hidden self-start px-4 py-8 lg:sticky lg:top-16 lg:block">{navigation()}</aside><main id="workspace-content" className="min-w-0 px-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 lg:py-8 lg:pb-12">{children}</main></div>
+diff --git a/src/components/circle-card/commission-public-page.test.ts b/src/components/circle-card/commission-public-page.test.ts
+new file mode 100644
+index 0000000..59326eb
+--- /dev/null
++++ b/src/components/circle-card/commission-public-page.test.ts
+@@ -0,0 +1,24 @@
++import { createElement } from "react";
++import { renderToStaticMarkup } from "react-dom/server";
++import { describe, expect, it, vi } from "vitest";
++vi.mock("next/link", () => ({ default: ({children, ...props}: Record<string, unknown>) => createElement("a", props, children as string) }));
++import { CommissionPublicPage } from "./commission-public-page";
++import { CIRCLE_COMMISSION_TERMS } from "@/lib/circle-card/commission-member-controls";
++
++describe("public commissions explanation", () => {
++  it("leads to setup and shows current terms without accepting them for the visitor", () => {
++    const html = renderToStaticMarkup(createElement(CommissionPublicPage));
++    expect(html).toContain('href="/app/share/commissions"');
++    expect(html).toContain("/login?from=%2Fapp%2Fshare%2Fcommissions");
++    expect(html).toContain("30-day clearing"); expect(html).toContain("£20 normal payout minimum");
++    for (const term of CIRCLE_COMMISSION_TERMS) expect(html).toContain(term.replaceAll("'", "&#x27;"));
++    expect(html).not.toContain("<form");
++  });
++  it("explains promotions, prospective earnings and illustrative calculations", () => {
++    const html = renderToStaticMarkup(createElement(CommissionPublicPage));
++    expect(html).toContain("Discounted promotional payments are not automatically eligible");
++    expect(html).toContain("These are calculations, not forecasts");
++    expect(html).toContain("no backdating");
++    expect(html).toContain("£50");
++  });
++});
+diff --git a/src/components/circle-card/commission-public-page.tsx b/src/components/circle-card/commission-public-page.tsx
+new file mode 100644
+index 0000000..8a0c916
+--- /dev/null
++++ b/src/components/circle-card/commission-public-page.tsx
+@@ -0,0 +1,36 @@
++import Link from "next/link";
++import { ArrowRight, BadgeCheck, Coins, Link2, ShieldCheck } from "lucide-react";
++import { CIRCLE_COMMISSION_PROGRAMME_OPEN, CIRCLE_COMMISSION_TERMS, CIRCLE_COMMISSION_TERMS_VERSION } from "@/lib/circle-card/commission-member-controls";
++import { COMMISSIONS_LOGIN_PATH, COMMISSIONS_SETUP_PATH } from "@/lib/circle-card/commission-journey";
++import styles from "./commission-public.module.css";
++
++const faqs = [
++  ["Do I need Pro?", "Yes. You need active Circle Card Pro access to earn. Pro normally costs £9.99 a month. Eligible included or complimentary Pro members can also enrol, but referred free or complimentary upgrades do not earn commission."],
++  ["What counts as an eligible referral?", "A person directly attributed to your personal referral link who makes a qualifying £9.99 monthly Pro payment while your commissions and eligibility are active. Self-referrals, unpaid invoices and free or complimentary access do not qualify. Discounted promotional payments are not automatically eligible."],
++  ["When can I receive a payout?", "Earnings stay pending for 30 days and provider checks. Cleared balances of £20 or more are reviewed monthly by the owner. Smaller balances carry forward while active. Payouts are not automatic or guaranteed on a particular date; Stripe confirms bank payouts separately."],
++  ["What happens if I switch OFF?", "New earnings stop. Your referral attribution stays linked to you. Switching back ON resumes future qualifying payments only, with no backdating. Below-£20 balances are subject to the six-month inactivity rules in the terms below."],
++  ["Does Stripe verification switch commissions ON?", "No. Return to your commissions hub after verification, check the setup status and switch commissions ON yourself. If Stripe still needs information, resume the existing payout setup rather than creating another account."],
++  ["What about refunds or losing Pro?", "Refunds, disputes or substantiated abuse can hold or reverse earnings. Losing Pro stops new earnings. Your existing records are retained, and reactivating Pro does not backdate missed earnings."],
++  ["Where should I share my link?", "Copy your personal referral link from the hub and share it with people who may find Circle Card useful: your bio, website, content or relevant conversations. Make it clear that you may earn commission. A generic homepage link or a connection alone does not establish referral credit."],
++  ["My setup is stuck. What should I do?", "Check the next incomplete step in your hub. If terms are already saved, you do not need to accept them again. Resume Stripe for verification issues. For saving or activation errors, contact support@circlecard.co.uk with the message shown; do not send bank details or identity documents."],
++] as const;
++
++export function CommissionPublicPage() {
++  return <div className={styles.page}>
++    <section className={styles.hero} aria-labelledby="commissions-title">
++      <div><p className={styles.kicker}>YOUR CIRCLE. MORE POSSIBILITIES.</p><h1 id="commissions-title">Share something useful.<br /><span>Get rewarded.</span></h1><p className={styles.intro}>Introduce people to Circle Card Pro and earn £2 for each eligible paid referral month. One personal link. Recurring rewards. Always your choice.</p><div className={styles.actions}><Link className={styles.primary} href={COMMISSIONS_SETUP_PATH}>Set up commissions <ArrowRight size={18} /></Link><a className={styles.secondary} href="#how-it-works">Show me how</a></div><p className={styles.small}>{CIRCLE_COMMISSION_PROGRAMME_OPEN ? "Optional with active Pro. OFF until you choose to switch ON." : "The programme is preparing to open. No new earnings accrue yet."} Earnings are not guaranteed.</p><Link href={COMMISSIONS_LOGIN_PATH} className={styles.textLink}>Already have an account? Log in to your hub</Link></div>
++      <div className={styles.reward} aria-label="Commission reward"><div className={styles.orbit} aria-hidden="true"><Coins size={36} /></div><p className={styles.kicker}>CIRCLE COMMISSIONS</p><p className={styles.amount}>£2<span>/ eligible month</span></p><p>For each direct referral’s qualifying<br />£9.99 monthly Pro payment.</p><div className={styles.pills}><span><BadgeCheck size={15} /> Recurring rewards</span><span><ShieldCheck size={15} /> You control ON / OFF</span></div><p className={styles.small}>30-day clearing · £20 normal payout minimum<br />Monthly owner review · No Circle Card earnings cap</p></div>
++    </section>
++    <section id="how-it-works" className={styles.section} aria-labelledby="setup-heading"><p className={styles.kicker}>FROM FIRST CLICK TO SWITCHED ON</p><h2 id="setup-heading">Four clear steps. One place to manage it.</h2><div className={styles.steps}>{[
++      ["01", "Activate Pro", "Sign in or create your Circle Card, then activate Pro if you need it. Already have eligible Pro access? Keep going."],
++      ["02", "Accept the terms", "Open your commissions hub, read the terms and save your acceptance. The hub remembers this step."],
++      ["03", "Connect Stripe", "Use Set up Stripe payouts to complete identity and payout verification securely with Stripe. Return to your hub afterwards."],
++      ["04", "Switch ON & share", "When setup is verified, turn commissions ON. Copy your personal referral link and share it. Track qualifying earnings in the same hub."],
++    ].map(([number, title, text]) => <article key={number}><span className={styles.number}>{number}</span><h3>{title}</h3><p>{text}</p></article>)}</div><Link href={COMMISSIONS_SETUP_PATH} className={styles.textLink}>Take me to my setup <ArrowRight size={17} /></Link></section>
++    <section className={styles.example} aria-labelledby="example-heading"><div><p className={styles.kicker}>SEE HOW IT ADDS UP</p><h2 id="example-heading">A little introduction.<br />A lasting connection.</h2><p>Rewards can repeat when your direct referrals renew, as long as each payment qualifies and your eligibility stays active.</p></div><div><table><caption>Illustrative monthly commission, before any reversals or tax</caption><thead><tr><th scope="col">Qualifying paid referrals</th><th scope="col">Commission that month</th></tr></thead><tbody>{[[5, "£10"], [10, "£20"], [25, "£50"]].map(([count, amount]) => <tr key={count}><th scope="row">{count}</th><td>{amount}</td></tr>)}</tbody></table><p className={styles.small}>Examples assume one qualifying £9.99 monthly payment per referral. These are calculations, not forecasts or payout promises. £10 stays below the normal payout minimum.</p></div></section>
++    <section className={styles.section} aria-labelledby="clear-heading"><p className={styles.kicker}>CLEAR FROM THE START</p><h2 id="clear-heading">You share. We keep the rules clear.</h2><div className={styles.rules}><article><Link2 /><h3>Your own referral link</h3><p>Use the link from your account so introductions can be attributed to you. Connection activity alone does not earn commission.</p></article><article><Coins /><h3>Pending is a real stage</h3><p>Allow 30 days and provider checks. Your hub separates pending, available, reviewed and Stripe-transferred earnings.</p></article><article><ShieldCheck /><h3>Your switch, your choice</h3><p>Nothing accrues while OFF. Turning ON never backdates earnings. Payouts always need owner review.</p></article></div></section>
++    <section className={styles.section} aria-labelledby="faq-heading"><p className={styles.kicker}>THE DETAILS THAT MATTER</p><h2 id="faq-heading">Your questions, answered.</h2><div className={styles.faq}>{faqs.map(([question, answer]) => <details key={question}><summary>{question}</summary><p>{answer}</p></details>)}</div></section>
++    <section className={styles.terms} id="commission-terms"><details><summary>Read the current Commission Terms</summary><p className={styles.small}>Version {CIRCLE_COMMISSION_TERMS_VERSION}. Acceptance happens in your signed-in hub.</p><ol>{CIRCLE_COMMISSION_TERMS.map(term => <li key={term}>{term}</li>)}</ol></details></section>
++    <section className={styles.finish}><p className={styles.kicker}>READY WHEN YOU ARE</p><h2>Your next introduction<br />could go further.</h2><p>Set up once. Choose when to earn. Keep everything in your commissions hub.</p><div className={styles.actions}><Link className={styles.primary} href={COMMISSIONS_SETUP_PATH}>Open my commissions hub <ArrowRight size={18} /></Link><Link className={styles.secondary} href="/pro">Explore Pro · £9.99/month</Link></div></section>
++  </div>;
++}
+diff --git a/src/components/circle-card/commission-public.module.css b/src/components/circle-card/commission-public.module.css
+new file mode 100644
+index 0000000..ac2d815
+--- /dev/null
++++ b/src/components/circle-card/commission-public.module.css
+@@ -0,0 +1 @@
++.page{--gold:#efcf85;--muted:#afbdd2;color:#f2f5fc;width:100%;max-width:1200px;margin:0 auto;padding:32px 24px 64px}.page h1,.page h2,.page h3{font-weight:600;letter-spacing:-.04em;line-height:1.12}.page h1{font-size:clamp(2.65rem,5.5vw,4.7rem)}.page h2{font-size:clamp(2rem,3.8vw,3rem)}.page h3{font-size:1.2rem}.page p{line-height:1.7}.hero{position:relative;display:grid;grid-template-columns:1.18fr 1fr;gap:48px;align-items:center;border:1px solid #dbc58a30;border-radius:32px;padding:clamp(24px,4vw,56px);background:radial-gradient(ellipse at 95% 10%,#1679ed25,transparent 60%),linear-gradient(135deg,#10223d,#050d1b)}.hero h1 span{color:var(--gold)}.kicker{font-size:.68rem;font-weight:700;letter-spacing:.2em;color:var(--gold);margin-bottom:20px}.intro{color:#c2cee1;font-size:1.08rem;margin-top:24px}.actions{display:flex;flex-wrap:wrap;gap:12px;margin:26px 0 16px}.primary,.secondary{min-height:48px;padding:12px 20px;display:inline-flex;align-items:center;justify-content:center;gap:9px;border-radius:12px;font-size:.88rem;font-weight:600;text-decoration:none}.primary{background:linear-gradient(120deg,#efd8a0,#d4af5d);color:#081326;box-shadow:0 4px 24px #d4af5d1a}.secondary{border:1px solid #9ab5e533;color:#e1eaf8}.textLink{display:inline-flex;min-height:44px;align-items:center;gap:8px;color:#abd3ff;font-size:.86rem;text-underline-offset:5px}.page a:focus-visible,.page summary:focus-visible{outline:2px solid #76baff;outline-offset:5px}.small{font-size:.76rem!important;color:var(--muted);line-height:1.65!important}.reward{padding:30px 22px;border:1px solid #79a8ef33;background:linear-gradient(150deg,#18325799,#091324);border-radius:26px;text-align:center;box-shadow:0 16px 70px #0004}.orbit{display:grid;place-items:center;width:90px;height:90px;margin:0 auto 22px;border:1px solid #edce8277;border-radius:50%;box-shadow:0 0 26px #2788ee44,inset 0 0 24px #2788ee22;color:var(--gold)}.reward .kicker{margin-bottom:8px}.amount{color:var(--gold);font-size:5rem;font-weight:600;letter-spacing:-.065em;line-height:1.15!important}.amount span{display:block;font-size:.8rem;font-weight:400;letter-spacing:0;color:#b9c9df;margin-bottom:18px}.reward>p:not(.kicker):not(.amount){font-size:.9rem;color:#c8d5e7}.pills{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:23px 0}.pills span{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:100px;background:#6fa9ff0d;border:1px solid #9cbcec26;font-size:.65rem}.section{padding:70px 0 0;scroll-margin-top:100px}.section h2{max-width:760px;margin-bottom:30px}.steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:16px}.steps article,.rules article{padding:24px 20px;border:1px solid #9ab5e526;border-radius:20px;background:#10223b66}.steps h3{margin:22px 0 12px}.steps p,.rules p,.example p,.finish>p:not(.kicker){font-size:.92rem;color:var(--muted)}.number{color:var(--gold);font-size:.8rem;border:1px solid #d4af5d55;border-radius:50%;width:36px;height:36px;display:grid;place-items:center}.example{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;margin-top:64px;padding:32px;border:1px solid #d4af5d33;border-radius:26px;background:linear-gradient(110deg,#d4af5d0c,#1679ed0c)}.example h2{margin-bottom:18px}.example table{width:100%;font-size:.85rem;border-collapse:collapse}.example caption{text-align:left;font-size:.72rem;color:var(--muted);padding-bottom:14px}.example th,.example td{text-align:left;padding:14px 8px;border-bottom:1px solid #9ab5e526;font-weight:400}.example thead th{font-size:.72rem;color:var(--muted)}.example td{color:var(--gold);font-size:1.2rem}.example .small{margin-top:16px}.rules{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.rules svg{color:var(--gold);width:24px;margin-bottom:20px}.rules h3{margin-bottom:12px}.faq{display:grid;gap:10px}.faq details,.terms{border:1px solid #9ab5e526;border-radius:15px;background:#10223b44;padding:0 22px}.faq summary,.terms summary{cursor:pointer;min-height:58px;padding:17px 0;font-size:.94rem}.faq p{max-width:850px;padding-bottom:22px;color:var(--muted);font-size:.9rem}.terms{margin-top:30px}.terms ol{list-style:decimal;padding:16px 0 24px 22px;color:var(--muted);font-size:.8rem;line-height:1.8}.terms li+li{margin-top:12px}.finish{text-align:center;border-top:1px solid #9ab5e526;padding-top:56px;margin-top:64px}.finish h2{margin-bottom:22px}.finish .actions{justify-content:center}@media(max-width:900px){.hero{grid-template-columns:1fr;gap:32px}.reward{max-width:480px;width:100%;justify-self:center}.steps{grid-template-columns:repeat(2,minmax(0,1fr))}.example{grid-template-columns:1fr;gap:24px}}@media(max-width:560px){.page{padding:20px 16px 48px}.hero{padding:26px 20px;border-radius:24px}.hero h1{font-size:2.7rem}.steps,.rules{grid-template-columns:1fr}.steps article{padding:22px}.example{padding:24px 20px}.section{padding-top:48px}.actions{flex-direction:column}.primary,.secondary{width:100%}.small{font-size:.74rem!important}.faq details{padding:0 16px}.faq summary{line-height:1.5}}
+diff --git a/src/components/circle-card/commission-submit-button.tsx b/src/components/circle-card/commission-submit-button.tsx
+new file mode 100644
+index 0000000..6c05706
+--- /dev/null
++++ b/src/components/circle-card/commission-submit-button.tsx
+@@ -0,0 +1,10 @@
++"use client";
++
++import { useFormStatus } from "react-dom";
++import type { ComponentProps } from "react";
++
++export function CommissionSubmitButton({ children, disabled, ...props }: ComponentProps<"button">) {
++  const { pending, data } = useFormStatus();
++  const isSubmitting = pending && (!props.value || data?.get("intent") === props.value);
++  return <button {...props} type="submit" disabled={disabled || pending} aria-busy={isSubmitting || undefined}>{isSubmitting ? "Please wait…" : children}</button>;
++}
+diff --git a/src/lib/circle-card/commission-journey.test.ts b/src/lib/circle-card/commission-journey.test.ts
+new file mode 100644
+index 0000000..b392101
+--- /dev/null
++++ b/src/lib/circle-card/commission-journey.test.ts
+@@ -0,0 +1,40 @@
++import { describe, expect, it } from "vitest";
++import { commissionSetupProgress, COMMISSIONS_LOGIN_PATH, COMMISSIONS_SETUP_PATH } from "./commission-journey";
++import { CIRCLE_COMMISSION_TERMS_VERSION, type CommissionMemberControls } from "./commission-member-controls";
++import { evaluateCustomerRuntimeRoute } from "./runtime-route-policy";
++import { resolveCircleCardAuthReturnPath } from "./routes";
++import { circlePrimaryDestination, resolveCircleExperienceHref } from "./experience";
++
++const ready: CommissionMemberControls = { enabled: false, revision: 9, termsVersion: CIRCLE_COMMISSION_TERMS_VERSION, onboardingStatus: "VERIFIED", payoutEligibility: true };
++describe("commissions setup journey", () => {
++  it("starts new members at Pro without pretending setup is complete", () => {
++    const progress = commissionSetupProgress(false, null, true);
++    expect(progress.nextStep).toBe(0); expect(progress.canEnable).toBe(false); expect(progress.earning).toBe(false);
++  });
++  it("remembers saved terms and directs the member to payouts", () => {
++    const progress = commissionSetupProgress(true, { ...ready, onboardingStatus: "INCOMPLETE", payoutEligibility: false }, true);
++    expect(progress.nextStep).toBe(2); expect(progress.termsAccepted).toBe(true); expect(progress.canEnable).toBe(false);
++  });
++  it("verified Stripe setup never enables earnings by itself", () => {
++    const progress = commissionSetupProgress(true, ready, true);
++    expect(progress.nextStep).toBe(3); expect(progress.canEnable).toBe(true); expect(progress.earning).toBe(false);
++  });
++  it("requires all earning gates even when the stored switch is ON", () => {
++    expect(commissionSetupProgress(true, { ...ready, enabled: true }, true).earning).toBe(true);
++    for (const change of [{ termsVersion: "old" }, { onboardingStatus: "RESTRICTED" as const }, { payoutEligibility: false }]) {
++      expect(commissionSetupProgress(true, { ...ready, enabled: true, ...change }, true).earning).toBe(false);
++    }
++    expect(commissionSetupProgress(true, { ...ready, enabled: true }, false).earning).toBe(false);
++    expect(commissionSetupProgress(false, { ...ready, enabled: true }, true).earning).toBe(false);
++  });
++  it("allows the public page and retains the setup destination across sign-in", () => {
++    expect(evaluateCustomerRuntimeRoute("circle-card", "/commissions")).toEqual({ action: "allow" });
++    expect(resolveCircleCardAuthReturnPath("/commissions", "circle-card")).toBe("/commissions");
++    expect(resolveCircleCardAuthReturnPath(new URL(COMMISSIONS_LOGIN_PATH, "https://circlecard.co.uk").searchParams.get("from"), "circle-card")).toBe(COMMISSIONS_SETUP_PATH);
++  });
++  it("gives commissions its own navigation selection and migrates old anchors", () => {
++    expect(circlePrimaryDestination(COMMISSIONS_SETUP_PATH)).toBe("commissions");
++    expect(circlePrimaryDestination("/app/share/referrals")).toBe("share");
++    expect(resolveCircleExperienceHref("/dashboard/circle-card#circle-commissions")).toBe(COMMISSIONS_SETUP_PATH);
++  });
++});
+diff --git a/src/lib/circle-card/commission-journey.ts b/src/lib/circle-card/commission-journey.ts
+new file mode 100644
+index 0000000..6b25cf7
+--- /dev/null
++++ b/src/lib/circle-card/commission-journey.ts
+@@ -0,0 +1,19 @@
++import { CIRCLE_COMMISSION_TERMS_VERSION, type CommissionMemberControls } from "./commission-member-controls";
++
++export const COMMISSIONS_PUBLIC_PATH = "/commissions";
++export const COMMISSIONS_SETUP_PATH = "/app/share/commissions";
++export const COMMISSIONS_LOGIN_PATH = `/login?from=${encodeURIComponent(COMMISSIONS_SETUP_PATH)}`;
++
++export function commissionSetupProgress(hasProAccess: boolean, controls: CommissionMemberControls | null, programmeOpen: boolean) {
++  const termsAccepted = controls?.termsVersion === CIRCLE_COMMISSION_TERMS_VERSION;
++  const payoutsReady = controls?.onboardingStatus === "VERIFIED" && controls.payoutEligibility;
++  const ready = hasProAccess && termsAccepted && payoutsReady && programmeOpen;
++  const earning = Boolean(ready && controls?.enabled);
++  const steps = [
++    { title: "Activate Pro", complete: hasProAccess, detail: "Active Pro access unlocks the optional programme." },
++    { title: "Accept the terms", complete: termsAccepted, detail: "Read the commission terms and save your acceptance." },
++    { title: "Set up Stripe payouts", complete: Boolean(payoutsReady), detail: "Complete verification with Stripe, then return here." },
++    { title: "Turn commissions on", complete: earning, detail: "Switch ON before sharing your personal referral link." },
++  ];
++  return { termsAccepted, payoutsReady, canEnable: ready, earning, steps, nextStep: steps.findIndex(step => !step.complete) };
++}
+diff --git a/src/lib/circle-card/experience.ts b/src/lib/circle-card/experience.ts
+index 17d692a..7f7e1e9 100644
+--- a/src/lib/circle-card/experience.ts
++++ b/src/lib/circle-card/experience.ts
+@@ -17,13 +17,14 @@ export function requiresCircleEditorDocument(href:string,runtimeBrand:string){
+ }
+ export function selectOwnedWorkspaceCard<T extends {id:string}>(cards:readonly T[],requested?:string){return cards.find(card=>card.id===requested)??cards[0]??null;}
+ export function circlePrimaryDestination(pathname:string){
++ if(pathname==="/app/share/commissions"||pathname.startsWith("/app/share/commissions/"))return "commissions";
+  if(pathname==="/app/circle"||pathname.startsWith("/app/circle/")||pathname==="/app/wallet")return "circle";
+  if(pathname==="/app/share"||pathname.startsWith("/app/share/"))return "share";
+  return "card";
+ }
+ 
+ const legacyAnchors:Record<string,string>={"my-cards":"/app","card-identity":"/app/edit/profile","card-images":"/app/edit/profile","card-contact-details":"/app/edit/contact","card-social-profiles":"/app/identity","custom-links":"/app/edit/links","analytics":"/app/edit/activity","circle-trust":"/app/trust","business-card-builder":"/app/edit/business","creator-pro-studio":"/app/edit/creator","smart-profile-import":"/app/import","referral-centre":"/app/share/referrals","share-assets":"/app/share/assets","qr-code":"/app/share","introductions":"/app/circle/introductions","opportunities":"/app/circle/opportunities","discover":"/app/circle/discover","referrals":"/app/circle/referrals","connect-hub":"/app/circle/connections","notifications":"/app/circle/notifications","activity":"/app/circle/activity","wallet":"/app/circle","circle-card-settings":"/app/settings","circle-card-plan":"/pro"};
+-Object.assign(legacyAnchors,{"business-card-services":"/app/edit/business/services","business-card-products":"/app/edit/business/products","business-card-price-list":"/app/edit/business/prices","business-card-menu-offers":"/app/edit/business/offers","business-card-booking":"/app/edit/business/booking","business-card-downloads":"/app/edit/business/documents","business-card-gallery":"/app/edit/business/gallery","business-card-reviews":"/app/edit/business/reviews","business-card-opening-hours":"/app/edit/business/hours","creator-media-kit":"/app/edit/creator/media-kit","creator-audience-snapshot":"/app/edit/creator/audience"});
++Object.assign(legacyAnchors,{"circle-commissions":"/app/share/commissions","business-card-services":"/app/edit/business/services","business-card-products":"/app/edit/business/products","business-card-price-list":"/app/edit/business/prices","business-card-menu-offers":"/app/edit/business/offers","business-card-booking":"/app/edit/business/booking","business-card-downloads":"/app/edit/business/documents","business-card-gallery":"/app/edit/business/gallery","business-card-reviews":"/app/edit/business/reviews","business-card-opening-hours":"/app/edit/business/hours","creator-media-kit":"/app/edit/creator/media-kit","creator-audience-snapshot":"/app/edit/creator/audience"});
+ export function resolveCircleExperienceHref(href:string){
+  if(!href.startsWith("/")||href.startsWith("//"))return href;
+  const url=new URL(href,"https://circle-card.internal");
+diff --git a/src/lib/circle-card/routes.ts b/src/lib/circle-card/routes.ts
+index 39b29ac..b52470d 100644
+--- a/src/lib/circle-card/routes.ts
++++ b/src/lib/circle-card/routes.ts
+@@ -119,6 +119,7 @@ export function resolveCircleCardAuthReturnPath(
+   const allowedExactPaths = new Set([
+     "/",
+     "/pro",
++    "/commissions",
+     "/teams",
+     "/community-standards"
+   ]);
+diff --git a/src/lib/circle-card/runtime-route-policy.ts b/src/lib/circle-card/runtime-route-policy.ts
+index d8ddbe6..8a56a57 100644
+--- a/src/lib/circle-card/runtime-route-policy.ts
++++ b/src/lib/circle-card/runtime-route-policy.ts
+@@ -72,6 +72,7 @@ const CIRCLE_CARD_LEGAL_PATHS = new Set([
+ const CIRCLE_CARD_EXACT_PATHS = new Set([
+   "/",
+   "/pro",
++  "/commissions",
+   "/install",
+   "/circle-card-worker.js",
+   "/circle-card-offline",
