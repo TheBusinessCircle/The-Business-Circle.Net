@@ -206,7 +206,7 @@ const optionalSlug = z
   .or(z.literal(""))
   .refine((value) => !value || /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value), {
     message: "Slug can only contain lowercase letters, numbers, and hyphens."
-  }).refine(value => value !== HUCKNALL_HUB_SLUG, "This link is reserved for the Hucknall hub.");
+  });
 const checkboxBoolean = z.preprocess(
   (value) => value === true || value === "true" || value === "on",
   z.boolean()

@@ -1,4 +1,5 @@
 import { CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED } from "@/lib/circle-card/plans";
+import { HUCKNALL_HUB_CARD_ID } from "@/lib/circle-card/hucknall-content";
 import {
   isSafeCircleCardExternalUrl,
   isSafeCircleCardLinkDestination
@@ -60,7 +61,11 @@ export function selectCircleCardsWithinPlan<T extends CircleCardPlanOrderItem>(
   cards: readonly T[],
   limit: number
 ) {
-  return [...cards].sort(compareCircleCardsForPlan).slice(0, Math.max(0, limit));
+  // Only this immutable ID has a sponsored community-hub identity allowance.
+  const ordered = [...cards].sort(compareCircleCardsForPlan);
+  const ordinary = ordered.filter(card => card.id !== HUCKNALL_HUB_CARD_ID).slice(0, Math.max(0, limit));
+  const allowed = new Set(ordinary.map(card => card.id));
+  return ordered.filter(card => card.id === HUCKNALL_HUB_CARD_ID || allowed.has(card.id));
 }
 
 export function selectCircleCardIdsWithinPlan<T extends CircleCardPlanOrderItem>(

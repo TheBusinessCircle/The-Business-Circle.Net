@@ -1769,6 +1769,10 @@ export async function upsertCircleCardAction(
     formData.has("themePreset");
   const cardId = values.cardId || null;
 
+  if (values.slug === "hucknall-circle-hub" && cardId !== "cmvzwzm3y000amkahigz25s8r") {
+    return circleCardSaveFailure({ message: "This public link belongs to the Hucknall hub.", fieldErrors: { slug: ["This link is reserved for the community hub."] } });
+  }
+
   if (!cardId && values.cardType === "BUSINESS" && !values.businessPostcode) {
     return circleCardSaveFailure({
       message: "Add your business postcode.",

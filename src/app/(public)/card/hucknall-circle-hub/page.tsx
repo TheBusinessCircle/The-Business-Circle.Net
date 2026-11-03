@@ -1,19 +1,19 @@
 import type { Metadata } from "next";
-import { HucknallCircleHub } from "@/components/circle-card/hucknall-circle-hub";
-import { CIRCLE_CARD_ONBOARDING_PATH } from "@/lib/circle-card/routes";
-import { HUCKNALL_HUB_PATH } from "@/lib/circle-card/local-hubs";
-import { getHucknallHubBusinesses } from "@/server/circle-card/local-hub.service";
+import PublicCardPage, { generateMetadata as nativeCardMetadata } from "../[slug]/page";
+import { HUCKNALL_DESCRIPTION, HUCKNALL_HUB_CANONICAL } from "@/lib/circle-card/hucknall-content";
 
-// Visibility and moderation changes must apply on the next request.
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = {
-  title: "Hucknall Circle Hub | Local businesses in NG15",
-  description: "Discover Hucknall and NG15 businesses in one free local hub. Browse by category and connect through each business's Circle Card.",
-  alternates: { canonical: HUCKNALL_HUB_PATH },
-  openGraph: { title: "Hucknall Circle Hub", description: "One town. One Circle. Discover local businesses in Hucknall & NG15.", url: HUCKNALL_HUB_PATH }
-};
+const params = () => Promise.resolve({ slug: "hucknall-circle-hub" });
 
-export default async function HucknallHubPage() {
-  return <HucknallCircleHub businesses={await getHucknallHubBusinesses()}
-    joinPath={`${CIRCLE_CARD_ONBOARDING_PATH}?cardType=BUSINESS`} proPath="/circle-card/pro" />;
+export async function generateMetadata(): Promise<Metadata> {
+  const native = await nativeCardMetadata({ params: params(), searchParams: Promise.resolve({}) });
+  return { ...native, title: "Hucknall Circle Hub | Local businesses, heritage & community",
+    description: HUCKNALL_DESCRIPTION, alternates: { canonical: HUCKNALL_HUB_CANONICAL },
+    openGraph: { ...native.openGraph, title: "Hucknall Circle Hub", description: HUCKNALL_DESCRIPTION, url: HUCKNALL_HUB_CANONICAL } };
+}
+
+export default async function HubPage({ searchParams }: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  return PublicCardPage({ params: params(), searchParams });
 }

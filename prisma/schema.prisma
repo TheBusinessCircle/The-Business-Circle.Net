@@ -489,7 +489,7 @@ model CircleCard {
   @@index([displayOrder])
   @@index([isDefaultCard])
   @@index([isPublished])
-  @@index([businessPostcode, cardType, showInDiscover, isPublished])
+  @@index([businessPostcode, cardType, showInDiscover, isPublished], map: "CircleCard_local_hub_visibility_idx")
   @@index([showInDiscover])
   @@index([discoverOptedInAt])
   @@index([accountType])

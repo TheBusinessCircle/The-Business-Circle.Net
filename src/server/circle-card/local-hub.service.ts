@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { CIRCLE_CARD_DISCOVER_VISIBLE_WHERE } from "@/lib/circle-card/privacy";
-import { HUCKNALL_HUB_PATH, directoryCircleTrustScore, getLocalHubPath, isBusinessDirectoryCategory,
+import { directoryCircleTrustScore, getLocalHubPath, isBusinessDirectoryCategory,
     sortLocalHubBusinesses, type LocalHubBusiness } from "@/lib/circle-card/local-hubs";
 import { getPublicCircleCard } from "@/server/circle-card/public-card.service";
 
@@ -21,8 +21,13 @@ export async function getHucknallHubBusinesses(): Promise<LocalHubBusiness[]> {
     const cards = await Promise.all(batch.map(candidate => getPublicCircleCard(candidate.slug)));
     for (let index = 0; index < batch.length; index += 1) {
       const card = cards[index];
-      if (!card || card.isDemo || card.localHubPath !== HUCKNALL_HUB_PATH) continue;
+      if (!card || card.isDemo) continue;
       const candidate = batch[index];
+      const stillEligible = await prisma.circleCard.findFirst({
+        where: { id: card.id, ...CIRCLE_CARD_DISCOVER_VISIBLE_WHERE, cardType: "BUSINESS",
+          businessPostcode: { startsWith: "NG15 " }, user: { suspended: false } }, select: { id: true }
+      });
+      if (!stillEligible) continue;
       businesses.push({ id: card.id, slug: card.slug, name: card.businessName || card.fullName,
         description: card.tagline,
         category: candidate.businessCategory && isBusinessDirectoryCategory(candidate.businessCategory)

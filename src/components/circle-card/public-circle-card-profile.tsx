@@ -1,3 +1,4 @@
+import { HucknallPublicHub } from "@/components/circle-card/hucknall-public-hub";
 import type { AnchorHTMLAttributes, CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import {
@@ -3199,6 +3200,17 @@ export function PublicCircleCardProfile({
     );
   }
 
+  if (card.id === "cmvzwzm3y000amkahigz25s8r" && card.slug === "hucknall-circle-hub" && !card.isDemo) {
+    return <HucknallPublicHub
+      identity={<CircleCardSpinToConnect {...spinToConnectProps} className="h-24 w-24 shrink-0" showAmbientRing={true}><CircleCardLogoMark className="h-full w-full" /></CircleCardSpinToConnect>}
+      actions={<>{renderWalletAction()}<CircleCardShareButton title="Hucknall Circle Hub" publicUrl={publicUrl} cardId={analyticsCardId} label="Share Hucknall" /><a href={`${new URL(publicUrl).pathname}/vcard`} className="inline-flex min-h-11 items-center rounded-full border border-gold/30 px-5 text-sm text-gold">Save contact</a></>}
+      connection={renderConnectionAction()}
+      feedback={noticeMessage || errorMessage ? <p role="status" className="rounded-xl border border-gold/30 p-4 text-sm">{errorMessage || noticeMessage}</p> : null}
+      trust={renderTrustScoreCard()}
+      qr={<CircleCardQrPanel publicUrl={publicUrl} slug={card.slug} label="Save Hucknall Circle Hub" />}
+    />;
+  }
+
   const businessHeroImageUrl = card.businessLogoUrl || card.profileImageUrl;
   const businessHeroReviewAction = resolveCircleCardHeroReviewAction({
     slug: card.slug,
@@ -3544,3 +3556,4 @@ export function PublicCircleCardProfile({
     </div>
   );
 }
+

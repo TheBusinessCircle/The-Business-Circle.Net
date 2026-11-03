@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ findMany: vi.fn(), getPublicCard: vi.fn() }));
+const mocks = vi.hoisted(() => ({ findMany: vi.fn(), findFirst: vi.fn(), getPublicCard: vi.fn() }));
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/prisma", () => ({ prisma: { circleCard: { findMany: mocks.findMany } } }));
+vi.mock("@/lib/prisma", () => ({ prisma: { circleCard: { findMany: mocks.findMany, findFirst: mocks.findFirst } } }));
 vi.mock("@/server/circle-card/public-card.service", () => ({ getPublicCircleCard: mocks.getPublicCard }));
 import { getHucknallHubBusinesses } from "./local-hub.service";
 import { HUCKNALL_HUB_PATH } from "@/lib/circle-card/local-hubs";
@@ -12,7 +12,7 @@ const publicCard = (slug: string, score = 0) => ({ id: slug, slug, businessName:
   isDemo: false, localHubPath: HUCKNALL_HUB_PATH, trust: { verifiedTestimonialCount: 0, signals: [{ id: "verified-connections", scoreContribution: score }] } });
 
 describe("public Hucknall hub directory", () => {
-  beforeEach(() => { vi.clearAllMocks(); mocks.findMany.mockResolvedValue([]); mocks.getPublicCard.mockImplementation(async slug => publicCard(slug)); });
+  beforeEach(() => { vi.clearAllMocks(); mocks.findMany.mockResolvedValue([]); mocks.findFirst.mockResolvedValue({ id: "eligible" }); mocks.getPublicCard.mockImplementation(async slug => publicCard(slug)); });
   it("enforces opt-in, publication, location, type, archive and suspended-account predicates", async () => {
     await getHucknallHubBusinesses();
     expect(mocks.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {
@@ -34,7 +34,7 @@ describe("public Hucknall hub directory", () => {
   });
   it("rechecks consent and location from the fresh canonical card read", async () => {
     mocks.findMany.mockResolvedValue([candidate("changed")]);
-    mocks.getPublicCard.mockResolvedValue({ ...publicCard("changed"), localHubPath: null });
+    mocks.findFirst.mockResolvedValue(null);
     expect(await getHucknallHubBusinesses()).toEqual([]);
   });
   it("ranks the complete set across concurrency batches", async () => {

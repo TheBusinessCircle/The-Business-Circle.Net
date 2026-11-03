@@ -20,6 +20,7 @@ export function HucknallHubDraftPreview() {
     <nav aria-label="Hub draft navigation" className="flex flex-wrap gap-4 px-4 text-sm text-gold">
       <Link className="inline-flex min-h-11 items-center" href="/app">Back to my drafts</Link>
       <Link className="inline-flex min-h-11 items-center" href={`/app/prepared/${HUCKNALL_PREPARED_ID}`}>Edit draft details</Link>
+      <Link className="inline-flex min-h-11 items-center" href="/card/hucknall-circle-hub">Open public hub</Link>
     </nav>
     <HucknallCircleHub businesses={HUCKNALL_PREVIEW_BUSINESSES} joinPath="" proPath="" previewMode />
   </div>;
