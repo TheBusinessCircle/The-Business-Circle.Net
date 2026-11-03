@@ -27,6 +27,7 @@ PAYLOAD_FILES = {
     "src/components/circle-card/hucknall-hub-draft-preview.tsx",
     "src/components/circle-card/hucknall-public-hub.tsx",
     "src/components/circle-card/hucknall-about.tsx",
+    "src/components/circle-card/local-hub-membership.tsx",
     "src/lib/circle-card/local-hubs.ts",
     "src/lib/circle-card/hucknall-content.ts",
     "src/lib/circle-card/privacy.ts",

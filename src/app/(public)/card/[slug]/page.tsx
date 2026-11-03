@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { LocalHubMembership } from "@/components/circle-card/local-hub-membership";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
@@ -260,7 +260,7 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
           sourceEvent="PUBLIC_CARD_VIEW"
         />
       ) : null}
-      {card.localHubPath ? <div className="mx-auto w-full max-w-3xl px-4 py-3 text-center"><Link href={card.localHubPath} className="inline-flex min-h-11 items-center rounded-full border border-gold/30 bg-gold/10 px-5 text-sm text-gold">Part of Hucknall &amp; NG15 Circle Hub · Explore local businesses</Link></div> : null}
+      <LocalHubMembership cardId={card.id} isDemo={card.isDemo} />
       <PublicCircleCardProfile
         card={card}
         publicUrl={publicUrl}

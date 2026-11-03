@@ -4,6 +4,18 @@ import re
 HUB_ID = 'cmvzwzm3y000amkahigz25s8r'
 
 
+def patch_public_card_route(source):
+    if '<LocalHubMembership cardId={card.id} isDemo={card.isDemo} />' in source:
+        return source
+    marker = '      <PublicCircleCardProfile\n'
+    if source.count(marker) != 1 or 'const card = await getPublicCircleCard(slug);' not in source:
+        raise RuntimeError('The canonical public-card route changed; review the membership placement.')
+    # Replace the original source-branch badge if present, without copying its older route.
+    source = re.sub(r'^      \{card\.localHubPath \? <div[^\n]*</div> : null\}\r?\n', '', source, flags=re.M)
+    return 'import { LocalHubMembership } from "@/components/circle-card/local-hub-membership";\n' + source.replace(
+        marker, '      <LocalHubMembership cardId={card.id} isDemo={card.isDemo} />\n' + marker)
+
+
 def patch_profile(source):
     if 'HucknallPublicHub' in source:
         return source

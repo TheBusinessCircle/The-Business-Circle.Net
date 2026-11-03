@@ -8,6 +8,24 @@ spec.loader.exec_module(patches)
 
 
 class NativeHubPatches(unittest.TestCase):
+    def test_membership_covers_every_presentation_through_the_canonical_route(self):
+        original = '''const card = await getPublicCircleCard(slug);
+      {card.localHubPath ? <div>old badge</div> : null}
+      <PublicCircleCardProfile
+        card={card}
+        savedContact={savedContact}
+      />'''
+        result = patches.patch_public_card_route(original)
+        self.assertNotIn('old badge', result)
+        self.assertIn('<LocalHubMembership cardId={card.id} isDemo={card.isDemo} />', result)
+        self.assertIn('savedContact={savedContact}', result)
+        self.assertEqual(result.count('<PublicCircleCardProfile'), 1)
+        self.assertEqual(patches.patch_public_card_route(result), result)
+
+    def test_membership_refuses_an_unknown_route(self):
+        with self.assertRaises(RuntimeError):
+            patches.patch_public_card_route('return <DifferentCard />;')
+
     def test_schema_is_additive_and_idempotent(self):
         original = 'model User {\n id String @id\n}\nmodel CircleCard {\n id String @id\n businessName String?\n}'
         updated = patches.patch_schema(original)

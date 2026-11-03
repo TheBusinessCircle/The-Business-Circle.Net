@@ -23,6 +23,7 @@ def main():
     spec.loader.exec_module(patches)
     transforms = {
         'src/components/circle-card/public-circle-card-profile.tsx': patches.patch_profile,
+        'src/app/(public)/card/[slug]/page.tsx': patches.patch_public_card_route,
         'src/lib/circle-card/plan-policy.ts': patches.patch_plan_policy,
         'prisma/schema.prisma': patches.patch_schema,
         'src/app/robots.ts': patches.patch_robots,
