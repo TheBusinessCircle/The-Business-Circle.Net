@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
 import { HucknallCircleHub } from "@/components/circle-card/hucknall-circle-hub";
 import { HucknallAboutSummary } from "@/components/circle-card/hucknall-about";
-import { getHucknallHubBusinesses } from "@/server/circle-card/local-hub.service";
+import type { LocalHubBusiness } from "@/lib/circle-card/local-hubs";
 
-export async function HucknallPublicHub({ identity, actions, connection, feedback, trust, qr }: {
+export function HucknallPublicHub({ businesses, identity, actions, connection, feedback, trust, qr }: {
+  businesses: LocalHubBusiness[];
   identity: ReactNode; actions: ReactNode; connection: ReactNode;
   feedback: ReactNode; trust: ReactNode; qr: ReactNode;
 }) {
-  const businesses = await getHucknallHubBusinesses();
   return <>
     <HucknallCircleHub businesses={businesses} joinPath="/card/hucknall-circle-hub/join" proPath="/pro"
       nativeIdentity={identity} nativeActions={actions}

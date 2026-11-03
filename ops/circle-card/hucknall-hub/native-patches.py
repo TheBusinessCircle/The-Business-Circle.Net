@@ -5,6 +5,12 @@ HUB_ID = 'cmvzwzm3y000amkahigz25s8r'
 
 
 def patch_public_card_route(source):
+    if 'localHubBusinesses={' not in source:
+        prop_marker = '      <PublicCircleCardProfile\n'
+        if source.count(prop_marker) != 1:
+            raise RuntimeError('The public renderer entry point changed.')
+        source = 'import { getHucknallHubBusinesses } from "@/server/circle-card/local-hub.service";\n' + source.replace(
+            prop_marker, prop_marker + '        localHubBusinesses={card.id === "cmvzwzm3y000amkahigz25s8r" && card.slug === "hucknall-circle-hub" && !card.isDemo ? await getHucknallHubBusinesses() : []}\n')
     if '<LocalHubMembership cardId={card.id} isDemo={card.isDemo} />' in source:
         return source
     marker = '      <PublicCircleCardProfile\n'
@@ -17,8 +23,15 @@ def patch_public_card_route(source):
 
 
 def patch_profile(source):
+    if 'localHubBusinesses?: LocalHubBusiness[];' not in source:
+        for marker in ['type PublicCircleCardProfileProps = {', 'export function PublicCircleCardProfile({']:
+            if source.count(marker) != 1:
+                raise RuntimeError('The public renderer props changed: ' + marker)
+        source = 'import type { LocalHubBusiness } from "@/lib/circle-card/local-hubs";\n' + source.replace(
+            'type PublicCircleCardProfileProps = {', 'type PublicCircleCardProfileProps = {\n  localHubBusinesses?: LocalHubBusiness[];').replace(
+            'export function PublicCircleCardProfile({', 'export function PublicCircleCardProfile({\n  localHubBusinesses = [],')
     if 'HucknallPublicHub' in source:
-        return source
+        return source.replace('return <HucknallPublicHub\n      identity=', 'return <HucknallPublicHub\n      businesses={localHubBusinesses}\n      identity=')
     for required in ['const spinToConnectProps =', 'function renderWalletAction(',
                      'function renderConnectionAction(', 'function renderTrustScoreCard(',
                      'CircleCardSpinToConnect', 'CircleCardQrPanel', 'CircleCardShareButton']:
@@ -29,6 +42,7 @@ def patch_profile(source):
         raise RuntimeError('Expected one business renderer entry point.')
     branch = '''  if (card.id === "cmvzwzm3y000amkahigz25s8r" && card.slug === "hucknall-circle-hub" && !card.isDemo) {
     return <HucknallPublicHub
+      businesses={localHubBusinesses}
       identity={<CircleCardSpinToConnect {...spinToConnectProps} className="h-24 w-24 shrink-0" showAmbientRing={true}><CircleCardLogoMark className="h-full w-full" /></CircleCardSpinToConnect>}
       actions={<>{renderWalletAction()}<CircleCardShareButton title="Hucknall Circle Hub" publicUrl={publicUrl} cardId={analyticsCardId} label="Share Hucknall" /><a href={`${new URL(publicUrl).pathname}/vcard`} className="inline-flex min-h-11 items-center rounded-full border border-gold/30 px-5 text-sm text-gold">Save contact</a></>}
       connection={renderConnectionAction()}

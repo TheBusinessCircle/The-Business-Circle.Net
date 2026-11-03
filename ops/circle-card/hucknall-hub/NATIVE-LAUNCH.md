@@ -26,6 +26,8 @@ The original prepared draft stays private and its native published identity uses
 
 ## Acceptance
 
+The hub presentation is synchronous and accepts only public directory rows from the canonical server page. The shared profile renderer is also imported by the Wallet client bundle, so it must not transitively import the server-only directory loader. Regression validation includes a Next.js 15.5.15 production build of a client entry importing the real hub presentation, plus synchronous rendering tests and guarded patch tests. This isolated build validates that boundary; it is not a substitute for the full current-release server build.
+
 After deployment, verify public and signed-in views, owner self-save behaviour, a different user's Wallet save/remove and Spin/connection flow, actual Discover visibility, mobile layout, category/search, vCard and QR. Recheck the existing butcher and Precision previews. Verify HTTP 200 without authentication for the hub, About and sitemap and no noindex header/meta on public content. Google indexing is not guaranteed by crawlability and must be observed separately.
 
 Full general-signup postcode enforcement and direct editing of the new fields throughout every existing shared-card editor remain the broader local-hub integration work. The dedicated free join route provides an owner-authorized path immediately; this release does not falsely claim every older editor has already been upgraded.

@@ -19,6 +19,8 @@ class NativeHubPatches(unittest.TestCase):
         self.assertNotIn('old badge', result)
         self.assertIn('<LocalHubMembership cardId={card.id} isDemo={card.isDemo} />', result)
         self.assertIn('savedContact={savedContact}', result)
+        self.assertIn('await getHucknallHubBusinesses()', result)
+        self.assertIn('localHubBusinesses={card.id ===', result)
         self.assertEqual(result.count('<PublicCircleCardProfile'), 1)
         self.assertEqual(patches.patch_public_card_route(result), result)
 
@@ -39,15 +41,20 @@ class NativeHubPatches(unittest.TestCase):
             patches.patch_schema('model CircleCard {\n businessPostcode Int\n}')
 
     def test_native_profile_reuses_wallet_connection_spin_and_qr(self):
-        fixture = '''const spinToConnectProps = {};
+        fixture = '''type PublicCircleCardProfileProps = {};
+export function PublicCircleCardProfile({
+}: PublicCircleCardProfileProps) {
+const spinToConnectProps = {};
 function renderWalletAction() {} function renderConnectionAction() {} function renderTrustScoreCard() {}
 // CircleCardSpinToConnect CircleCardQrPanel CircleCardShareButton
   const businessHeroImageUrl = card.businessLogoUrl || card.profileImageUrl;
-return <Existing />;'''
+return <Existing />; }'''
         result = patches.patch_profile(fixture)
         for token in ['renderWalletAction()', 'renderConnectionAction()', 'renderTrustScoreCard()', '{...spinToConnectProps}', 'CircleCardQrPanel', '!card.isDemo', 'card.id === "cmvzwzm3y000amkahigz25s8r"']:
             self.assertIn(token, result)
         self.assertIn('return <Existing />;', result)
+        self.assertIn('businesses={localHubBusinesses}', result)
+        self.assertNotIn('@/server/', result)
         self.assertEqual(patches.patch_profile(result), result)
 
     def test_unknown_native_profile_shape_is_refused(self):
