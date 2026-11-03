@@ -96,10 +96,10 @@ def allowed_payload(name):
 def build_heap_mib(available_kib):
     available_mib = available_kib // 1024
     # Keep the existing 1 GiB allowance for native overhead and memory fluctuations.
-    for heap_mib in (3072, 2560):
+    for heap_mib in (3072, 2560, 2048):
         if available_mib >= heap_mib + 1024:
             return heap_mib
-    raise RuntimeError(f'Build requires at least 3584 MiB available RAM; currently {available_mib} MiB. Live site unchanged.')
+    raise RuntimeError(f'Build requires at least 3072 MiB available RAM; currently {available_mib} MiB. Live site unchanged.')
 
 
 def patch_prepared_preview(source):

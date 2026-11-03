@@ -14,6 +14,8 @@ User authorization: Trev requested a professionally presented Hucknall destinati
 
 ## Deployment
 
+The build admission budget selects a 3 GiB, 2.5 GiB or 2 GiB Node heap while reserving at least 1 GiB of available RAM for native overhead and fluctuations. At the reported 3345 MiB available, it selects 2048 MiB. This lower heap can still fail if the real production build needs more memory; it does not prove the build will fit. Build failure occurs before native identity activation or proxy switching. No existing service is stopped to release RAM.
+
 Run `install-native-hub.py --ref <pinned commit>` in the server's existing root SSH session. It identifies and clones the current release, copies the narrow payload, applies guarded transformations to that release's native renderer, plan selector, Prisma model and robots metadata, then generates a scoped Prisma client. Shared dependency stores are refused rather than modified.
 
 The additive migration creates two nullable business directory fields and one index, recording its checksum in Prisma migration history. Existing business addresses are not inferred or enrolled. This migration remains in place if the later application build fails; older code can continue to run with the additional nullable columns.
