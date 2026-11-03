@@ -14,6 +14,8 @@ User authorization: Trev requested a professionally presented Hucknall destinati
 
 ## Deployment
 
+`retire-unused-releases.py` addresses the observed accumulation of 16 running Circle Card releases. It requires the previously verified installer, identifies the live service through Nginx and the protected launcher, and preserves its recorded immediate predecessor. It stops and disables only historical Circle Card services with known listener PIDs and ports absent from every effective Nginx loopback reference. Unknown proxy targets, custom stop commands, service stop dependencies and overrides prevent retirement. Unit files and release data are retained; a private restore record records prior enablement. Direct and public login health are checked before and after each stop, and failures restart/re-enable the retired batch. This resource cleanup has portable policy tests but requires live verification on the server.
+
 The build admission budget selects a 3 GiB, 2.5 GiB or 2 GiB Node heap while reserving at least 1 GiB of available RAM for native overhead and fluctuations. At the reported 3345 MiB available, it selects 2048 MiB. This lower heap can still fail if the real production build needs more memory; it does not prove the build will fit. Build failure occurs before native identity activation or proxy switching. No existing service is stopped to release RAM.
 
 Run `install-native-hub.py --ref <pinned commit>` in the server's existing root SSH session. It identifies and clones the current release, copies the narrow payload, applies guarded transformations to that release's native renderer, plan selector, Prisma model and robots metadata, then generates a scoped Prisma client. Shared dependency stores are refused rather than modified.
