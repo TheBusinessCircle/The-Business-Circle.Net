@@ -421,6 +421,8 @@ model CircleCard {
   isDefaultCard   Boolean               @default(false)
   fullName        String
   businessName    String?
+  businessPostcode String? @db.VarChar(10)
+  businessCategory String? @db.VarChar(40)
   accountType     CircleCardAccountType?
   identityTags    String[]              @default([])
   profileLayout   CircleCardProfileLayout @default(BUSINESS)
@@ -487,6 +489,7 @@ model CircleCard {
   @@index([displayOrder])
   @@index([isDefaultCard])
   @@index([isPublished])
+  @@index([businessPostcode, cardType, showInDiscover, isPublished], map: "CircleCard_local_hub_visibility_idx")
   @@index([showInDiscover])
   @@index([discoverOptedInAt])
   @@index([accountType])

@@ -1,3 +1,5 @@
+import { HUCKNALL_HUB_PATH, isValidBusinessPostcode, normalizeBusinessPostcode, isBusinessDirectoryCategory } from "@/lib/circle-card/local-hubs";
+import { buildCircleCardDiscoverVisibilityData } from "@/lib/circle-card/privacy";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -35,6 +37,9 @@ const firstCardDraftSchema = z.object({
   businessLogoPositionY: z.number().min(0).max(100).default(50),
   businessLogoScale: z.number().min(1).max(3).default(1),
   businessName: optionalText(140),
+  businessPostcode: optionalText(10).refine(value => !value || isValidBusinessPostcode(value), "Enter a full valid UK business postcode."),
+  businessCategory: optionalText(40).refine(value => !value || isBusinessDirectoryCategory(value), "Choose a directory section."),
+  showInDiscover: z.boolean().default(false),
   role: optionalText(120),
   tagline: optionalText(180),
   email: optionalEmail,
@@ -108,6 +113,9 @@ export async function saveFirstCard(
   }
 
   const values = parsed.data;
+  if (publish && values.cardType === "BUSINESS" && !isValidBusinessPostcode(values.businessPostcode)) {
+    return { ok: false, message: "Add your full UK business postcode before publishing." };
+  }
   let card = await readOwnedStarterCard(session.user.id, values.cardId);
   if (card?.isPublished) {
     return { ok: false, message: "This card is already published. Use the full editor to change it." };
@@ -126,6 +134,8 @@ export async function saveFirstCard(
     businessLogoPositionY: values.businessLogoPositionY,
     businessLogoScale: values.businessLogoScale,
     businessName: nullable(values.businessName),
+    businessPostcode: nullable(normalizeBusinessPostcode(values.businessPostcode)),
+    businessCategory: values.businessCategory || "other",
     role: nullable(values.role),
     tagline: nullable(values.tagline),
     email: nullable(values.email),
@@ -219,9 +229,10 @@ export async function saveFirstCard(
     }
 
     if (publish) {
-      await prisma.circleCard.update({ where: { id: card.id }, data: { isPublished: true } });
+      await prisma.circleCard.update({ where: { id: card.id }, data: { isPublished: true, ...buildCircleCardDiscoverVisibilityData({ showInDiscover: values.showInDiscover }) } });
     }
 
+    revalidatePath(HUCKNALL_HUB_PATH);
     revalidatePath("/dashboard/circle-card/onboarding");
     revalidatePath("/dashboard/circle-card");
     revalidatePath(`/card/${card.slug}`);

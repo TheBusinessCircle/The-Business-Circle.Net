@@ -1,3 +1,5 @@
+import { getHucknallHubBusinesses } from "@/server/circle-card/local-hub.service";
+import { LocalHubMembership } from "@/components/circle-card/local-hub-membership";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
@@ -259,7 +261,9 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
           sourceEvent="PUBLIC_CARD_VIEW"
         />
       ) : null}
+      <LocalHubMembership cardId={card.id} isDemo={card.isDemo} />
       <PublicCircleCardProfile
+        localHubBusinesses={card.id === "cmvzwzm3y000amkahigz25s8r" && card.slug === "hucknall-circle-hub" && !card.isDemo ? await getHucknallHubBusinesses() : []}
         card={card}
         publicUrl={publicUrl}
         analyticsCardId={card.isDemo ? undefined : card.id}
@@ -288,3 +292,4 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
     </>
   );
 }
+

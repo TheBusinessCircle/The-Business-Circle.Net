@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { HUCKNALL_HUB_CARD_ID } from "@/lib/circle-card/hucknall-content";
 import {
   isCircleCardWithinPlan,
   selectCircleCardLinksWithinPlan,
@@ -6,6 +7,15 @@ import {
 } from "@/lib/circle-card/plan-policy";
 
 describe("Circle Card deterministic plan policy", () => {
+  it("keeps the designated community hub visible without displacing ordinary cards", () => {
+    const base = { isDefaultCard: false, isPrimary: false, displayOrder: 1, createdAt: new Date() };
+    const cards = [{ ...base, id: "ordinary-one" }, { ...base, id: "ordinary-two" },
+      { ...base, id: HUCKNALL_HUB_CARD_ID }, { ...base, id: "ordinary-three" }];
+    expect(selectCircleCardsWithinPlan(cards, 2).map(card => card.id)).toEqual(expect.arrayContaining(["ordinary-one", "ordinary-three", HUCKNALL_HUB_CARD_ID]));
+    expect(selectCircleCardsWithinPlan(cards, 2)).toHaveLength(3);
+    expect(selectCircleCardsWithinPlan(cards.filter(card => card.id !== HUCKNALL_HUB_CARD_ID), 2)).toHaveLength(2);
+    expect(isCircleCardWithinPlan(HUCKNALL_HUB_CARD_ID, cards, 0)).toBe(true);
+  });
   it("prefers the default card and resolves every tie stably", () => {
     const createdAt = new Date("2026-07-12T12:00:00.000Z");
     const cards = [

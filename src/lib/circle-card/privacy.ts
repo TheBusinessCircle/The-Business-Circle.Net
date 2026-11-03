@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 export const CIRCLE_CARD_DISCOVER_HIDDEN_LABEL = "Hidden from Discover";
 export const CIRCLE_CARD_DISCOVER_VISIBLE_LABEL = "Visible on Discover";
 export const CIRCLE_CARD_DISCOVER_SETTING_COPY =
-  "Your public card still works when shared. This only controls whether people can find you in Discover.";
+  "Your public card still works when shared. This controls whether people can find you in Discover and eligible local business hubs. Switching it off removes you from both.";
 
 export const CIRCLE_CARD_DISCOVER_VISIBLE_WHERE = {
   isPublished: true,

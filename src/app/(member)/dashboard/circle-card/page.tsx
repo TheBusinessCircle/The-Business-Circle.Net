@@ -1,3 +1,5 @@
+import { BusinessDirectoryFields } from "@/components/circle-card/business-directory-fields";
+import { HUCKNALL_HUB_PATH } from "@/lib/circle-card/local-hubs";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -9134,7 +9136,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                         </p>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="first-card-slug">Public link slug</Label>
+                          <BusinessDirectoryFields idPrefix="first-card-directory" />
+                          <Label htmlFor="first-card-slug">Public link slug</Label>
                         <Input
                           id="first-card-slug"
                           name="slug"
@@ -9428,6 +9431,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                 </span>
               </label>
 
+<BusinessDirectoryFields postcode={card?.businessPostcode} category={card?.businessCategory} />
+<a href={HUCKNALL_HUB_PATH} className="text-sm text-gold underline">Explore Hucknall &amp; NG15 Circle Hub</a>
               <label
                 htmlFor="showInDiscover"
                 className="flex items-start gap-3 rounded-2xl border border-silver/14 bg-background/22 p-4 text-sm text-foreground"
@@ -11794,6 +11799,8 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
                     <input type="hidden" name="cardType" value={card.cardType} />
                     <input type="hidden" name="fullName" value={card.fullName} />
                     <input type="hidden" name="businessName" value={card.businessName ?? ""} />
+<BusinessDirectoryFields postcode={card.businessPostcode} category={card.businessCategory} idPrefix="settings-directory" />
+<a href={HUCKNALL_HUB_PATH} className="text-sm text-gold underline">View Hucknall &amp; NG15 Circle Hub</a>
                     <input type="hidden" name="accountType" value={card.accountType ?? ""} />
                     {card.identityTags.map((identityTag) => (
                       <input key={identityTag} type="hidden" name="identityTags" value={identityTag} />
@@ -12010,3 +12017,4 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
     </div>
   );
 }
+

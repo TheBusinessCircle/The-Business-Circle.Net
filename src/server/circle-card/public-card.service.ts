@@ -1,3 +1,4 @@
+import { getLocalHubPath } from "@/lib/circle-card/local-hubs";
 import "server-only";
 import type {
   CircleCardAccountType,
@@ -118,6 +119,7 @@ export type PublicCircleCardSwitcherItem = {
 };
 
 export type PublicCircleCard = {
+  localHubPath?: string | null;
   id: string;
   userId: string;
   slug: string;
@@ -359,6 +361,8 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
       createdAt: true,
       fullName: true,
       businessName: true,
+      businessPostcode: true,
+      showInDiscover: true,
       accountType: true,
       identityTags: true,
       profileLayout: true,
@@ -822,8 +826,12 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
     walletTestimonialsReceived,
     connectionRequestsSent,
     connectionRequestsReceived,
+    businessPostcode,
+    showInDiscover,
     ...publicCard
   } = card;
+  void businessPostcode;
+  void showInDiscover;
   void contentBlocks;
   void walletTestimonialsReceived;
   void connectionRequestsSent;
@@ -838,6 +846,7 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
 
   return {
     ...publicCard,
+    localHubPath: getLocalHubPath(card),
     profileImageUrl,
     businessLogoUrl,
     themePrimaryColor: circleCardAccess.capabilities.circleStudio ? card.themePrimaryColor : null,
@@ -942,3 +951,4 @@ export function buildCircleCardVCard(card: PublicCircleCard) {
 export function circleCardVCardFilename(card: PublicCircleCard) {
   return `${fileSafeName(card.fullName)}-circle-card.vcf`;
 }
+

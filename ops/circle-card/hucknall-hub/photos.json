@@ -1,0 +1,46 @@
+[
+  {
+    "id": "church",
+    "file": "st-mary.jpg",
+    "title": "St Mary Magdalene",
+    "alt": "St Mary Magdalene Church in Hucknall",
+    "author": "Phil Evans",
+    "year": "2008",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/9/90/Hucknall_Church_St_Mary_Magdalene.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Hucknall_Church_St_Mary_Magdalene.jpg",
+    "bundled": false
+  },
+  {
+    "id": "town",
+    "file": "hucknall-market.jpg",
+    "title": "Hucknall market",
+    "alt": "Market stalls and shoppers on Hucknall pedestrianised High Street",
+    "author": "Image supplied by Trev",
+    "year": "Date not provided",
+    "source": "",
+    "bundled": true,
+    "sha256": "1a010f28fd54cc17bf178d562f9db7ad68af39b9b282f7439bb7c88f2cbdb35e"
+  },
+  {
+    "id": "street",
+    "file": "pedestrian-high-street.jpg",
+    "title": "The High Street",
+    "alt": "Hucknall pedestrianised High Street with shops and open walking space",
+    "author": "Image supplied by Trev",
+    "year": "Date not provided",
+    "source": "",
+    "bundled": true,
+    "sha256": "ee68f186c4aa2d76123990ec3223fc257f00e8283737a34de373b318d37413bc"
+  },
+  {
+    "id": "park",
+    "file": "titchfield-park.jpg",
+    "title": "Titchfield Park",
+    "alt": "Green space and mature trees at Titchfield Park in Hucknall",
+    "author": "Alan Murray-Rust",
+    "year": "2025",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/5/50/Titchfield_Park%2C_Hucknall_-_geograph.org.uk_-_8108031.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Titchfield_Park,_Hucknall_-_geograph.org.uk_-_8108031.jpg",
+    "bundled": false
+  }
+]

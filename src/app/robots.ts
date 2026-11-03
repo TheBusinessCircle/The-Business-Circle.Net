@@ -1,3 +1,4 @@
+import type { MetadataRoute as HubMetadataRoute } from "next";
 import type { MetadataRoute } from "next";
 import { SITE_CONFIG } from "@/config/site";
 
@@ -58,7 +59,7 @@ const PRIVATE_DISALLOW = [
   "/wins"
 ] as const;
 
-export default function robots(): MetadataRoute.Robots {
+function existingRobots(): MetadataRoute.Robots {
   return {
     rules: [
       {
@@ -80,4 +81,18 @@ export default function robots(): MetadataRoute.Robots {
     ],
     sitemap: `${SITE_CONFIG.url}/sitemap.xml`
   };
+}
+
+
+// hucknallHubRobots: preserve existing private exclusions and other runtime rules.
+export default function robots(): HubMetadataRoute.Robots {
+  const original = existingRobots();
+  const rules = Array.isArray(original.rules) ? original.rules : [original.rules];
+  const maps = original.sitemap ? (Array.isArray(original.sitemap) ? original.sitemap : [original.sitemap]) : [];
+  return { ...original, rules: rules.map(rule => ({ ...rule, userAgent: rule.userAgent ?? "*",
+    allow: [...new Set([...(Array.isArray(rule.allow) ? rule.allow : rule.allow ? [rule.allow] : []),
+      "/card/hucknall-circle-hub", "/card/hucknall-circle-hub/about", "/card/hucknall-circle-hub/sitemap.xml"])],
+    disallow: [...new Set([...(Array.isArray(rule.disallow) ? rule.disallow : rule.disallow ? [rule.disallow] : []),
+      "/card/hucknall-circle-hub/join"])]
+  })), sitemap: [...new Set([...maps, "https://circlecard.co.uk/card/hucknall-circle-hub/sitemap.xml"])] };
 }

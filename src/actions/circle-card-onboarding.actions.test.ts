@@ -162,8 +162,30 @@ describe("first Circle Card save and publish actions", () => {
     expect(published).toMatchObject({ ok: true, published: true });
     expect(mocks.updateCard).toHaveBeenCalledWith({
       where: { id: "card_1" },
-      data: { isPublished: true }
+      data: { isPublished: true, showInDiscover: false, discoverOptedInAt: null }
     });
+  });
+
+  it("requires a full postcode before publishing a Business card", async () => {
+    const result = await publishFirstCircleCardAction({ ...readyDraft, cardType: "BUSINESS" });
+    expect(result).toEqual({ ok: false, message: "Add your full UK business postcode before publishing." });
+    expect(mocks.updateCard).not.toHaveBeenCalled();
+  });
+
+  it("publishes a Business card with explicit Discover consent and normalizes its postcode", async () => {
+    const result = await publishFirstCircleCardAction({ ...readyDraft, cardType: "BUSINESS",
+      businessPostcode: "ng157aa", businessCategory: "professional", showInDiscover: true });
+    expect(result).toMatchObject({ ok: true, published: true });
+    expect(mocks.updateCard).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ businessPostcode: "NG15 7AA" }) }));
+    expect(mocks.updateCard).toHaveBeenCalledWith({ where: { id: "card_1" },
+      data: { isPublished: true, showInDiscover: true, discoverOptedInAt: expect.any(Date) } });
+  });
+
+  it("keeps a published business hidden when Discover was not selected", async () => {
+    const result = await publishFirstCircleCardAction({ ...readyDraft, cardType: "BUSINESS", businessPostcode: "NG15 7AA" });
+    expect(result).toMatchObject({ ok: true, published: true });
+    expect(mocks.updateCard).toHaveBeenCalledWith({ where: { id: "card_1" },
+      data: { isPublished: true, showInDiscover: false, discoverOptedInAt: null } });
   });
 
   it("reuses a starter card discovered inside the transaction instead of creating a duplicate", async () => {

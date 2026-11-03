@@ -217,6 +217,8 @@ const CIRCLE_CARD_FORM_FIELDS = [
   "cardType",
   "fullName",
   "businessName",
+  "businessPostcode",
+  "businessCategory",
   "accountType",
   "profileLayout",
   "role",
@@ -262,6 +264,8 @@ const CIRCLE_CARD_ONBOARDING_FIELDS = [
   "businessLogoScale",
   "fullName",
   "businessName",
+  "businessPostcode",
+  "businessCategory",
   "accountType",
   "role",
   "tagline",
@@ -1765,6 +1769,17 @@ export async function upsertCircleCardAction(
     formData.has("themePreset");
   const cardId = values.cardId || null;
 
+  if (values.slug === "hucknall-circle-hub" && cardId !== "cmvzwzm3y000amkahigz25s8r") {
+    return circleCardSaveFailure({ message: "This public link belongs to the Hucknall hub.", fieldErrors: { slug: ["This link is reserved for the community hub."] } });
+  }
+
+  if (!cardId && values.cardType === "BUSINESS" && !values.businessPostcode) {
+    return circleCardSaveFailure({
+      message: "Add your business postcode.",
+      fieldErrors: { businessPostcode: ["A full UK postcode is required for business cards."] }
+    });
+  }
+
   if (shouldUpdateTheme && !user.access.capabilities.circleStudio) {
     return circleCardSaveFailure({
       message: "The Circle Card theme could not be saved.",
@@ -1866,6 +1881,8 @@ export async function upsertCircleCardAction(
     cardType: values.cardType,
     fullName: values.fullName.trim(),
     businessName: nullableText(values.businessName),
+    ...(!cardId || formData.has("businessPostcode") ? { businessPostcode: nullableText(values.businessPostcode) } : {}),
+    ...(!cardId || formData.has("businessCategory") ? { businessCategory: nullableText(values.businessCategory) } : {}),
     ...(shouldUpdateIdentity
       ? {
           accountType: values.accountType ?? null,
@@ -6007,6 +6024,7 @@ export async function completeCircleCardOnboardingAction(formData: FormData) {
   }
 
   const values = parsed.data;
+  if (values.businessName?.trim() && !values.businessPostcode) redirectWithError(returnPath, "business-postcode-required");
   const existingCard = await prisma.circleCard.findFirst({
     where: {
       userId: user.id,
@@ -6118,6 +6136,9 @@ export async function completeCircleCardOnboardingAction(formData: FormData) {
           }),
           fullName: values.fullName.trim(),
           businessName,
+          cardType: businessName ? "BUSINESS" : "PERSONAL",
+          businessPostcode: nullableText(values.businessPostcode),
+          businessCategory: nullableText(values.businessCategory),
           accountType: values.accountType,
           identityTags: values.identityTags,
           profileLayout: DEFAULT_CIRCLE_CARD_PROFILE_LAYOUT,
@@ -9578,3 +9599,4 @@ export async function updateCircleCardRecommendationStatusAction(formData: FormD
     parsed.data.status === "REMOVED" ? "recommendation-removed" : "recommendation-hidden"
   );
 }
+
