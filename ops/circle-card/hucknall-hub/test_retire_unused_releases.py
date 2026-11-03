@@ -9,6 +9,45 @@ spec.loader.exec_module(retire)
 
 
 class RetirementSafety(unittest.TestCase):
+    def test_only_certificate_directives_are_loaded_not_private_keys(self):
+        config = '''ssl_certificate /etc/ssl/origin.pem;
+ssl_certificate_key /etc/ssl/origin.key;
+ssl_certificate "/etc/ssl/second.pem";
+# ssl_certificate /tmp/commented.pem;
+'''
+        self.assertEqual(retire.configured_certificate_paths(config), ['/etc/ssl/origin.pem', '/etc/ssl/second.pem'])
+        for source in ['', 'ssl_certificate $dynamic;', 'ssl_certificate relative.pem;']:
+            with self.subTest(source=source), self.assertRaises(RuntimeError):
+                retire.configured_certificate_paths(source)
+
+    def test_origin_certificate_is_explicitly_trusted_with_verification_still_required(self):
+        context = retire.ssl.create_default_context()
+        self.assertTrue(context.check_hostname)
+        self.assertEqual(context.verify_mode, retire.ssl.CERT_REQUIRED)
+        certificate = MagicMock()
+        certificate.stat.return_value.st_uid = 0
+        certificate.stat.return_value.st_mode = 0o100644
+        certificate.is_file.return_value = True
+        certificate.__str__.return_value = '/etc/ssl/origin.pem'
+        with patch.object(retire, 'Path') as path, patch.object(retire.ssl, 'create_default_context', return_value=context), patch.object(context, 'load_verify_locations') as load:
+            path.return_value.resolve.return_value = certificate
+            result = retire.origin_tls_context('ssl_certificate /etc/ssl/origin.pem;')
+            load.assert_called_once_with(cafile='/etc/ssl/origin.pem')
+            self.assertTrue(result.check_hostname)
+            self.assertEqual(result.verify_mode, retire.ssl.CERT_REQUIRED)
+            self.assertTrue(result.verify_flags & retire.ssl.VERIFY_X509_PARTIAL_CHAIN)
+
+    def test_untrusted_certificate_file_permissions_are_rejected(self):
+        for owner, mode in [(1000, 0o100644), (0, 0o100664), (0, 0o100666)]:
+            certificate = MagicMock()
+            certificate.stat.return_value.st_uid = owner
+            certificate.stat.return_value.st_mode = mode
+            certificate.is_file.return_value = True
+            with self.subTest(owner=owner, mode=mode), patch.object(retire, 'Path') as path:
+                path.return_value.resolve.return_value = certificate
+                with self.assertRaisesRegex(RuntimeError, 'root-owned'):
+                    retire.origin_tls_context('ssl_certificate /etc/ssl/origin.pem;')
+
     def test_health_checks_app_and_local_tls_with_real_hostname_validation(self):
         app, proxy = MagicMock(), MagicMock()
         app.getresponse.return_value.status = 200

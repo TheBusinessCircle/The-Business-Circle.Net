@@ -95,11 +95,34 @@ def login_health(conn, label):
         conn.close()
 
 
-def health(port):
+def configured_certificate_paths(config):
+    config = '\n'.join(line.split('#', 1)[0] for line in config.splitlines())
+    tokens = re.findall(r'''\bssl_certificate\s+("[^"]+"|'[^']+'|[^;\s]+)\s*;''', config)
+    paths = {token.strip('\"\'') for token in tokens}
+    if not paths or any(not path.startswith('/') or '$' in path for path in paths):
+        raise RuntimeError('Static Nginx certificate paths could not be identified.')
+    return sorted(paths)
+
+
+def origin_tls_context(config):
+    context = ssl.create_default_context()
+    for raw_path in configured_certificate_paths(config):
+        certificate = Path(raw_path).resolve(strict=True)
+        info = certificate.stat()
+        if not certificate.is_file() or info.st_uid != 0 or info.st_mode & 0o022:
+            raise RuntimeError('Configured origin certificate must be a root-owned file without group/world write access.')
+        # Trust the certificate already installed by the server administrator, only
+        # within this health-check context. Do not alter the system trust store.
+        context.load_verify_locations(cafile=str(certificate))
+    context.verify_flags |= ssl.VERIFY_X509_PARTIAL_CHAIN
+    return context
+
+
+def health(port, nginx_config=None):
     login_health(http.client.HTTPConnection('127.0.0.1', port, timeout=15), 'Live Circle Card')
     # Exercise the actual Nginx TLS virtual host without an external DNS/CDN request.
     # Certificate validation, hostname checking and SNI remain enabled.
-    context = ssl.create_default_context()
+    context = origin_tls_context(nginx_config) if nginx_config is not None else ssl.create_default_context()
     raw = socket.create_connection(('127.0.0.1', 443), timeout=15)
     try:
         secure = context.wrap_socket(raw, server_hostname='circlecard.co.uk')
@@ -163,7 +186,7 @@ def main():
             enabled = subprocess.run(['systemctl', 'is-enabled', unit], text=True, capture_output=True).stdout.strip()
             if enabled in ['enabled', 'disabled', 'static']:
                 candidates.append({'unit': unit, 'pid': pid, 'ports': sorted(ports), 'enabled': enabled})
-    health(live_port)
+    health(live_port, nginx)
     print('KEEP live:', live_unit, 'port', live_port, flush=True)
     print('KEEP rollback:', previous, 'port', record['previous_port'], flush=True)
     if not candidates:
@@ -189,7 +212,7 @@ def main():
             subprocess.run(['systemctl', 'stop', item['unit']], check=True)
             if item['enabled'] == 'enabled':
                 subprocess.run(['systemctl', 'disable', item['unit']], check=True)
-            health(live_port)
+            health(live_port, nginx)
             print('RETIRED:', item['unit'], 'ports', ','.join(map(str, ports)), flush=True)
     except Exception:
         for item in stopped:
@@ -197,7 +220,7 @@ def main():
                 subprocess.run(['systemctl', 'enable', item['unit']], check=True)
             subprocess.run(['systemctl', 'start', item['unit']], check=True)
         raise
-    health(live_port)
+    health(live_port, nginx)
     print('Historical units and release files retained. Restore record:', plan, flush=True)
     subprocess.run(['free', '-m'], check=True)
     available_mib = next(int(line.split()[1]) for line in Path('/proc/meminfo').read_text().splitlines() if line.startswith('MemAvailable:')) // 1024
