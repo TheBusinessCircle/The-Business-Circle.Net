@@ -1,6 +1,7 @@
 import importlib.util
 from pathlib import Path
 import unittest
+from unittest.mock import MagicMock, patch
 
 spec = importlib.util.spec_from_file_location('retire', Path(__file__).with_name('retire-unused-releases.py'))
 retire = importlib.util.module_from_spec(spec)
@@ -8,6 +9,48 @@ spec.loader.exec_module(retire)
 
 
 class RetirementSafety(unittest.TestCase):
+    def test_health_checks_app_and_local_tls_with_real_hostname_validation(self):
+        app, proxy = MagicMock(), MagicMock()
+        app.getresponse.return_value.status = 200
+        proxy.getresponse.return_value.status = 200
+        with patch.object(retire.http.client, 'HTTPConnection', side_effect=[app, proxy]) as connection, patch.object(retire.socket, 'create_connection') as socket, patch.object(retire.ssl, 'create_default_context') as tls:
+            retire.health(3374)
+            self.assertEqual(connection.call_args_list[0].args, ('127.0.0.1', 3374))
+            socket.assert_called_once_with(('127.0.0.1', 443), timeout=15)
+            tls.assert_called_once_with()
+            tls.return_value.wrap_socket.assert_called_once_with(socket.return_value, server_hostname='circlecard.co.uk')
+            self.assertIs(proxy.sock, tls.return_value.wrap_socket.return_value)
+            for client in [app, proxy]:
+                client.request.assert_called_once_with('GET', '/login', headers={'Host': 'circlecard.co.uk', 'X-Forwarded-Proto': 'https'})
+                client.close.assert_called_once()
+
+    def test_failed_app_health_stops_before_tls(self):
+        app = MagicMock()
+        app.getresponse.return_value.status = 503
+        with patch.object(retire.http.client, 'HTTPConnection', return_value=app), patch.object(retire.socket, 'create_connection') as socket:
+            with self.assertRaisesRegex(RuntimeError, 'Live Circle Card.*503'):
+                retire.health(3374)
+            socket.assert_not_called()
+            app.close.assert_called_once()
+
+    def test_failed_nginx_tls_health_is_not_ignored(self):
+        app, proxy = MagicMock(), MagicMock()
+        app.getresponse.return_value.status = 200
+        proxy.getresponse.return_value.status = 403
+        with patch.object(retire.http.client, 'HTTPConnection', side_effect=[app, proxy]), patch.object(retire.socket, 'create_connection'), patch.object(retire.ssl, 'create_default_context'):
+            with self.assertRaisesRegex(RuntimeError, 'Nginx Circle Card TLS.*403'):
+                retire.health(3374)
+            proxy.close.assert_called_once()
+
+    def test_invalid_tls_certificate_still_stops_cleanup(self):
+        app = MagicMock()
+        app.getresponse.return_value.status = 200
+        with patch.object(retire.http.client, 'HTTPConnection', return_value=app), patch.object(retire.socket, 'create_connection') as socket, patch.object(retire.ssl, 'create_default_context') as tls:
+            tls.return_value.wrap_socket.side_effect = retire.ssl.SSLCertVerificationError('invalid certificate')
+            with self.assertRaises(retire.ssl.SSLCertVerificationError):
+                retire.health(3374)
+            socket.return_value.close.assert_called_once()
+
     def test_all_nginx_ports_are_protected(self):
         config = '''proxy_pass http://127.0.0.1:3374;
 proxy_pass http://127.0.0.1:3000;

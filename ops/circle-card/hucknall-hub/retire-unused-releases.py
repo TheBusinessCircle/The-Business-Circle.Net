@@ -7,9 +7,10 @@ import json
 import os
 from pathlib import Path
 import re
+import socket
+import ssl
 import subprocess
 import time
-import urllib.request
 
 INSTALLER_HASH = 'b6525609d4e0c015d0d0e2b6af377a1582a178f7779efb5233ee6dea6e89851c'
 HISTORICAL_UNIT = re.compile(r'circle-card-(?:release-[a-f0-9]{7,40}-owned|lawrence-\d{8}-\d{6}|hucknall-\d{8}-\d{6})\.service')
@@ -83,19 +84,31 @@ def service_info(unit):
     return dict(row.split('=', 1) for row in rows.splitlines() if '=' in row)
 
 
-def health(port):
-    conn = http.client.HTTPConnection('127.0.0.1', port, timeout=15)
+def login_health(conn, label):
     try:
         conn.request('GET', '/login', headers={'Host': 'circlecard.co.uk', 'X-Forwarded-Proto': 'https'})
         response = conn.getresponse()
         response.read()
         if response.status != 200:
-            raise RuntimeError('Live Circle Card login health changed.')
+            raise RuntimeError(label + ' login health changed: HTTP ' + str(response.status))
     finally:
         conn.close()
-    with urllib.request.urlopen('https://circlecard.co.uk/login', timeout=20) as response:
-        if response.status != 200:
-            raise RuntimeError('Public Circle Card login health changed.')
+
+
+def health(port):
+    login_health(http.client.HTTPConnection('127.0.0.1', port, timeout=15), 'Live Circle Card')
+    # Exercise the actual Nginx TLS virtual host without an external DNS/CDN request.
+    # Certificate validation, hostname checking and SNI remain enabled.
+    context = ssl.create_default_context()
+    raw = socket.create_connection(('127.0.0.1', 443), timeout=15)
+    try:
+        secure = context.wrap_socket(raw, server_hostname='circlecard.co.uk')
+    except Exception:
+        raw.close()
+        raise
+    proxy = http.client.HTTPConnection('circlecard.co.uk', 443, timeout=15)
+    proxy.sock = secure
+    login_health(proxy, 'Nginx Circle Card TLS')
 
 
 def main():
