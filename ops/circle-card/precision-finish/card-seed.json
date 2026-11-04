@@ -1,0 +1,178 @@
+{
+  "fullName": "Precision Finish Plastering & Rendering",
+  "businessName": "Precision Finish Plastering & Rendering",
+  "role": "Plastering & Rendering",
+  "tagline": "Clean lines. Smooth walls. Precision finish.",
+  "about": "Fresh walls. Clean edges. A home ready for its next chapter.\n\nWe help homeowners, landlords and small businesses with skimming, ceiling repairs, plasterboarding and renovation plastering, alongside exterior rendering.\n\nFrom a single ceiling to a whole-property refresh, expect clear advice, careful preparation and a tidy finish.\n\nWorking across Hucknall, Nottingham and surrounding areas. Interior work continues through autumn and winter; exterior rendering is planned around suitable weather.\n\nYour next step\nSend a few photos and a short description of the work for a free, no-obligation quote. Prefer to talk it through? Call 07432 523726.\n\nMonday-Friday: 8am-6pm\nSaturday: 9am-5pm\nAlternative number: 07736 233404",
+  "websiteUrl": "https://precisionplasteringandrendering.co.uk/",
+  "email": "precisionfinishplastering86@gmail.com",
+  "phone": "07432523726",
+  "location": "Hucknall, Nottingham & surrounding areas",
+  "profileImageUrl": "https://res.cloudinary.com/ddaj7fnkd/image/upload/c_fit,w_480,h_480/c_pad,w_600,h_600,b_rgb:151615/v1793451061/business-circle/circle-card/profile-photo/cmnyohw56000n4pah5mjhr5oz-profile-photo-1793451061095-dc623b8f.webp",
+  "themePrimaryColor": "#151615",
+  "themeAccentColor": "#e39a25",
+  "themeButtonColor": "#e39a25",
+  "profileLayout": "BUSINESS",
+  "themeSurfaceStyle": "PREMIUM",
+  "socialLinks": {},
+  "businessLogoUrl": "https://res.cloudinary.com/ddaj7fnkd/image/upload/c_fit,w_480,h_480/c_pad,w_600,h_600,b_rgb:151615/v1793451061/business-circle/circle-card/profile-photo/cmnyohw56000n4pah5mjhr5oz-profile-photo-1793451061095-dc623b8f.webp",
+  "contentBlocks": {
+    "business": {
+      "SERVICES": {
+        "items": [
+          {
+            "id": "precision-service-1",
+            "title": "Skimming & room plastering",
+            "description": "Smooth walls, sharp corners and full-room finishes ready for decorating.",
+            "isActive": true,
+            "sortOrder": 0,
+            "startingPrice": null,
+            "imageUrl": null,
+            "ctaLabel": null,
+            "ctaUrl": null
+          },
+          {
+            "id": "precision-service-2",
+            "title": "Ceiling & plaster repairs",
+            "description": "Cracks, damaged ceilings, patch repairs and making good after rewiring or plumbing.",
+            "isActive": true,
+            "sortOrder": 1,
+            "startingPrice": null,
+            "imageUrl": null,
+            "ctaLabel": null,
+            "ctaUrl": null
+          },
+          {
+            "id": "precision-service-3",
+            "title": "Plasterboarding & renovations",
+            "description": "Boarding, overboarding, media walls and plastering for whole-home renovations.",
+            "isActive": true,
+            "sortOrder": 2,
+            "startingPrice": null,
+            "imageUrl": null,
+            "ctaLabel": null,
+            "ctaUrl": null
+          },
+          {
+            "id": "precision-service-4",
+            "title": "Silicone & monocouche rendering",
+            "description": "Clean exterior finishes for homes, extensions and full elevations.",
+            "isActive": true,
+            "sortOrder": 3,
+            "startingPrice": null,
+            "imageUrl": null,
+            "ctaLabel": null,
+            "ctaUrl": null
+          },
+          {
+            "id": "precision-service-5",
+            "title": "Traditional render & repairs",
+            "description": "Sand and cement rendering, pebbledash removal and repairs to tired exteriors.",
+            "isActive": true,
+            "sortOrder": 4,
+            "startingPrice": null,
+            "imageUrl": null,
+            "ctaLabel": null,
+            "ctaUrl": null
+          },
+          {
+            "id": "precision-service-6",
+            "title": "Homes, rentals & small commercial",
+            "description": "Single rooms, landlord repairs and local business spaces. Free quotes and photo-first advice.",
+            "isActive": true,
+            "sortOrder": 5,
+            "startingPrice": null,
+            "imageUrl": null,
+            "ctaLabel": null,
+            "ctaUrl": null
+          }
+        ]
+      },
+      "GALLERY_PORTFOLIO": {
+        "items": [
+          {
+            "id": "precision-project-1",
+            "title": "Media wall build & skim",
+            "description": "A media wall boarded and skimmed ready for decorating.",
+            "imageUrl": "https://res.cloudinary.com/ddaj7fnkd/image/upload/v1793451107/business-circle/circle-card/gallery-image/cmnyohw56000n4pah5mjhr5oz-gallery-image-1793451107554-b266201c.jpg",
+            "isActive": true,
+            "sortOrder": 0,
+            "category": "Plastering"
+          },
+          {
+            "id": "precision-project-2",
+            "title": "Bay window plastering",
+            "description": "Smooth plaster and clean detailing around a bay window.",
+            "imageUrl": "https://res.cloudinary.com/ddaj7fnkd/image/upload/v1793451082/business-circle/circle-card/link-image/cmnyohw56000n4pah5mjhr5oz-link-image-1793451082239-c2326857.jpg",
+            "isActive": true,
+            "sortOrder": 1,
+            "category": "Plastering"
+          },
+          {
+            "id": "precision-project-3",
+            "title": "Custom skylight finish",
+            "description": "Careful plastering around a distinctive skylight.",
+            "imageUrl": "https://res.cloudinary.com/ddaj7fnkd/image/upload/v1793451074/business-circle/circle-card/link-image/cmnyohw56000n4pah5mjhr5oz-link-image-1793451073972-982d2bb3.jpg",
+            "isActive": true,
+            "sortOrder": 2,
+            "category": "Plastering"
+          },
+          {
+            "id": "precision-project-4",
+            "title": "Detached home rendering",
+            "description": "A detached home finished in clean white render.",
+            "imageUrl": "https://res.cloudinary.com/ddaj7fnkd/image/upload/v1793451136/business-circle/circle-card/link-image/cmnyohw56000n4pah5mjhr5oz-link-image-1793451135541-1635dba9.webp",
+            "isActive": true,
+            "sortOrder": 3,
+            "category": "Rendering"
+          },
+          {
+            "id": "precision-project-5",
+            "title": "Grey silicone render",
+            "description": "A clean, modern finish to a full side elevation.",
+            "imageUrl": "https://res.cloudinary.com/ddaj7fnkd/image/upload/v1793451083/business-circle/circle-card/link-image/cmnyohw56000n4pah5mjhr5oz-link-image-1793451083604-b9a4dc6d.webp",
+            "isActive": true,
+            "sortOrder": 4,
+            "category": "Rendering"
+          },
+          {
+            "id": "precision-project-6",
+            "title": "Extension with bifold doors",
+            "description": "Crisp white rendering beside black bifold doors.",
+            "imageUrl": "https://res.cloudinary.com/ddaj7fnkd/image/upload/v1793451075/business-circle/circle-card/link-image/cmnyohw56000n4pah5mjhr5oz-link-image-1793451075002-4a3f2a55.webp",
+            "isActive": true,
+            "sortOrder": 5,
+            "category": "Rendering"
+          }
+        ]
+      }
+    }
+  },
+  "customLinks": [
+    {
+      "label": "Get my free quote",
+      "url": "https://precisionplasteringandrendering.co.uk/#quote",
+      "description": "Tell us what needs doing and upload a few photos."
+    },
+    {
+      "label": "See the finish for yourself",
+      "url": "https://precisionplasteringandrendering.co.uk/projects/",
+      "description": "Explore completed plastering and rendering projects before you enquire."
+    },
+    {
+      "label": "See our latest work on Instagram",
+      "url": "https://www.instagram.com/precisionfinishp/",
+      "description": "Follow the team and see project progress."
+    },
+    {
+      "label": "Transform your walls & ceilings",
+      "url": "https://precisionplasteringandrendering.co.uk/services/internal-plastering/",
+      "description": "Explore skimming, ceiling repairs and room plastering."
+    },
+    {
+      "label": "Give your exterior a fresh finish",
+      "url": "https://precisionplasteringandrendering.co.uk/services/rendering/",
+      "description": "Compare rendering options and ask about your property."
+    }
+  ]
+}
