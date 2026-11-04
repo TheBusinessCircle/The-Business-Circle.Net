@@ -263,9 +263,16 @@ def main():
         changed_config = True
         run(['nginx','-t'])
         run(['systemctl','reload','nginx'])
-        with urllib.request.urlopen('https://circlecard.co.uk/login?menu_release='+stamp,timeout=30) as response:
-            if response.status != 200 or b'Circle Card' not in response.read(5*1024*1024):
-                raise RuntimeError('Public release health check failed.')
+        # Check this server's nginx directly; public anti-bot rules can reject server probes.
+        # --resolve preserves the real hostname, SNI and certificate verification.
+        probe = subprocess.run([
+            'curl','--fail','--silent','--show-error','--noproxy','*',
+            '--resolve','circlecard.co.uk:443:127.0.0.1',
+            '--connect-timeout','10','--max-time','30',
+            'https://circlecard.co.uk/login?menu_release='+stamp
+        ], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if b'Circle Card' not in probe.stdout:
+            raise RuntimeError('Local nginx HTTPS release health check failed.')
         run(['systemctl','enable',new_unit])
         record={'status':'COMMISSIONS_MENU_DEPLOYED_AUTHENTICATED_VISUAL_CHECK_PENDING','release':str(stage),'service':new_unit,'previousService':unit,'previousRelease':str(live),'port':new_port,'previousPort':old_port,'nginxFile':str(config),'nginxBackup':str(backup),'menuSourceSha256':hashlib.sha256(updated.encode()).hexdigest(),'databaseWrites':False,'realTransfersInitiated':False,'liveAccountActivationVerified':False}
         (state/'deployment.json').write_text(json.dumps(record,indent=2))
