@@ -8,6 +8,7 @@ LIVE = LIVE_UNIT = OLD_PORT = NEW_PORT = None
 NGINX = Path('/etc/nginx/sites-enabled/circlecard.co.uk')
 REPO = 'TheBusinessCircle/The-Business-Circle.Net'
 PROFILE = Path('src/components/circle-card/public-circle-card-profile.tsx')
+PREVIEW_PAGE = Path('src/app/(member)/app/prepared/[preparedId]/preview/page.tsx')
 CARD_ID = 'cmw2jnnc6005xzfahkcfm7q39'
 SLUG = 'confirm-a-kill-73f64ae9cc20'
 PAYLOAD = {
@@ -246,6 +247,10 @@ def main():
     patch = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(patch)
     profile.write_text(patch.patch_profile(profile.read_text()))
+    preview_page = stage / PREVIEW_PAGE
+    if not preview_page.resolve().is_relative_to(stage.resolve()):
+        raise RuntimeError('The prepared preview source points outside the new release.')
+    preview_page.write_text(patch.patch_preview_page(preview_page.read_text()))
     for key, value in list(env.items()):
         if value.startswith(str(LIVE) + '/'):
             env[key] = str(stage) + value[len(str(LIVE)):]

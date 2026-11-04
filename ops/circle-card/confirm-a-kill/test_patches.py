@@ -9,7 +9,7 @@ spec.loader.exec_module(patches)
 
 class ConfirmDraftPatchTests(unittest.TestCase):
     def setUp(self):
-        self.source = '\n'.join(['const spinToConnectProps = {};',
+        self.source = patches.PROPS + '};\n' + patches.FUNCTION + '}) {\n' + '\n'.join(['const spinToConnectProps = {};',
             'function renderWalletAction() {}', 'function renderConnectionAction() {}',
             'function renderTrustScoreCard() {}',
             '// CircleCardFramedImage CircleCardQrPanel CircleCardShareButton',
@@ -17,10 +17,27 @@ class ConfirmDraftPatchTests(unittest.TestCase):
 
     def test_preserves_existing_renderers_and_native_behaviour(self):
         actual = patches.patch_profile(self.source)
-        self.assertEqual(actual.replace(patches.IMPORT, '', 1).replace(patches.BRANCH, '', 1), self.source)
+        self.assertEqual(actual.replace(patches.IMPORT, '', 1).replace(patches.BRANCH, '', 1).replace(patches.PROPERTY, '', 1).replace(patches.PARAMETER, '', 1), self.source)
         for token in ['renderWalletAction()', 'renderConnectionAction()', '...spinToConnectProps', 'CircleCardQrPanel']:
             self.assertIn(token, patches.BRANCH)
         self.assertEqual(patches.patch_profile(actual), actual)
+
+    def test_upgrades_the_exact_previous_draft_selector(self):
+        previous = patches.IMPORT + self.source.replace(patches.MARKER, patches.LEGACY_BRANCH + patches.MARKER)
+        actual = patches.patch_profile(previous)
+        self.assertIn(patches.BRANCH, actual)
+        self.assertIn(patches.PROPERTY, actual)
+        self.assertIn('return <PrecisionBusinessCard', actual)
+
+    def test_uses_owned_row_and_selected_plan_without_changing_preview_authorization(self):
+        source = 'const row = await getOwnedPreparedCard(preparedId);\nconst plan = parsePreparedPlan(query.plan);\nconst card = buildPreparedCardPreview(row, plan);\nreturn custom ? <ExistingCustomCard /> : <PublicCircleCardProfile card={card} />;'
+        actual = patches.patch_preview_page(source)
+        self.assertEqual(actual.replace(patches.PREVIEW_PROP, '', 1), source)
+        self.assertIn('row.id === "cmw2jnnc6005xzfahkcfm7q39"', actual)
+        self.assertIn('plan === "PRO"', actual)
+        self.assertEqual(patches.patch_preview_page(actual), actual)
+        with self.assertRaises(RuntimeError):
+            patches.patch_preview_page(source.replace('getOwnedPreparedCard', 'getPublicPreparedCard'))
 
     def test_refuses_ambiguous_or_changed_live_source(self):
         for source in [self.source.replace(patches.MARKER, ''), self.source + '\n' + patches.MARKER,

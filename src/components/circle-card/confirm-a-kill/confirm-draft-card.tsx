@@ -19,9 +19,11 @@ const ASSETS = {
 };
 
 // A private Pro presentation only. No native/public business card is selected.
-export function isConfirmAKillDraft(card: Pick<PublicCircleCard,"id"|"slug"|"cardType"|"isDemo"|"websiteUrl"|"user">, publicUrl: string) {
-  if (card.id !== CONFIRM_DRAFT_ID || card.slug !== CONFIRM_DRAFT_SLUG ||
-    card.cardType !== "BUSINESS" || !card.isDemo || !card.user.hasCircleCardProAccess || !card.websiteUrl) return false;
+export function isConfirmAKillDraft(card: Pick<PublicCircleCard,"slug"|"cardType"|"isDemo"|"websiteUrl">, publicUrl: string, ownedProPreview = false) {
+  // The authenticated prepared page verifies the persisted row ID and selected
+  // preview plan. Its synthetic presentation identity is not an account grant.
+  if (!ownedProPreview || card.slug !== CONFIRM_DRAFT_SLUG ||
+    card.cardType !== "BUSINESS" || !card.isDemo || !card.websiteUrl) return false;
   try {
     const site = new URL(card.websiteUrl);
     const page = new URL(publicUrl);

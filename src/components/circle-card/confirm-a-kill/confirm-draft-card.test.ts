@@ -17,13 +17,16 @@ function render(overrides:Partial<PublicCircleCard>={}) {
     qr:createElement("div",null,"Native QR"),contactDownloadHref:`/prepared/${CONFIRM_DRAFT_SLUG}/vcard`}));
 }
 describe("Confirm A Kill private draft",()=>{
-  it("requires the exact draft, official site, demo identity, prepared route and Pro preview",()=>{
-    expect(isConfirmAKillDraft(card,url)).toBe(true);
-    for(const overrides of [{id:"other"},{slug:"precision-finish"},{cardType:"PERSONAL"},{isDemo:false},
-      {websiteUrl:"https://confirmakill.co.uk.evil.example/"},{websiteUrl:"http://confirmakill.co.uk/"},
-      {user:{hasCircleCardProAccess:false}}]) expect(isConfirmAKillDraft({...card,...overrides} as PublicCircleCard,url)).toBe(false);
+  it("requires an owned Pro preview, official site, demo identity and exact prepared route",()=>{
+    expect(isConfirmAKillDraft(card,url,true)).toBe(true);
+    expect(isConfirmAKillDraft(card,url)).toBe(false);
+    for(const overrides of [{slug:"precision-finish"},{cardType:"PERSONAL"},{isDemo:false},
+      {websiteUrl:"https://confirmakill.co.uk.evil.example/"},{websiteUrl:"http://confirmakill.co.uk/"}])
+      expect(isConfirmAKillDraft({...card,...overrides} as PublicCircleCard,url,true)).toBe(false);
+    const synthetic={...card,id:'synthetic-preview',user:{...card.user,hasCircleCardProAccess:false}};
+    expect(isConfirmAKillDraft(synthetic,url,true)).toBe(true);
     for(const other of ["https://circlecard.co.uk/card/"+CONFIRM_DRAFT_SLUG,"https://other.example/prepared/"+CONFIRM_DRAFT_SLUG,"invalid"])
-      expect(isConfirmAKillDraft(card,other)).toBe(false);
+      expect(isConfirmAKillDraft(card,other,true)).toBe(false);
   });
   it("keeps call and quote prominent and Google reviews directly after Visit Website",()=>{
     const html=render();const anchors=html.match(/<a\b[^>]*>[\s\S]*?<\/a>/g)??[];
