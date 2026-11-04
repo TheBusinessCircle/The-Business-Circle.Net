@@ -19,6 +19,17 @@ const quote = name => '"' + name.replaceAll('"', '""') + '"';
 const fingerprint = value => createHash('sha256').update(JSON.stringify(value, (key, entry) =>
   ['viewCount', 'updatedAt'].includes(key) ? undefined : entry)).digest('hex');
 
+export function assertExistingComplimentaryPro(records, now = new Date()) {
+  // Match the live billing service's CircleCardComplimentaryPro predicate.
+  // This is a read-only verification of the two already-approved overrides.
+  assert.equal(records.length, 2, 'Both existing complimentary Pro records must be present');
+  assert.deepEqual(records.map(record => record.userId).sort(), [GED, HARRISON].sort(),
+    'Complimentary Pro records must belong to the two verified accounts');
+  assert.ok(records.every(record => record.active === true &&
+    (record.endsAt === null || new Date(record.endsAt).getTime() > now.getTime())),
+    'Both existing complimentary Pro overrides must still be active');
+}
+
 export function approvedProfile(draft, seed) {
   assert.equal(draft.id, ID); assert.equal(draft.slug, SLUG);
   assert.equal(typeof draft.creatorUserId, 'string');
@@ -122,8 +133,8 @@ async function worker(mode, database, port, postgresUid, postgresGid) {
     assert.equal(current.length, 0, 'A native card or its slug already exists; no overwrite was attempted');
     const owned = (await db.query('SELECT id FROM "CircleCard" WHERE "userId"=$1 AND "archivedAt" IS NULL', [GED])).rows;
     assert.equal(owned.length, 1, 'Ged already has additional owned cards; review his card allowance');
-    const pro = (await db.query('SELECT 1 FROM "CircleCardAccessGrant" WHERE "userId"=ANY($1::text[]) AND active AND plan::text IN (\'PRO\',\'TEAMS\') AND ("startsAt" IS NULL OR "startsAt"<=now()) AND ("endsAt" IS NULL OR "endsAt">now()) GROUP BY "userId"', [[GED,HARRISON]])).rows;
-    assert.equal(pro.length, 2, 'Both existing complimentary Pro grants must still be active');
+    const pro = (await db.query('SELECT "userId",active,"endsAt" FROM "CircleCardComplimentaryPro" WHERE "userId"=ANY($1::text[]) ORDER BY "userId" FOR SHARE', [[GED,HARRISON]])).rows;
+    assertExistingComplimentaryPro(pro);
     assert.equal((await db.query('SELECT 1 FROM "CircleBusinessCard" WHERE "cardId"=$1', [ID])).rowCount, 0);
     assert.equal((await db.query('SELECT 1 FROM "CircleBusinessCardEditor" WHERE "cardId"=$1', [ID])).rowCount, 0);
     const profile = approvedProfile(draft, approvedSeed);

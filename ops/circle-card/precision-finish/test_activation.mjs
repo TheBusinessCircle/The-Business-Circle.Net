@@ -1,6 +1,24 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { approvedProfile, insertedFields, ID, SLUG } from './activate-shared-card.mjs';
+import { approvedProfile, insertedFields, assertExistingComplimentaryPro, ID, SLUG, GED, HARRISON } from './activate-shared-card.mjs';
+
+test('accepts existing complimentary overrides with future or unlimited access', () => {
+  const now = new Date('2026-11-04T09:56:00Z');
+  const records = [GED,HARRISON].map(userId => ({userId,active:true,endsAt:new Date('2036-11-03T23:59:59.999Z')}));
+  assert.doesNotThrow(() => assertExistingComplimentaryPro(records,now));
+  assert.doesNotThrow(() => assertExistingComplimentaryPro(records.map(row => ({...row,endsAt:null})),now));
+});
+
+test('rejects expired, revoked, missing or mismatched complimentary access', () => {
+  const now = new Date('2026-11-04T09:56:00Z');
+  const records = [GED,HARRISON].map(userId => ({userId,active:true,endsAt:null}));
+  for (const change of [{active:false},{endsAt:now},{endsAt:new Date(now.getTime()-1)},
+    {endsAt:'invalid date'},{endsAt:undefined},{userId:GED},{userId:'another-account'}]) {
+    assert.throws(() => assertExistingComplimentaryPro([records[0],{...records[1],...change}],now));
+  }
+  assert.throws(() => assertExistingComplimentaryPro(records.slice(0,1),now));
+  assert.throws(() => assertExistingComplimentaryPro([...records,records[0]],now));
+});
 
 const seed={fullName:'Precision Finish',businessName:'Precision Finish',websiteUrl:'https://precisionplasteringandrendering.co.uk/',phone:'saved phone',customLinks:[],contentBlocks:{business:{SERVICES:{items:[]},GALLERY_PORTFOLIO:{items:[]}}}};
 const draft={id:ID,slug:SLUG,creatorUserId:'verified-builder',data:{...seed}};
