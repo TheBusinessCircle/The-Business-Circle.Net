@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import { ArrowDown, ArrowUpRight, Check, Globe2, Mail, MapPin, Phone, Send, Star } from "lucide-react";
+import { ArrowDown, ArrowUpRight, Check, Globe2, Mail, MapPin, Phone, Search, Send, ShieldCheck, Star, Zap } from "lucide-react";
 import type { PublicCircleCard } from "@/server/circle-card";
 import { CircleCardTrackedLink } from "@/components/circle-card/circle-card-tracked-link";
 import { getExternalLinkProps } from "@/lib/links";
@@ -11,6 +11,37 @@ import styles from "./confirm-a-kill.module.css";
 export const CONFIRM_DRAFT_ID = "cmw2jnnc6005xzfahkcfm7q39";
 export const CONFIRM_DRAFT_SLUG = "confirm-a-kill-73f64ae9cc20";
 export const CONFIRM_GOOGLE_REVIEWS = "https://g.page/r/CdWBUE3JEkXBEAE/review";
+const PEST_IMAGES = {
+  "rat": {
+    "src": "https://res.cloudinary.com/sziyzzje/image/upload/c_fill,g_auto,h_224,w_224/f_auto/q_auto/v1793826302/circle-card/confirm-a-kill/pests/rat-20261104.jpg",
+    "alt": "Rat"
+  },
+  "mouse": {
+    "src": "https://res.cloudinary.com/sziyzzje/image/upload/c_fill,g_auto,h_224,w_224/f_auto/q_auto/v1793826295/circle-card/confirm-a-kill/pests/mouse-20261104.jpg",
+    "alt": "House mouse"
+  },
+  "wasp": {
+    "src": "https://res.cloudinary.com/sziyzzje/image/upload/c_fill,g_auto,h_224,w_224/f_auto/q_auto/v1793826336/circle-card/confirm-a-kill/pests/wasp-20261104.jpg",
+    "alt": "Wasp nest"
+  },
+  "bedbug": {
+    "src": "https://res.cloudinary.com/sziyzzje/image/upload/c_fill,g_auto,h_224,w_224/f_auto/q_auto/v1793826325/circle-card/confirm-a-kill/pests/bedbug-20261104.jpg",
+    "alt": "Bed bug"
+  },
+  "cockroach": {
+    "src": "https://res.cloudinary.com/sziyzzje/image/upload/c_fill,g_auto,h_224,w_224/f_auto/q_auto/v1793826311/circle-card/confirm-a-kill/pests/cockroach-20261104.jpg",
+    "alt": "Cockroach"
+  },
+  "pigeon": {
+    "src": "https://res.cloudinary.com/sziyzzje/image/upload/c_fill,g_auto,h_224,w_224/f_auto/q_auto/v1793826330/circle-card/confirm-a-kill/pests/pigeon-20261104.jpg",
+    "alt": "Pigeon"
+  },
+  "squirrel": {
+    "src": "https://res.cloudinary.com/sziyzzje/image/upload/c_fill,g_auto,h_224,w_224/f_auto/q_auto/v1793826341/circle-card/confirm-a-kill/pests/squirrel-20261104.jpg",
+    "alt": "Grey squirrel"
+  },
+} as const;
+
 const ASSETS = {
   logo: "https://res.cloudinary.com/sziyzzje/image/upload/v1793822516/circle-card/confirm-a-kill/logo-20261104.png",
   hero: "https://res.cloudinary.com/sziyzzje/image/upload/v1793822538/circle-card/confirm-a-kill/hero-20261104.webp",
@@ -34,6 +65,33 @@ export function isConfirmAKillDraft(card: Pick<PublicCircleCard,"slug"|"cardType
 
 type Props = {card:PublicCircleCard;identity:ReactNode;actions:ReactNode;connection:ReactNode;
   trust:ReactNode;qr:ReactNode;feedback?:ReactNode;analyticsCardId?:string;contactDownloadHref:string};
+
+export function confirmServicePestIllustration(title:string):{images:{src:string;alt:string}[];badge:"protection"|"urgent"|"identify"|null} {
+  const text=title.toLowerCase();
+  if (/\b(commercial|contracts?|business)\b/.test(text)) return {images:[PEST_IMAGES.rat,PEST_IMAGES.cockroach],badge:"protection"};
+  if (/\b(urgent|emergency)\b/.test(text)) return {images:[PEST_IMAGES.rat,PEST_IMAGES.wasp],badge:"urgent"};
+  if (/identif|not sure/.test(text)) return {images:[PEST_IMAGES.bedbug,PEST_IMAGES.mouse],badge:"identify"};
+  const images=[];
+  if (/\brats?\b/.test(text)) images.push(PEST_IMAGES.rat);
+  if (/\b(mouse|mice)\b/.test(text)) images.push(PEST_IMAGES.mouse);
+  if (/\bwasps?\b/.test(text)) images.push(PEST_IMAGES.wasp);
+  if (/\bbed[\s-]?bugs?\b/.test(text)) images.push(PEST_IMAGES.bedbug);
+  if (/\bcockroach(?:es)?\b/.test(text)) images.push(PEST_IMAGES.cockroach);
+  if (/\b(birds?|pigeons?)\b/.test(text)) images.push(PEST_IMAGES.pigeon);
+  if (/\bsquirrels?\b/.test(text)) images.push(PEST_IMAGES.squirrel);
+  return {images:images.slice(0,3),badge:null};
+}
+
+function ServicePestArt({title,imageUrl}:{title:string;imageUrl?:string|null}) {
+  const illustration=confirmServicePestIllustration(title);
+  const images=isSafeCircleCardImageUrl(imageUrl)?[{src:imageUrl,alt:title}]:illustration.images;
+  if (!images.length) return null;
+  const Badge=illustration.badge==="protection"?ShieldCheck:illustration.badge==="urgent"?Zap:illustration.badge==="identify"?Search:null;
+  return <div className={styles.pestArt} data-count={images.length} role="img" aria-label={images.map(image=>image.alt).join(", ")}>
+    {images.map(image=><img key={image.src} src={image.src} alt="" width={64} height={64} loading="lazy" className={styles.pestPhoto}/>)}
+    {Badge?<span className={styles.pestBadge}><Badge size={15} aria-hidden="true" /></span>:null}
+  </div>;
+}
 
 export function ConfirmAKillDraftCard({card,identity,actions,connection,trust,qr,feedback,analyticsCardId,contactDownloadHref}:Props) {
   const website = card.websiteUrl!;
@@ -79,7 +137,7 @@ export function ConfirmAKillDraftCard({card,identity,actions,connection,trust,qr
       <section className={styles.process} aria-label="From first call to practical aftercare">
         {[['01','Tell us what you’ve seen','A short description and a safe photograph help the team understand the problem.'],['02','Understand the next step','Discuss the property, the options and the cost before work begins.'],['03','Treatment and aftercare','A suitable response, followed by advice to reduce repeat activity.']].map(([number,title,copy])=><article key={number}><span>{number} / THE NEXT STEP</span><h3>{title}</h3><p>{copy}</p></article>)}
       </section>
-      <section id="confirm-services" className={styles.services} aria-labelledby="confirm-services-title"><div className={styles.sectionHeading}><div><p className={styles.eyebrow}>WHAT’S IN YOUR SPACE?</p><h2 id="confirm-services-title">The right help.<br /><em>For the right pest.</em></h2></div><p>Start with the signs you have noticed. Not sure? Ask for identification help.</p></div><div className={styles.serviceGrid}>{card.services.filter(s=>s.isActive).map((s,i)=><article key={s.id} className={styles.service}><span className={styles.serviceNumber}>{String(i+1).padStart(2,"0")}</span><h3>{s.title}</h3>{s.description?<p>{s.description}</p>:null}{s.ctaUrl&&isSafeCircleCardLinkDestination(s.ctaUrl)?<a className={styles.textLink} {...getExternalLinkProps(s.ctaUrl)}>{s.ctaLabel||"Explore this service"}<ArrowUpRight size={14} aria-hidden="true" /></a>:null}</article>)}</div>
+      <section id="confirm-services" className={styles.services} aria-labelledby="confirm-services-title"><div className={styles.sectionHeading}><div><p className={styles.eyebrow}>WHAT’S IN YOUR SPACE?</p><h2 id="confirm-services-title">The right help.<br /><em>For the right pest.</em></h2></div><p>Start with the signs you have noticed. Not sure? Ask for identification help.</p></div><div className={styles.serviceGrid}>{card.services.filter(s=>s.isActive).map((s,i)=><article key={s.id} className={styles.service}><div className={styles.serviceHead}><span className={styles.serviceNumber}>{String(i+1).padStart(2,"0")}</span><ServicePestArt title={s.title} imageUrl={s.imageUrl}/></div><h3>{s.title}</h3>{s.description?<p>{s.description}</p>:null}{s.ctaUrl&&isSafeCircleCardLinkDestination(s.ctaUrl)?<a className={styles.textLink} {...getExternalLinkProps(s.ctaUrl)}>{s.ctaLabel||"Explore this service"}<ArrowUpRight size={14} aria-hidden="true" /></a>:null}</article>)}</div>
         <div className={styles.situations}><article className={styles.situation}><img src={ASSETS.domestic} alt="Residential property, as shown on Confirm A Kill’s website" loading="lazy" /><div><p className={styles.eyebrow}>FOR YOUR HOME</p><h3>Feel at home again.</h3><p>Support for households, landlords and rented properties.</p>{cta(quoteUrl,"Tell us what you’ve seen",<Send size={18} aria-hidden="true" />)}</div></article><article className={styles.situation}><img src={ASSETS.commercial} alt="Commercial kitchen, as shown on Confirm A Kill’s website" loading="lazy" /><div><p className={styles.eyebrow}>FOR YOUR BUSINESS</p><h3>Protect your premises.</h3><p>Discuss a call-out or planned visits around your business.</p>{cta(commercialUrl,"Discuss pest protection",<ArrowUpRight size={18} aria-hidden="true" />)}</div></article></div>
       </section>
       <ConfirmAKillGallery items={card.galleryItems} />

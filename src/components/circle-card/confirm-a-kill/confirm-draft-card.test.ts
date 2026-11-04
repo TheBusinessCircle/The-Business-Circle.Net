@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { PublicCircleCard } from "@/server/circle-card";
-import { ConfirmAKillDraftCard, isConfirmAKillDraft, CONFIRM_DRAFT_ID, CONFIRM_DRAFT_SLUG, CONFIRM_GOOGLE_REVIEWS } from "./confirm-draft-card";
+import { ConfirmAKillDraftCard, isConfirmAKillDraft, confirmServicePestIllustration, CONFIRM_DRAFT_ID, CONFIRM_DRAFT_SLUG, CONFIRM_GOOGLE_REVIEWS } from "./confirm-draft-card";
 
 const url=`https://circlecard.co.uk/prepared/${CONFIRM_DRAFT_SLUG}`;
 const card={id:CONFIRM_DRAFT_ID,slug:CONFIRM_DRAFT_SLUG,cardType:"BUSINESS",isDemo:true,
@@ -17,6 +17,33 @@ function render(overrides:Partial<PublicCircleCard>={}) {
     qr:createElement("div",null,"Native QR"),contactDownloadHref:`/prepared/${CONFIRM_DRAFT_SLUG}/vcard`}));
 }
 describe("Confirm A Kill private draft",()=>{
+  it("matches pest photographs by the saved service name, independently of service order",()=>{
+    const expected=[
+      ['Rat & mouse control',['Rat','House mouse']],['Wasp nest removal',['Wasp nest']],
+      ['Bed bug treatment',['Bed bug']],['Fleas, ants & cockroaches',['Cockroach']],
+      ['Birds, squirrels & moles',['Pigeon','Grey squirrel']],
+      ['Commercial pest protection',['Rat','Cockroach']],['Urgent pest problems',['Rat','Wasp nest']],
+      ['Free pest identification',['Bed bug','House mouse']],['Cockroach control',['Cockroach']]
+    ] as const;
+    for(const [title,animals] of [...expected].reverse()) {
+      const result=confirmServicePestIllustration(title);
+      expect(result.images.map(image=>image.alt)).toEqual(animals);
+      expect(result.images.every(image=>image.src.startsWith('https://res.cloudinary.com/'))).toBe(true);
+    }
+    expect(confirmServicePestIllustration('An unrelated new service').images).toEqual([]);
+    expect(confirmServicePestIllustration('Commercial pest protection').badge).toBe('protection');
+    expect(confirmServicePestIllustration('Urgent pest problems').badge).toBe('urgent');
+    expect(confirmServicePestIllustration('Free pest identification').badge).toBe('identify');
+  });
+
+  it("adds the relevant image cluster to each service header and respects a saved image",()=>{
+    const service={id:'bedbugs',title:'Bed bug treatment',description:'Saved service copy',isActive:true,imageUrl:null};
+    const html=render({services:[service] as PublicCircleCard['services']});
+    expect(html).toContain('aria-label="Bed bug"');expect(html).toContain('/pests/bedbug-20261104.jpg');
+    expect(html).toContain('data-count="1"');expect(html).toContain('Saved service copy');
+    const updated=render({services:[{...service,imageUrl:'https://res.cloudinary.com/example/image/upload/owner-service.jpg'}] as PublicCircleCard['services']});
+    expect(updated).toContain('/owner-service.jpg');expect(updated).not.toContain('/pests/bedbug-20261104.jpg');
+  });
   it("requires an owned Pro preview, official site, demo identity and exact prepared route",()=>{
     expect(isConfirmAKillDraft(card,url,true)).toBe(true);
     expect(isConfirmAKillDraft(card,url)).toBe(false);
