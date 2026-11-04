@@ -23,6 +23,13 @@ PAYLOAD = {
 def run(args, **kwargs):
     return subprocess.run(args, check=True, text=True, **kwargs)
 
+def property_value(name):
+    if not LIVE_UNIT:
+        raise RuntimeError('Identify the live Circle Card service before reading its properties.')
+    return subprocess.check_output(
+        ['systemctl', 'show', LIVE_UNIT, '--value', '-p', name], text=True
+    ).strip()
+
 def rewrite_unit(text, old_root, new_root, override_file):
     if re.search(r'^\s*(?:PIDFile|ExecStop)\s*=\s*\S', text, re.M):
         raise RuntimeError('This unit has custom process/stop handling; review is required before cloning it.')
