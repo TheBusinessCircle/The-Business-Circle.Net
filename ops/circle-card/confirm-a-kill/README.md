@@ -11,7 +11,7 @@ Trev requested a Circle Card like Precision's, saved as a draft in his account o
 - Public-showcase checkbox remains off. No invitations or account grants.
 - Saved eight services, four website images, five enquiry/proof links, official contact details and hours.
 - The real site supplies navy `#101923` and yellow `#f4cb38`, plus a black logo. Public website images were imported to the connected Cloudinary account because Circle Card rejects arbitrary remote image hosts. The bullseye emblem was cropped and padded for the native spinning circle.
-- Sources: official homepage, services, about and commercial pages, inspected 4 November 2026. Google Maps reviews CID copied from the official website. No rating or review count is represented as current.
+- Sources: official homepage, services, about and commercial pages, inspected 4 November 2026. Trev supplied the exact review destination `https://g.page/r/CdWBUE3JEkXBEAE/review`. The hero action is "Leave us a Google review", immediately after "Visit Website". The former featured Google Maps link is replaced in the saved draft with pest advice. No rating or review count is represented as current.
 
 ## Template installation still required
 

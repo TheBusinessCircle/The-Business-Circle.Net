@@ -31,7 +31,8 @@ describe("Confirm A Kill private draft",()=>{
   it("keeps call and quote prominent and Google reviews directly after Visit Website",()=>{
     const html=render();const anchors=html.match(/<a\b[^>]*>[\s\S]*?<\/a>/g)??[];
     const website=anchors.findIndex(a=>a.includes('Visit Website'));
-    expect(anchors[website+1]).toContain('Read our Google reviews');
+    expect(anchors[website+1]).toContain('Leave us a Google review');
+    expect(anchors[website+1]).toContain('href="https://g.page/r/CdWBUE3JEkXBEAE/review"');
     expect(html.indexOf('Call 0115 913 5724')).toBeLessThan(html.indexOf('Visit Website'));
     expect(html).toContain(CONFIRM_GOOGLE_REVIEWS.replaceAll('&','&amp;'));
     const text=html.replace(/<[^>]*>/g,'');

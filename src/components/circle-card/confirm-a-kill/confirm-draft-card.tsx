@@ -10,7 +10,7 @@ import styles from "./confirm-a-kill.module.css";
 
 export const CONFIRM_DRAFT_ID = "cmw2jnnc6005xzfahkcfm7q39";
 export const CONFIRM_DRAFT_SLUG = "confirm-a-kill-73f64ae9cc20";
-export const CONFIRM_GOOGLE_REVIEWS = "https://www.google.com/maps?cid=13926558078507975125";
+export const CONFIRM_GOOGLE_REVIEWS = "https://g.page/r/CdWBUE3JEkXBEAE/review";
 const ASSETS = {
   logo: "https://res.cloudinary.com/sziyzzje/image/upload/v1793822516/circle-card/confirm-a-kill/logo-20261104.png",
   hero: "https://res.cloudinary.com/sziyzzje/image/upload/v1793822538/circle-card/confirm-a-kill/hero-20261104.webp",
@@ -70,7 +70,7 @@ export function ConfirmAKillDraftCard({card,identity,actions,connection,trust,qr
             {tel?cta(tel,`Call ${phone}`,<Phone size={19} aria-hidden="true" />,false,"confirm_hero_call"):null}
             {cta(quoteUrl,"Get a personal quote",<Send size={19} aria-hidden="true" />,true)}
             {cta(website,"Visit Website",<Globe2 size={19} aria-hidden="true" />,true,"confirm_hero_website")}
-            {cta(CONFIRM_GOOGLE_REVIEWS,"Read our Google reviews",<Star size={19} aria-hidden="true" />,true,"confirm_hero_reviews")}
+            {cta(CONFIRM_GOOGLE_REVIEWS,"Leave us a Google review",<Star size={19} aria-hidden="true" />,true,"confirm_hero_review")}
           </div>
           <div className={styles.assurances}>{["Discreet visits","Free pest identification","Homes & businesses"].map(text=><span key={text}><Check size={13} aria-hidden="true" />{text}</span>)}</div>
         </div>
