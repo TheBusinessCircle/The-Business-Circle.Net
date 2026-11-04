@@ -18,11 +18,14 @@ describe("local hub postcode matching", () => {
 
 describe("local hub consent and lifecycle", () => {
   const eligible = { cardType: "BUSINESS", businessPostcode: "NG15 7AA", isPublished: true, showInDiscover: true };
+  it.each(["PERSONAL", "CREATOR", "BUSINESS"])("accepts local %s cards", cardType => {
+    expect(getLocalHubPath({ ...eligible, cardType })).toBe(HUCKNALL_HUB_PATH);
+  });
   it("enrolls an opted-in published business without any payment requirement", () => {
     expect(getLocalHubPath(eligible)).toBe(HUCKNALL_HUB_PATH);
   });
   it.each([{ showInDiscover: false }, { isPublished: false }, { archivedAt: new Date() },
-    { cardType: "PERSONAL" }, { cardType: "CREATOR" }, { businessPostcode: "NG16 1AA" }, { businessPostcode: null }])("removes a listing when eligibility changes: %j", change => {
+    { businessPostcode: "NG16 1AA" }, { businessPostcode: null }])("removes a listing when eligibility changes: %j", change => {
     expect(getLocalHubPath({ ...eligible, ...change })).toBeNull();
   });
 });

@@ -11,7 +11,7 @@ import { getPublicCircleCard } from "@/server/circle-card/public-card.service";
 export async function LocalHubMembership({ cardId, isDemo }: { cardId: string; isDemo: boolean }) {
   if (isDemo || cardId === HUCKNALL_HUB_CARD_ID) return null;
   const member = await prisma.circleCard.findFirst({
-    where: { id: cardId, ...CIRCLE_CARD_DISCOVER_VISIBLE_WHERE, cardType: "BUSINESS",
+    where: { id: cardId, ...CIRCLE_CARD_DISCOVER_VISIBLE_WHERE,
       businessPostcode: { startsWith: "NG15 " }, user: { suspended: false } },
     select: { cardType: true, businessPostcode: true, isPublished: true, showInDiscover: true, archivedAt: true }
   });

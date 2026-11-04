@@ -20,12 +20,17 @@ describe("public Hucknall hub directory", () => {
     expect((await getHucknallHubBusinesses())[0].imageUrl).toBe("https://example.com/owner.jpg");
   });
   beforeEach(() => { vi.clearAllMocks(); mocks.findMany.mockResolvedValue([]); mocks.findFirst.mockResolvedValue({ id: "eligible" }); mocks.getPublicCard.mockImplementation(async slug => publicCard(slug)); });
-  it("enforces opt-in, publication, location, type, archive and suspended-account predicates", async () => {
+  it("enforces opt-in, publication, location, archive and suspended-account predicates", async () => {
     await getHucknallHubBusinesses();
     expect(mocks.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {
-      isPublished: true, showInDiscover: true, archivedAt: null, cardType: "BUSINESS",
+      isPublished: true, showInDiscover: true, archivedAt: null,
       businessPostcode: { startsWith: "NG15 " }, user: { suspended: false }
     } }));
+  });
+  it.each(["PERSONAL", "CREATOR", "BUSINESS"])("lists an eligible %s card", async cardType => {
+    mocks.findMany.mockResolvedValue([candidate("local", { cardType })]);
+    expect((await getHucknallHubBusinesses()).map(card => card.slug)).toEqual(["local"]);
+    expect(mocks.findFirst.mock.calls[0][0].where).not.toHaveProperty("cardType");
   });
   it("uses canonical visibility checks and omits plan-hidden or otherwise unavailable cards", async () => {
     mocks.findMany.mockResolvedValue([candidate("visible"), candidate("locked")]);

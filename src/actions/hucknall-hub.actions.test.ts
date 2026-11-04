@@ -7,19 +7,35 @@ vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidate }));
 vi.mock("next/navigation", () => ({ redirect: (url: string) => { throw new Error(`REDIRECT:${url}`); } }));
 import { saveHucknallMembershipAction } from "./hucknall-hub.actions";
 const id = "clx0000000000000000000001";
-function form(discover = true) { const data = new FormData(); data.set("cardId", id); data.set("postcode", "ng157aa"); data.set("category", "shopping"); if (discover) data.set("discover", "on"); return data; }
+function form(discover = true) { const data = new FormData(); data.set("cardId", id); data.set("postcode", "ng157aa"); data.set("category", "shopping"); data.set("businessConfirmed", "on"); if (discover) data.set("discover", "on"); return data; }
 describe("free local-directory enrolment", () => {
   beforeEach(() => { vi.clearAllMocks(); mocks.auth.mockResolvedValue({ user: { id: "owner" } }); mocks.allowed.mockResolvedValue(true); mocks.findFirst.mockResolvedValue({ id, userId: "owner", slug: "local-shop", showInDiscover: false, discoverOptedInAt: null }); mocks.update.mockResolvedValue({ id }); });
+  it("requires the local-business declaration before opting in", async () => {
+    const data = form(); data.delete("businessConfirmed");
+    await expect(saveHucknallMembershipAction(data)).rejects.toThrow("error=confirmation");
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+  it("allows opting out without the declaration", async () => {
+    const data = form(false); data.delete("businessConfirmed");
+    await expect(saveHucknallMembershipAction(data)).rejects.toThrow("saved=1");
+    expect(mocks.update).toHaveBeenCalled();
+  });
+  it.each(["PERSONAL", "CREATOR", "BUSINESS"])("accepts an owned published %s card without changing its type", async cardType => {
+    mocks.findFirst.mockResolvedValue({ id, userId: "owner", slug: "local", cardType, showInDiscover: false, discoverOptedInAt: null });
+    await expect(saveHucknallMembershipAction(form())).rejects.toThrow("saved=1");
+    expect(mocks.findFirst.mock.calls[0][0].where).not.toHaveProperty("cardType");
+    expect(mocks.update.mock.calls[0][0].data).not.toHaveProperty("cardType");
+  });
   it("requires a signed-in account", async () => {
     mocks.auth.mockResolvedValue(null);
     await expect(saveHucknallMembershipAction(form())).rejects.toThrow("REDIRECT:/login?");
     expect(mocks.update).not.toHaveBeenCalled();
   });
-  it("checks ownership, publication, type, archive and suspension before saving", async () => {
+  it("checks ownership, publication, archive and suspension before saving", async () => {
     mocks.findFirst.mockResolvedValue(null);
     await expect(saveHucknallMembershipAction(form())).rejects.toThrow("error=card");
     expect(mocks.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: {
-      id, userId: "owner", cardType: "BUSINESS", isPublished: true, archivedAt: null, user: { suspended: false }
+      id, userId: "owner", isPublished: true, archivedAt: null, user: { suspended: false }
     } }));
     expect(mocks.update).not.toHaveBeenCalled();
   });

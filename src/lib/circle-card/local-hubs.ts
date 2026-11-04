@@ -44,7 +44,9 @@ export function getLocalHubPath(input: {
   showInDiscover: boolean;
   archivedAt?: Date | null;
 }) {
-  return input.cardType === "BUSINESS" && input.isPublished && input.showInDiscover &&
+  // A business postcode is supplied by the owner in the local-business join flow.
+  // Legacy presentation types do not determine whether a local business can join.
+  return input.isPublished && input.showInDiscover &&
     !input.archivedAt && isHucknallBusinessPostcode(input.businessPostcode)
     ? HUCKNALL_HUB_PATH : null;
 }

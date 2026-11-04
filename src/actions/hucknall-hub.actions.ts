@@ -11,18 +11,20 @@ import { isPublicCircleCardTargetWithinOwnerPlan } from "@/server/circle-card/pl
 
 const JOIN = `${HUCKNALL_HUB_PATH}/join`;
 const schema = z.object({ cardId: z.string().cuid(), postcode: z.string().max(10),
-  category: z.string().max(40).refine(isBusinessDirectoryCategory), discover: z.boolean() });
+  category: z.string().max(40).refine(isBusinessDirectoryCategory), discover: z.boolean(), businessConfirmed: z.boolean() });
 
 export async function saveHucknallMembershipAction(formData: FormData) {
   const session = await auth();
   if (!session?.user?.id) redirect(`/login?from=${encodeURIComponent(JOIN)}`);
   const result = schema.safeParse({ cardId: formData.get("cardId"), postcode: formData.get("postcode"),
-    category: formData.get("category"), discover: formData.get("discover") === "on" });
+    category: formData.get("category"), discover: formData.get("discover") === "on",
+    businessConfirmed: formData.get("businessConfirmed") === "on" });
   if (!result.success) redirect(`${JOIN}?error=details`);
   const { cardId, postcode, category, discover } = result.data;
+  if (discover && !result.data.businessConfirmed) redirect(`${JOIN}?error=confirmation`);
   if (cardId === HUCKNALL_HUB_CARD_ID || !isHucknallBusinessPostcode(postcode)) redirect(`${JOIN}?error=postcode`);
   const card = await prisma.circleCard.findFirst({
-    where: { id: cardId, userId: session.user.id, cardType: "BUSINESS", isPublished: true, archivedAt: null,
+    where: { id: cardId, userId: session.user.id, isPublished: true, archivedAt: null,
       user: { suspended: false } },
     select: { id: true, userId: true, slug: true, showInDiscover: true, discoverOptedInAt: true }
   });

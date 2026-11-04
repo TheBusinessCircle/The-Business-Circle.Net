@@ -25,7 +25,7 @@ describe("business card link back to its local hub", () => {
   it("rechecks current publication, opt-in, account and location without relying on stale page props", async () => {
     await render();
     expect(mocks.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: {
-      id: "business", cardType: "BUSINESS", isPublished: true, showInDiscover: true,
+      id: "business", isPublished: true, showInDiscover: true,
       archivedAt: null, businessPostcode: { startsWith: "NG15 " }, user: { suspended: false }
     } }));
     mocks.findFirst.mockResolvedValue(null);
@@ -33,10 +33,14 @@ describe("business card link back to its local hub", () => {
   });
   it.each([
     { showInDiscover: false }, { businessPostcode: "NG16 1AA" },
-    { cardType: "PERSONAL" }, { archivedAt: new Date() }, { isPublished: false }
+    { archivedAt: new Date() }, { isPublished: false }
   ])("hides membership when eligibility changes: %j", async overrides => {
     mocks.findFirst.mockResolvedValue({ ...member, ...overrides });
     expect(await render()).toBe("");
+  });
+  it.each(["PERSONAL", "CREATOR", "BUSINESS"])("shows the hub backlink on a local %s card", async cardType => {
+    mocks.findFirst.mockResolvedValue({ ...member, cardType });
+    expect(await render()).toContain("Part of Hucknall Circle Hub");
   });
   it("does not link to an unpublished, example or replaced hub", async () => {
     for (const hub of [null, { id: HUCKNALL_HUB_CARD_ID, isDemo: true }, { id: "other", isDemo: false }]) {

@@ -7,7 +7,7 @@ import { getPublicCircleCard } from "@/server/circle-card/public-card.service";
 
 export async function getHucknallHubBusinesses(): Promise<LocalHubBusiness[]> {
   const candidates = await prisma.circleCard.findMany({
-    where: { ...CIRCLE_CARD_DISCOVER_VISIBLE_WHERE, cardType: "BUSINESS",
+    where: { ...CIRCLE_CARD_DISCOVER_VISIBLE_WHERE,
       businessPostcode: { startsWith: "NG15 " }, user: { suspended: false } },
     select: { id: true, slug: true, cardType: true, businessPostcode: true,
       businessCategory: true, isPublished: true, showInDiscover: true, archivedAt: true },
@@ -24,7 +24,7 @@ export async function getHucknallHubBusinesses(): Promise<LocalHubBusiness[]> {
       if (!card || card.isDemo) continue;
       const candidate = batch[index];
       const stillEligible = await prisma.circleCard.findFirst({
-        where: { id: card.id, ...CIRCLE_CARD_DISCOVER_VISIBLE_WHERE, cardType: "BUSINESS",
+        where: { id: card.id, ...CIRCLE_CARD_DISCOVER_VISIBLE_WHERE,
           businessPostcode: { startsWith: "NG15 " }, user: { suspended: false } }, select: { id: true }
       });
       if (!stillEligible) continue;
