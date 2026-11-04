@@ -12,7 +12,7 @@ BRANCH = '''  if (isPrecisionBusiness(card)) {
       connection={renderConnectionAction()}
       feedback={noticeMessage || errorMessage ? <p role="status" className="p-4 text-sm">{errorMessage || noticeMessage}</p> : null}
       trust={renderTrustScoreCard()}
-      qr={<CircleCardQrPanel publicUrl={publicUrl} slug={card.slug} label="Save Precision Finish" />}
+      qr={<CircleCardQrPanel publicUrl={publicUrl} slug={card.slug} label="Save Precision Finish" analytics={analyticsCardId ? {cardId:analyticsCardId,source:"public_card"} : undefined} />}
     />;
   }
 
