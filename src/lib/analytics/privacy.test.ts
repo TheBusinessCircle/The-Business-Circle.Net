@@ -128,3 +128,11 @@ describe("analytics location privacy", () => {
     expect(value).not.toContain(inviteCode);
   });
 });
+
+describe("business conversation and idea privacy", () => {
+  it("redacts private conversation, call and idea entry paths from referrers", () => {
+    for (const path of ["/messages/cprivate?connect=private", "/calls/cprivate", "/ideas/mine", "/ideas/new", "/ideas/cprivate?email=hidden", "/help-consent?token=hidden"]) expect(sanitizeAnalyticsLocation(path)).toBe("/[private]");
+    expect(sanitizeAnalyticsLocation("https://thebusinesscircle.net/messages/private?connect=hidden")).toBe("https://thebusinesscircle.net/[private]");
+    expect(sanitizeAnalyticsLocation("/ideas")).toBe("/ideas");
+  });
+});

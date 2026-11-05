@@ -1,3 +1,5 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
+import { BcnRegister } from "@/components/bcn-v2/auth-pages";
 import type { Metadata } from "next";
 import { CircleCardRegisterForm } from "@/components/auth/circle-card-register-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +14,7 @@ type RegisterPageProps = {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
+  if (isBcnV2Enabled()) return {title:"Create your free BCN account",robots:{index:false,follow:false}};
   return createCircleCardPageMetadata({
     title: "Create Free Circle Card",
     description: "Create your free Circle Card account.",
@@ -21,6 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function RegisterPage({ searchParams }: RegisterPageProps) {
+  if (isBcnV2Enabled()) return <BcnRegister/>;
   const params = await searchParams;
 
   const claimToken = firstValue(params.claim);

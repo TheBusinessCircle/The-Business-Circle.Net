@@ -1,3 +1,5 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
+import { FaqV2 } from "@/components/bcn-v2/info-pages";
 import type { Metadata } from "next";
 import { AuditFitCta, FAQSection, JsonLd } from "@/components/public";
 import { PublicTopVisual, SectionFeatureImage } from "@/components/visual-media";
@@ -8,9 +10,9 @@ import { getSiteContentSection } from "@/server/site-content";
 import { getVisualMediaPlacement } from "@/server/visual-media";
 
 export const metadata: Metadata = createPageMetadata({
-  title: "Frequently Asked Questions",
+  title: isBcnV2Enabled() ? "Business Circle Questions Answered" : "Frequently Asked Questions",
   description:
-    "Direct answers for business owners building with intent about membership fit, billing, cancellation, access, privacy, and what happens after you join The Business Circle.",
+    isBcnV2Enabled() ? "Understand the free tools, profiles, permission-based introductions and existing membership transition." : "Direct answers for business owners building with intent about membership fit, billing, cancellation, access, privacy, and what happens after you join The Business Circle.",
   path: "/faq"
 });
 
@@ -102,6 +104,7 @@ function dedupeFaqItems(
 }
 
 export default async function FaqPage() {
+  if (isBcnV2Enabled()) return <FaqV2/>;
   const [homeContent, membershipContent, publicTopPlacement, faqTrustPlacement] = await Promise.all([
     getSiteContentSection("home"),
     getSiteContentSection("membership"),

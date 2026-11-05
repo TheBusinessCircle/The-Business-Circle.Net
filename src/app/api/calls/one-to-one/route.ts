@@ -1,3 +1,5 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
+import { requestGuard, boundedJson } from "@/lib/bcn-v2/http";
 import { NextResponse } from "next/server";
 import { requireApiUser } from "@/lib/auth/api";
 import { bcnRulesRequiredResponse, hasAcceptedBcnRules } from "@/lib/rules-acceptance";
@@ -10,12 +12,13 @@ import { toCallingUser } from "@/server/calling/session";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  if (isBcnV2Enabled()) { const blocked = await requestGuard(request, "direct-calls", 12); if (blocked) return blocked; }
   if (!isTrustedOrigin(request)) {
     return NextResponse.json({ error: "Untrusted request origin." }, { status: 403 });
   }
 
   try {
-    const authResult = await requireApiUser({ requiredTier: "FOUNDATION" });
+    const authResult = await requireApiUser(isBcnV2Enabled() ? { allowUnentitled: true, requireVerifiedEmail: true } : { requiredTier: "FOUNDATION" });
     if ("response" in authResult) {
       return authResult.response;
     }
@@ -24,7 +27,7 @@ export async function POST(request: Request) {
       return bcnRulesRequiredResponse();
     }
 
-    const parsed = createDirectCallSchema.safeParse(await request.json());
+    const parsed = createDirectCallSchema.safeParse(await (isBcnV2Enabled() ? boundedJson(request) : request.json()));
 
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid call request." }, { status: 400 });
@@ -45,6 +48,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof Error) {
+      if (["calling-disabled", "calling-emergency-disabled", "accepted-chat-required"].includes(error.message)) return NextResponse.json({ error: "Calling is unavailable. Both people need an accepted chat and calling must be enabled." }, { status: 403 });
       if (error.message === "target-not-found") {
         return NextResponse.json({ error: "That member could not be found." }, { status: 404 });
       }

@@ -1,3 +1,5 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
+import { hasConsentForCategory, parseCookieConsentFromCookieString } from "@/lib/cookie-consent";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
@@ -21,6 +23,9 @@ const collectPayloadSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  if (isBcnV2Enabled() && !hasConsentForCategory(parseCookieConsentFromCookieString(request.headers.get("cookie") || ""), "analytics")) {
+    return NextResponse.json({stored:false},{status:202});
+  }
   let headers: HeadersInit | undefined;
 
   try {

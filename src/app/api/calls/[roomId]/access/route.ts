@@ -1,3 +1,4 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
 import { NextResponse } from "next/server";
 import { requireApiUser } from "@/lib/auth/api";
 import { bcnRulesRequiredResponse, hasAcceptedBcnRules } from "@/lib/rules-acceptance";
@@ -11,7 +12,7 @@ export async function GET(
   context: { params: Promise<{ roomId: string }> }
 ) {
   try {
-    const authResult = await requireApiUser({ requiredTier: "FOUNDATION" });
+    const authResult = await requireApiUser(isBcnV2Enabled() ? { allowUnentitled: true, requireVerifiedEmail: true } : { requiredTier: "FOUNDATION" });
     if ("response" in authResult) {
       return authResult.response;
     }
@@ -31,7 +32,7 @@ export async function GET(
       actor: toCallingUser(authResult.user)
     });
 
-    return NextResponse.json(result, { status: result.allowed ? 200 : result.code === "room-not-found" ? 404 : 403 });
+    return NextResponse.json(isBcnV2Enabled() ? { allowed: result.allowed, code: result.code, message: result.message, canJoinNow: result.canJoinNow } : result, { status: result.allowed ? 200 : result.code === "room-not-found" ? 404 : 403 });
   } catch (error) {
     logServerError("calling-room-access-validate-failed", error);
     return NextResponse.json({ error: "Unable to validate room access." }, { status: 500 });

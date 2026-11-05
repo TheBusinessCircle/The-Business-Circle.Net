@@ -1,3 +1,5 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
+import { MembershipV2 } from "@/components/bcn-v2/info-pages";
 import type { Metadata } from "next";
 import {
   TestimonialCategory,
@@ -62,9 +64,9 @@ const MEMBERSHIP_KEYWORDS = [
 ] as const;
 
 export const metadata: Metadata = createPageMetadata({
-  title: "Membership | Join The Business Circle Network",
+  title: isBcnV2Enabled() ? "Free Business Help and Existing Memberships" : "Membership | Join The Business Circle Network",
   description:
-    "Choose the right room inside a private founder-led business environment for owners. Compare Foundation, Inner Circle, and Core for clearer structure, stronger context, and more controlled momentum.",
+    isBcnV2Enabled() ? "Use new public tools and guidance for free. Existing member records and contracted access are preserved." : "Choose the right room inside a private founder-led business environment for owners. Compare Foundation, Inner Circle, and Core for clearer structure, stronger context, and more controlled momentum.",
   keywords: [...MEMBERSHIP_KEYWORDS],
   path: "/membership"
 });
@@ -169,6 +171,7 @@ function DecisionCardGrid({ items, columns = "xl:grid-cols-5" }: { items: Decisi
 }
 
 export default async function MembershipPage({ searchParams }: MembershipPageProps) {
+  if (isBcnV2Enabled()) return <MembershipV2/>;
   const params = await searchParams;
   const billing = firstValue(params.billing);
   const from = firstValue(params.from);

@@ -1,3 +1,5 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
+import { ContactV2 } from "@/components/bcn-v2/info-pages";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Mail, MessageSquare, ShieldCheck } from "lucide-react";
@@ -45,6 +47,7 @@ const CONTACT_FAQS = [
 ] as const;
 
 export default async function ContactPage() {
+ if(isBcnV2Enabled())return <ContactV2/>;
   const [, publicTopPlacement] = await Promise.all([
     getSiteContentSection("footer"),
     getVisualMediaPlacement("global.public.top")

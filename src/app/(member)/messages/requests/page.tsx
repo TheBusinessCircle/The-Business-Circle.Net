@@ -1,3 +1,5 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
+import { BcnConversations } from "@/components/bcn-v2/conversation-pages";
 import type { Metadata } from "next";
 import { Flag, MessageSquareLock } from "lucide-react";
 import { respondToDirectMessageRequestAction, reportDirectMessageAction } from "@/actions/messages/messages.actions";
@@ -58,6 +60,7 @@ function feedbackMessage(input: { notice: string; error: string }) {
 }
 
 export default async function MessageRequestsPage({ searchParams }: PageProps) {
+  if (isBcnV2Enabled()) return <BcnConversations />;
   const session = await requireUser();
   const params = await searchParams;
 

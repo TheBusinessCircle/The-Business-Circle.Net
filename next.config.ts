@@ -4,7 +4,10 @@ function uniqueTokens(tokens: string[]) {
   return Array.from(new Set(tokens.filter(Boolean)));
 }
 
-function cspSourceFromUrl(value: string | undefined, allowedProtocols: string[]) {
+function cspSourceFromUrl(
+  value: string | undefined,
+  allowedProtocols: string[],
+) {
   if (!value) {
     return null;
   }
@@ -40,12 +43,14 @@ export function buildContentSecurityPolicy() {
     "ws:",
     "wss:",
     "http:",
-    "https:"
+    "https:",
   ]);
   const posthogConnectSource =
     cspSourceFromUrl(process.env.NEXT_PUBLIC_POSTHOG_HOST, ["https:"]) ??
     "https://eu.i.posthog.com";
-  const posthogAssetSource = posthogAssetSourceFromHost(process.env.NEXT_PUBLIC_POSTHOG_HOST);
+  const posthogAssetSource = posthogAssetSourceFromHost(
+    process.env.NEXT_PUBLIC_POSTHOG_HOST,
+  );
   const connectSources = uniqueTokens([
     "'self'",
     "https://checkout.stripe.com",
@@ -65,14 +70,14 @@ export function buildContentSecurityPolicy() {
     "wss://*.livekit.io",
     posthogConnectSource,
     posthogAssetSource,
-    liveKitConnectSource ?? ""
+    liveKitConnectSource ?? "",
   ]);
   const scriptSources = uniqueTokens([
     "'self'",
     "'unsafe-inline'",
     "'unsafe-eval'",
     "https://js.stripe.com",
-    posthogAssetSource
+    posthogAssetSource,
   ]);
   const imgSources = uniqueTokens([
     "'self'",
@@ -82,7 +87,7 @@ export function buildContentSecurityPolicy() {
     "https://images.unsplash.com",
     "https://res.cloudinary.com",
     posthogConnectSource,
-    posthogAssetSource
+    posthogAssetSource,
   ]);
 
   return [
@@ -99,7 +104,7 @@ export function buildContentSecurityPolicy() {
     `connect-src ${connectSources.join(" ")}`,
     "frame-src 'self' https://js.stripe.com https://checkout.stripe.com https://billing.stripe.com",
     "worker-src 'self' blob:",
-    "manifest-src 'self'"
+    "manifest-src 'self'",
   ].join("; ");
 }
 
@@ -107,40 +112,40 @@ function buildSecurityHeaders() {
   return [
     {
       key: "X-Frame-Options",
-      value: "DENY"
+      value: "DENY",
     },
     {
       key: "X-Content-Type-Options",
-      value: "nosniff"
+      value: "nosniff",
     },
     {
       key: "Referrer-Policy",
-      value: "strict-origin-when-cross-origin"
+      value: "strict-origin-when-cross-origin",
     },
     {
       key: "Permissions-Policy",
-      value: "camera=(self), microphone=(self), geolocation=(), payment=()"
+      value: "camera=(self), microphone=(self), geolocation=(), payment=()",
     },
     {
       key: "Cross-Origin-Opener-Policy",
-      value: "same-origin"
+      value: "same-origin",
     },
     {
       key: "Cross-Origin-Resource-Policy",
-      value: "same-site"
+      value: "same-site",
     },
     {
       key: "X-DNS-Prefetch-Control",
-      value: "off"
+      value: "off",
     },
     {
       key: "Strict-Transport-Security",
-      value: "max-age=63072000; includeSubDomains; preload"
+      value: "max-age=63072000; includeSubDomains; preload",
     },
     {
       key: "Content-Security-Policy",
-      value: buildContentSecurityPolicy()
-    }
+      value: buildContentSecurityPolicy(),
+    },
   ] as const;
 }
 
@@ -154,24 +159,32 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "images.unsplash.com"
+        hostname: "images.unsplash.com",
       },
       {
         protocol: "https",
-        hostname: "res.cloudinary.com"
-      }
-    ]
+        hostname: "res.cloudinary.com",
+      },
+    ],
   },
   async headers() {
     return [
       {
         source: "/api/:path*",
-        headers: [...SECURITY_HEADERS]
+        headers: [...SECURITY_HEADERS],
       },
       {
         source: PAGE_ROUTE_SOURCE,
-        headers: [...SECURITY_HEADERS]
-      }
+        headers: [...SECURITY_HEADERS],
+      },
+      {
+        source: "/help-consent",
+        headers: [
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "Cache-Control", value: "private, no-store" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+        ],
+      },
     ];
   },
   async redirects() {
@@ -179,8 +192,8 @@ const nextConfig: NextConfig = {
       {
         source: "/early-access",
         destination: "/membership",
-        permanent: true
-      }
+        permanent: true,
+      },
     ];
   },
   async rewrites() {
@@ -188,13 +201,13 @@ const nextConfig: NextConfig = {
       beforeFiles: [
         {
           source: "/uploads/circle-card/:path*",
-          destination: "/api/circle-card/public-image/:path*"
-        }
+          destination: "/api/circle-card/public-image/:path*",
+        },
       ],
       afterFiles: [],
-      fallback: []
+      fallback: [],
     };
-  }
+  },
 };
 
 export default nextConfig;

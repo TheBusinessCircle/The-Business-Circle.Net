@@ -1,3 +1,5 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
+import { BcnLogin } from "@/components/bcn-v2/auth-pages";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LoginForm } from "@/components/auth/login-form";
@@ -13,12 +15,13 @@ type LoginPageProps = {
 export const metadata: Metadata = createPageMetadata({
   title: "Sign In",
   description:
-    "Sign in to access your Circle Card or The Business Circle Network workspace.",
+    isBcnV2Enabled() ? "Sign in to your free Business Circle account." : "Sign in to access your Circle Card or The Business Circle Network workspace.",
   path: "/login",
   noIndex: true
 });
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
+  if (isBcnV2Enabled()) return <BcnLogin searchParams={searchParams}/>;
   const params = await searchParams;
   const { from, errorCode, errorDetailCode, initialNotice } = parseLoginSearchParams(params);
   const isCircleCardLogin =

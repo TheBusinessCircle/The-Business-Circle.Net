@@ -13,6 +13,7 @@ import {
   SubscriptionStatus
 } from "@prisma/client";
 import { db } from "@/lib/db";
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
 import { hasEntitledSubscription } from "@/lib/membership/access";
 import { assertNoBlockedProfanity } from "@/lib/moderation/profanity";
 import { buildCommunityPostPath } from "@/lib/community-paths";
@@ -354,7 +355,7 @@ function resolvePrivateMessagingBlockReason(
     return "EMAIL_NOT_VERIFIED";
   }
 
-  if (user.role !== "ADMIN" && !hasEntitledSubscription(user.subscription?.status ?? null)) {
+  if (!isBcnV2Enabled() && user.role !== "ADMIN" && !hasEntitledSubscription(user.subscription?.status ?? null)) {
     return "MEMBERSHIP_INACTIVE";
   }
 
@@ -410,7 +411,14 @@ async function resolveRequestOrigin(input: {
   recipientId: string;
   originPostId?: string | null;
   originCommentId?: string | null;
+  originProfileId?: string;
 }) {
+  if (input.originProfileId) {
+    if (!isBcnV2Enabled()) throw new Error("invalid-direct-message-origin");
+    const profile = await db.bcnBusinessProfile.findUnique({ where: { id: input.originProfileId }, select: { userId: true, approved: true, publicConsentAt: true, acceptsMessages: true } });
+    if (!profile || profile.userId !== input.recipientId || !profile.approved || !profile.publicConsentAt || !profile.acceptsMessages) throw new Error("invalid-direct-message-origin");
+    return { originPostId: null, originCommentId: null, sourcePost: null, sourceComment: null };
+  }
   if (input.originCommentId) {
     const comment = await db.communityComment.findUnique({
       where: {
@@ -836,6 +844,7 @@ export async function createDirectMessageRequest(input: {
   recipientId: string;
   originPostId?: string | null;
   originCommentId?: string | null;
+  originProfileId?: string;
   introMessage?: string | null;
 }) {
   if (input.requesterId === input.recipientId) {
@@ -914,7 +923,8 @@ export async function createDirectMessageRequest(input: {
     requesterId: input.requesterId,
     recipientId: input.recipientId,
     originPostId: input.originPostId,
-    originCommentId: input.originCommentId
+    originCommentId: input.originCommentId,
+    originProfileId: input.originProfileId
   });
 
   if (input.introMessage?.trim()) {
@@ -1082,6 +1092,10 @@ export async function respondToDirectMessageRequest(input: {
     };
   }
 
+  if (isBcnV2Enabled()) {
+    const [requester, recipient, block] = await Promise.all([getEligibleMember(request.requesterId), getEligibleMember(request.recipientId), getBlockingRelationship(request.requesterId, request.recipientId)]);
+    if (resolvePrivateMessagingBlockReason(requester) || resolvePrivateMessagingBlockReason(recipient) || block) throw new Error("member-unavailable");
+  }
   const pairKey = pairKeyForUsers(request.requesterId, request.recipientId);
   const result = await db.$transaction(async (tx) => {
     let thread = await tx.directMessageThread.findUnique({
@@ -1149,7 +1163,7 @@ export async function respondToDirectMessageRequest(input: {
         threadId: thread.id,
         senderId: input.recipientId,
         messageType: DirectMessageType.SYSTEM,
-        content: "Private chat opened from a community conversation."
+        content: isBcnV2Enabled() ? "Private chat opened by mutual agreement." : "Private chat opened from a community conversation."
       }
     });
 
@@ -1199,7 +1213,7 @@ export async function getDirectMessageThreadDetail(input: {
               deletedAt: null
             },
             orderBy: {
-              createdAt: "asc"
+              createdAt: isBcnV2Enabled() ? "desc" : "asc"
             },
             take: 200,
             include: {
@@ -1282,7 +1296,7 @@ export async function getDirectMessageThreadDetail(input: {
     pinnedSummary: participant.thread.pinnedSummary,
     lastMessageAt: participant.thread.lastMessageAt?.toISOString() ?? null,
     otherMember: toDirectMessageMemberSummary(otherParticipant.user),
-    messages: participant.thread.messages.map((message) => ({
+    messages: (isBcnV2Enabled() ? [...participant.thread.messages].reverse() : participant.thread.messages).map((message) => ({
       id: message.id,
       threadId: message.threadId,
       senderId: message.senderId,

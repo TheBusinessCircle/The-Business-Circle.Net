@@ -1,3 +1,5 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
+import { BcnProfile } from "@/components/bcn-v2/member-pages";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
@@ -36,6 +38,7 @@ function firstValue(value: string | string[] | undefined) {
 }
 
 export default async function ProfilePage({ searchParams }: PageProps) {
+  if (isBcnV2Enabled()) return <BcnProfile/>;
   const session = await requireUser();
   const params = await searchParams;
 

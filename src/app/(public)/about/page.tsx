@@ -1,3 +1,5 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
+import { AboutV2 } from "@/components/bcn-v2/info-pages";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Compass, Shield, TrendingUp, Users } from "lucide-react";
@@ -39,9 +41,9 @@ const ABOUT_KEYWORDS = [
 ] as const;
 
 export const metadata: Metadata = createPageMetadata({
-  title: "About The Business Circle Network | Founder-Led Business Environment",
+  title: isBcnV2Enabled() ? "About The Business Circle" : "About The Business Circle Network | Founder-Led Business Environment",
   description:
-    "Why The Business Circle Network exists, what problem it solves, and how it creates a calmer, more structured private business environment for owners in the UK.",
+    isBcnV2Enabled() ? "Free practical business tools, guidance and useful connections for UK business owners." : "Why The Business Circle Network exists, what problem it solves, and how it creates a calmer, more structured private business environment for owners in the UK.",
   keywords: [...ABOUT_KEYWORDS],
   path: "/about"
 });
@@ -132,6 +134,7 @@ const ABOUT_FAQS = [
 ] as const;
 
 export default async function AboutPage() {
+  if (isBcnV2Enabled()) return <AboutV2/>;
   const [aboutContent, aboutHeroPlacement, aboutStoryPlacement] = await Promise.all([
     getSiteContentSection("about"),
     getVisualMediaPlacement("about.hero"),

@@ -1,3 +1,4 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { CallRoomClient } from "@/components/calling";
@@ -17,13 +18,14 @@ type PageProps = {
 export const metadata: Metadata = createPageMetadata({
   title: "Call Room",
   description: "Join a secure internal Business Circle call room.",
-  path: "/calls"
+  path: "/calls",
+  noIndex: true
 });
 
 export const dynamic = "force-dynamic";
 
 export default async function CallRoomPage({ params }: PageProps) {
-  const session = await requireUser();
+  const session = await requireUser({ allowUnentitled: isBcnV2Enabled() });
   const { roomId } = await params;
   const result = await validateCallRoomAccess({
     roomId,
@@ -31,13 +33,14 @@ export default async function CallRoomPage({ params }: PageProps) {
   });
 
   if (!result.allowed || !result.room) {
-    redirect("/calls?error=call-room-access-denied");
+    redirect(isBcnV2Enabled() ? "/messages?error=call-room-access-denied" : "/calls?error=call-room-access-denied");
   }
 
   const room = result.room;
 
-  return (
+  const content = (
     <CallRoomClient
+      exitPath={isBcnV2Enabled() ? "/messages" : "/calls"}
       roomId={room.id}
       title={room.title}
       description={room.description}
@@ -46,16 +49,17 @@ export default async function CallRoomPage({ params }: PageProps) {
       startsAt={room.startsAt?.toISOString() ?? null}
       maxParticipants={room.maxParticipants}
       hostUserId={room.hostUserId}
-      hostName={room.hostUser.name || room.hostUser.email || "Business Circle Host"}
+      hostName={room.hostUser.name || (isBcnV2Enabled() ? "BCN host" : room.hostUser.email) || "Business Circle Host"}
       canJoinNow={result.canJoinNow ?? false}
       currentUserId={session.user.id}
       currentUserRole={session.user.role}
       canManageRoom={session.user.role === "ADMIN" || room.hostUserId === session.user.id}
       participantDirectory={room.participants.map((participant) => ({
         userId: participant.userId,
-        name: participant.user.name || participant.user.email || "Business Circle Member",
+        name: participant.user.name || (isBcnV2Enabled() ? "BCN member" : participant.user.email) || "Business Circle Member",
         role: participant.role
       }))}
     />
   );
+  return isBcnV2Enabled() ? <div className="v2-call-surface">{content}</div> : content;
 }

@@ -1,3 +1,7 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
+import { listBcnBlogPosts } from "@/lib/bcn-v2/blog";
+import { tools } from "@/lib/bcn-v2/catalogue";
+import { guides } from "@/lib/bcn-v2/guides";
 import type { MetadataRoute } from "next";
 import { SITE_CONFIG } from "@/config/site";
 import { PUBLIC_INTENT_PAGE_ROUTES } from "@/config/public-intent-pages";
@@ -11,6 +15,15 @@ export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
+  if (isBcnV2Enabled()) {
+    const routes = ["/", "/start", "/ideas", "/tools", "/advice", "/find-help", "/connections", "/business-directory", "/about", "/how-we-work", "/faq", "/contact", "/membership", "/privacy-policy", "/terms-of-service", "/cookie-policy", "/rules", "/insights", ...PUBLIC_INTENT_PAGE_ROUTES, ...tools.map(t=>`/tools/${t.slug}`), ...guides.map(g=>`/advice/${g.slug}`), ...listPublicInsights().map(i=>`/insights/${i.slug}`), ...listInsightTopicClusters().map(c=>c.href)];
+    const blogPosts = listBcnBlogPosts(now);
+    return [
+      ...routes.map(path=>({url:`${SITE_CONFIG.url}${path}`,changeFrequency:"monthly" as const,priority:path==="/"?1:0.7})),
+      { url: `${SITE_CONFIG.url}/blog`, changeFrequency: "weekly" as const, priority: 0.8, ...(blogPosts[0] ? { lastModified: new Date(blogPosts[0].publishedAt) } : {}) },
+      ...blogPosts.map(post => ({ url: `${SITE_CONFIG.url}/blog/${post.slug}`, lastModified: new Date(post.publishedAt), changeFrequency: "monthly" as const, priority: 0.65 })),
+    ];
+  }
 
   const staticRoutes: MetadataRoute.Sitemap = [
     {

@@ -1,3 +1,5 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
+import { BcnAnalytics } from "@/components/bcn-v2/analytics";
 import type { Metadata } from "next";
 import { ReactNode, Suspense } from "react";
 import { FirstPartyAnalytics } from "@/components/analytics/first-party-analytics";
@@ -16,7 +18,7 @@ export default async function PublicLayout({ children }: { children: ReactNode }
     <>
       <JsonLd data={buildPublicSiteSchemaGraph({ supportEmail: SITE_CONFIG.supportEmail })} />
       <Suspense fallback={null}>
-        <FirstPartyAnalytics />
+        {isBcnV2Enabled() ? <BcnAnalytics/> : <FirstPartyAnalytics />}
       </Suspense>
       <PublicSiteShell>{children}</PublicSiteShell>
     </>

@@ -1,0 +1,21 @@
+# Editorial implementation verification, 21 October 2026
+
+Story: a visitor follows the advice/footer link to the free blog, finds a released article through search/topic/pagination or RSS, reads the complete article and follows a relevant tool or practical-help next step. Runtime release filtering controls the article, list, related reading, feed and sitemap. An authenticated administrator can inspect the queue. There is no database write or external writer in this feature.
+
+| Check | Result | Evidence and scope |
+| --- | --- | --- |
+| Complete bank | Pass | 104 distinct articles, 13 rotating topics, 22,848 body words excluding shared sections. Unique slugs/titles/intros/examples/help prompts, internal destinations and source identifiers checked. |
+| New release tests | Pass | 21 tests cover all 104 slots, two weekly for 52 weeks, Monday/Thursday starts, both UK clock changes, millisecond release boundary, missing/invalid settings, holds, flag/host isolation, related/feed filtering, XML escaping and content integrity. |
+| Targeted regression | Pass | 56 tests across new blog, financial tools, validation and retained insight data. |
+| Type checking | Pass | npx tsc --noEmit. |
+| Lint | Pass with existing warnings | Zero errors; the same three warnings in demo seed, resource UI verifier and a legacy product test. |
+| Production build | Pass | Next 15.5.15 compiled, type/lint stage passed, 316 static pages generated, dynamic blog/list/feed/admin routes emitted, existing independent-product server-action export verifier passed. Synthetic configuration only; no live database or billing used. |
+| Full suite | Baseline failures remain | 1,251 pass, two fail out of 1,253 across 211 files. Existing commission fixture expects a row the unchanged service does not create. Existing schema CLI test hits tsx Unix-socket listen EPERM in this execution environment. Neither unrelated test/service was modified or disabled. |
+| Actual Next HTTP/browser journey | Blocked, not passed | The local test server started, but the execution environment could not complete loopback requests reliably. The initial unspecified-host run also hit restricted network-interface enumeration. No production networking code was changed to accommodate the sandbox. |
+| Native private-preview browser | Blocked, not passed | The supported preview supervisor started. The cloud browser then explicitly rejected observation under its URL security policy. No alternate browser route or security bypass was attempted after that rejection. No new axe/mobile browser pass is claimed. |
+| Private editorial preview | Prepared | 104 full article review pages plus a filterable index, rendered from the actual server components and current compiled CSS. All future articles are intentionally visible only in the owner-private editorial review, with an explicit banner and illustrative dates. Existing working tool pages and disconnected account/form guards retained. Publication is confirmed separately by the native deployment result. |
+| Live release | Blocked by access | Owner approval is recorded. No authorised hosting session, proxy/process topology, actual deployed SHA or backup verification is available. Live BCN still serves the previous join experience; no production switch, migration or billing change was executed. |
+
+The actual launch date must be configured at deployment. The 7 September date used in local test configuration and the 22 October date in the calendar/private editorial review are illustrative, not evidence of public publication. Future production articles return no article data before their release; HTTP status/cache behaviour still needs verification on actual staging. Existing sitemap ISR needs real-host cache verification. Private review filtering is a local static convenience; it is separate from the implemented request-time production search/pagination.
+
+Remaining release checks include staging sign-in and admin access, actual-host article/list/feed/sitemap cache and 404 behaviour, existing free/private journeys, independent-product controls, backups and topology isolation. Direct video remains off. Community moderation and relevant operating/legal reviews remain ongoing responsibilities rather than automated blog features.

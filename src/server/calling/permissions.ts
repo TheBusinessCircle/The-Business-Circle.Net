@@ -6,6 +6,8 @@ import type {
   RealtimeSystemConfig,
   Role
 } from "@prisma/client";
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
+import { bcnDirectCallsConfigured, connectedPairCanTalk } from "@/server/bcn-v2/connections-policy";
 import { db } from "@/lib/db";
 import {
   ALL_CALL_MEMBERSHIP_TIERS,
@@ -137,7 +139,8 @@ export async function getCallingContext(user: CallingUser): Promise<CallingConte
   };
 }
 
-function checkBaseCallAvailability(user: CallingUser, context: CallingContext): CallingDecision {
+function checkBaseCallAvailability(user: CallingUser, context: CallingContext, freeDirect = false): CallingDecision {
+  if (isBcnV2Enabled() && freeDirect && !bcnDirectCallsConfigured()) return createDecision(context, false, "calling-disabled", "Video calling is currently unavailable. You can continue chatting.");
   if (!isCallingSystemEnabled(context.config)) {
     const code = context.config.emergencyShutdownEnabled ? "calling-emergency-disabled" : "calling-disabled";
 
@@ -155,7 +158,7 @@ function checkBaseCallAvailability(user: CallingUser, context: CallingContext): 
     return createDecision(context, false, "user-suspended", "Suspended users cannot access calling.");
   }
 
-  if (user.role !== "ADMIN" && !user.hasActiveSubscription) {
+  if (!(isBcnV2Enabled() && freeDirect) && user.role !== "ADMIN" && !user.hasActiveSubscription) {
     return createDecision(
       context,
       false,
@@ -169,7 +172,7 @@ function checkBaseCallAvailability(user: CallingUser, context: CallingContext): 
 
 export async function canUserStartOneToOneCalls(user: CallingUser) {
   const context = await getCallingContext(user);
-  return checkBaseCallAvailability(user, context);
+  return checkBaseCallAvailability(user, context, true);
 }
 
 export async function canUserRequestGroupHostAccess(user: CallingUser) {
@@ -296,7 +299,7 @@ export async function canUserJoinCallRoom(
   participants: JoinAccessParticipant[] = []
 ) {
   const context = await getCallingContext(user);
-  const baseDecision = checkBaseCallAvailability(user, context);
+  const baseDecision = checkBaseCallAvailability(user, context, room.type === "ONE_TO_ONE");
 
   if (!baseDecision.allowed) {
     return baseDecision;
@@ -306,6 +309,10 @@ export async function canUserJoinCallRoom(
     return createDecision(context, false, "room-closed", "This room is no longer available.");
   }
 
+  if (isBcnV2Enabled() && room.type === "ONE_TO_ONE") {
+    const other = participants.find(p => p.userId !== user.id);
+    if (!participants.some(p => p.userId === user.id && p.presenceState !== "REMOVED") || !other || other.presenceState === "REMOVED" || !(await connectedPairCanTalk(user.id, other.userId))) return createDecision(context, false, "room-private", "This call is only available to connected participants.");
+  }
   if (user.role === "ADMIN" || room.hostUserId === user.id) {
     return createDecision(context, true);
   }

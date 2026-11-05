@@ -1,3 +1,5 @@
+import { isBcnV2Enabled } from "@/lib/bcn-v2/flags";
+import { BcnDashboard } from "@/components/bcn-v2/member-pages";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CommunityPostKind, MembershipTier } from "@prisma/client";
@@ -137,6 +139,7 @@ async function getRecentConnectionWinsForDashboard(input: {
 }
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  if (isBcnV2Enabled() && (await searchParams).view !== "legacy") return <BcnDashboard/>;
   const session = await requireUser();
   const params = await searchParams;
   const billing = firstValue(params.billing);
