@@ -39,13 +39,14 @@ import {
   FIRST_CIRCLE_CARD_MISSING_COPY,
   type FirstCircleCardReadiness
 } from "@/lib/circle-card/first-card-readiness";
-import { stepAfterFirstCircleCardSave } from "@/lib/circle-card/onboarding-flow-state";
+import { discoverAfterFirstCardTypeSelection, stepAfterFirstCircleCardSave } from "@/lib/circle-card/onboarding-flow-state";
 import { cn } from "@/lib/utils";
 
 type Values = {
   cardId: string;
   slug: string;
   cardType: CircleCardType;
+  showInDiscover: boolean;
   fullName: string;
   businessName: string;
   role: string;
@@ -96,6 +97,8 @@ export function CircleCardOnboardingFlow({
   source
 }: Props) {
   const [values, setValues] = useState(defaults);
+  // Preserve saved Business preferences and explicit changes made during this visit.
+  const discoverChoiceMade = useRef(Boolean(defaults.cardId) && defaults.cardType === "BUSINESS");
   const [step, setStep] = useState(Math.max(0, Math.min(2, initialStep)));
   const [welcome, setWelcome] = useState(initialReadiness.completedEssentials === 0);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -146,7 +149,17 @@ export function CircleCardOnboardingFlow({
   }, [step, welcome]);
 
   function update<K extends keyof Values>(key: K, value: Values[K]) {
-    setValues((current) => ({ ...current, [key]: value }));
+    if (key === "showInDiscover") discoverChoiceMade.current = true;
+    const preserveDiscoverChoice = discoverChoiceMade.current;
+    setValues((current) => ({
+      ...current,
+      [key]: value,
+      ...(key === "cardType" ? {
+        showInDiscover: discoverAfterFirstCardTypeSelection(
+          value as CircleCardType, current.showInDiscover, preserveDiscoverChoice
+        )
+      } : {})
+    }));
     if (saveStatus !== "idle") setSaveStatus("idle");
     setMessage(null);
   }
@@ -436,6 +449,14 @@ export function CircleCardOnboardingFlow({
                       })}
                     </div>
                   </fieldset>
+                  {values.cardType === "BUSINESS" ? (
+                    <label className="flex items-start gap-3 rounded-2xl border border-gold/20 bg-gold/8 p-4">
+                      <input type="checkbox" checked={values.showInDiscover} onChange={(event) => update("showInDiscover", event.target.checked)} className="mt-1 h-5 w-5" />
+                      <span className="text-sm">Show my published business card in Circle Discover
+                        <span className="mt-1 block text-xs text-muted">Discover starts on for new business cards so customers can find you. You can switch it off here or in Settings. Your draft stays private until you publish.</span>
+                      </span>
+                    </label>
+                  ) : null}
                   <div className="space-y-2">
                     <Label htmlFor="first-card-name">Display name</Label>
                     <Input id="first-card-name" value={values.fullName} onChange={(event) => update("fullName", event.target.value)} autoComplete="name" />
@@ -535,3 +556,4 @@ export function CircleCardOnboardingFlow({
     </main>
   );
 }
+

@@ -1,3 +1,4 @@
+import { buildCircleCardDiscoverVisibilityData } from "@/lib/circle-card/privacy";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -25,6 +26,7 @@ const optionalImage = optionalText(1000).refine(
 const firstCardDraftSchema = z.object({
   cardId: optionalText(80),
   cardType: z.enum(["PERSONAL", "CREATOR", "BUSINESS"]),
+  showInDiscover: z.boolean().default(false),
   fullName: z.string().trim().min(2).max(120),
   profileImageUrl: optionalImage,
   businessLogoUrl: optionalImage,
@@ -114,6 +116,9 @@ export async function saveFirstCard(
   }
 
   const data = {
+    // Persist draft preferences; Discover and local-hub queries still require publication.
+    showInDiscover: values.showInDiscover,
+    discoverOptedInAt: null,
     cardType: values.cardType,
     profileLayout: profileLayoutForCardType(values.cardType),
     fullName: values.fullName,
@@ -219,7 +224,7 @@ export async function saveFirstCard(
     }
 
     if (publish) {
-      await prisma.circleCard.update({ where: { id: card.id }, data: { isPublished: true } });
+      await prisma.circleCard.update({ where: { id: card.id }, data: { isPublished: true, ...buildCircleCardDiscoverVisibilityData({ showInDiscover: values.showInDiscover }) } });
     }
 
     revalidatePath("/dashboard/circle-card/onboarding");
@@ -291,3 +296,4 @@ export async function saveFirstCard(
     return { ok: false, message: "We couldn’t save that yet. Your details are still here—try again." };
   }
 }
+

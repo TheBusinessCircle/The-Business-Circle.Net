@@ -151,7 +151,7 @@ describe("first Circle Card save and publish actions", () => {
     const incomplete = await publishFirstCircleCardAction({ ...readyDraft, email: "" });
     expect(incomplete).toEqual({ ok: false, message: "Add the missing essentials before publishing your Circle Card." });
     expect(mocks.updateCard).not.toHaveBeenCalledWith(
-      expect.objectContaining({ data: { isPublished: true } })
+      expect.objectContaining({ data: { isPublished: true, showInDiscover: false, discoverOptedInAt: null } })
     );
 
     vi.clearAllMocks();
@@ -162,7 +162,7 @@ describe("first Circle Card save and publish actions", () => {
     expect(published).toMatchObject({ ok: true, published: true });
     expect(mocks.updateCard).toHaveBeenCalledWith({
       where: { id: "card_1" },
-      data: { isPublished: true }
+      data: { isPublished: true, showInDiscover: false, discoverOptedInAt: null }
     });
   });
 
@@ -183,3 +183,4 @@ describe("first Circle Card save and publish actions", () => {
     expect(mocks.createCard).not.toHaveBeenCalled();
   });
 });
+

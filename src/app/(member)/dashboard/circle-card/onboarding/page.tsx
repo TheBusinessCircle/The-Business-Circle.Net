@@ -32,6 +32,7 @@ export default async function CircleCardOnboardingPage() {
         id: true,
         slug: true,
         cardType: true,
+        showInDiscover: true,
         fullName: true,
         businessName: true,
         role: true,
@@ -109,6 +110,7 @@ export default async function CircleCardOnboardingPage() {
         cardId: card?.id ?? "",
         slug: card?.slug ?? "",
         cardType: card?.cardType ?? "PERSONAL",
+        showInDiscover: card?.showInDiscover ?? false,
         fullName: card?.fullName ?? member?.name ?? "",
         businessName: card?.businessName ?? member?.profile?.business?.companyName ?? "",
         role: card?.role ?? member?.profile?.headline ?? "",
@@ -132,3 +134,4 @@ export default async function CircleCardOnboardingPage() {
     />
   );
 }
+
