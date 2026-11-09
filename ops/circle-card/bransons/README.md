@@ -10,4 +10,6 @@ The supplied live-source snapshot identifies the native `CircleCardPrepared` she
 
 Reruns preserve the installed draft and refuse to overwrite other Bransons records. Changed routing, release identity, authorization or payload validation stop installation. Nginx is backed up and restored on routing or pre-attachment failure. No existing prepared card is updated. Run this in the existing authorised root server session. Do not replace the live app with this repository's older default branch.
 
+The native helper loads the live TypeScript modules with TypeScript's JavaScript `transpileModule` API and a process-local source alias resolver. It does not invoke tsx/esbuild or change dependency executable permissions. This handles the observed esbuild EACCES on the live release. Failure reporting identifies the stage and redacts secret environment values and URLs.
+
 Validation: HTML structure and embedded image decoding checked; JavaScript and Python syntax checked. Four installer tests verify route preservation, rerun idempotency, conflict rejection and exact byte-response health checks. Browser rendering remains unverified because the available browser binary download failed. Attachment must be verified in the signed-in account before reporting completion.

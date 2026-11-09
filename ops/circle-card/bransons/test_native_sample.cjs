@@ -18,10 +18,13 @@ async function scenario(mode, { existing = false, authorised = true } = {}) {
     }
   };
   const prisma = { $transaction: callback => callback(tx), $disconnect: async () => { disconnected = true; } };
-  const proc = { argv: ['node', mode] };
+  const proc = { argv: ['node', mode], cwd: () => '/test' };
   const context = {
     require(name) {
-      if (name === 'tsx/cjs') return {};
+      if (name === 'typescript') return { ModuleKind: { CommonJS: 1 }, ScriptTarget: { ES2022: 9 }, JsxEmit: { ReactJSX: 4 } };
+      if (name === 'node:module') return { _extensions: {}, _resolveFilename() {} };
+      if (name === 'node:fs') return fs;
+      if (name === 'node:path') return path;
       if (name === './src/lib/prisma.ts') return { prisma };
       if (name === './src/lib/circle-card/prepared-cards.ts') return { parsePreparedPayload: x => x, PREPARED_CARDS_FOUNDER_EMAIL: 'admin@thebusinesscircle.net' };
       if (name === 'node:crypto') return { randomBytes: () => ({ toString: () => '123abc' }) };

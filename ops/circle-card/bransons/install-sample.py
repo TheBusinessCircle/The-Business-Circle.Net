@@ -27,7 +27,26 @@ NODE = r'''
 const mode=process.argv[1];
 let stage='load TypeScript support';
 (async()=>{
- require('tsx/cjs');
+ // BEGIN JS TYPESCRIPT LOADER
+ // Read the existing source without invoking esbuild or changing release permissions.
+ const ts=require('typescript'),fs=require('node:fs'),path=require('node:path'),Module=require('node:module');
+ const sourceRoot=path.join(process.cwd(),'src');
+ const resolveFilename=Module._resolveFilename;
+ Module._resolveFilename=function(request,parent,...options){
+   if(request.startsWith('@/')){
+     request=path.resolve(sourceRoot,request.slice(2));
+     if(!request.startsWith(sourceRoot+path.sep))throw Error('SOURCE_ALIAS_OUTSIDE_RELEASE');
+   }
+   return resolveFilename.call(this,request,parent,...options);
+ };
+ for(const extension of ['.ts','.tsx'])Module._extensions[extension]=function(module,filename){
+   const compiled=ts.transpileModule(fs.readFileSync(filename,'utf8'),{
+     fileName:filename,
+     compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}
+   });
+   module._compile(compiled.outputText,filename);
+ };
+ // END JS TYPESCRIPT LOADER
  stage='load the live database client';
  const {prisma}=require('./src/lib/prisma.ts');
  try {
