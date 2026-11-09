@@ -12,4 +12,12 @@ Reruns preserve the installed draft and refuse to overwrite other Bransons recor
 
 The native helper loads the live TypeScript modules with TypeScript's JavaScript `transpileModule` API and a process-local source alias resolver. It does not invoke tsx/esbuild or change dependency executable permissions. This handles the observed esbuild EACCES on the live release. Failure reporting identifies the stage and redacts secret environment values and URLs.
 
+## Native Custom option
+
+The initial attachment installed a link inside the native Free/Pro preview but did not add the requested Custom selector. `install-account-custom.py` corrects that gap. It patches the existing sample shelf to show Custom only for the confirmed Bransons prepared ID, extends the preview's existing Custom selector while retaining the founder ownership check, and displays the saved design inside the account. Existing Free, Pro, Lawrence Severn and Confirm A Kill paths are preserved.
+
+This installer builds an isolated copy of the active release, skips copying old build output, validates the new build and private-route sign-in redirects, then switches the existing Circle Card proxy. It preserves the protected runtime launcher and retains the previous service and Nginx rollback configuration. It performs no database, billing or invitation mutations. Its final signed-in UI verification must be completed in Trev's account before declaring the Custom selector verified.
+
+Four additional tests cover ownership boundaries, card-specific shelf actions, unknown-source rejection and preservation of the existing public sample alias. The uploaded live preview was patched successfully and the changed TSX syntax was checked with the TypeScript compiler.
+
 Validation: HTML structure and embedded image decoding checked; JavaScript and Python syntax checked. Four installer tests verify route preservation, rerun idempotency, conflict rejection and exact byte-response health checks. Browser rendering remains unverified because the available browser binary download failed. Attachment must be verified in the signed-in account before reporting completion.
