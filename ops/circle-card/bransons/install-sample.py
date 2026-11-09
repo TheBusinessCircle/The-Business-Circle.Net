@@ -25,14 +25,18 @@ END = '    # END BRANSONS CUSTOM SAMPLE v1\n'
 
 NODE = r'''
 const mode=process.argv[1];
+let stage='load TypeScript support';
 (async()=>{
  require('tsx/cjs');
+ stage='load the live database client';
  const {prisma}=require('./src/lib/prisma.ts');
  try {
+ stage='load prepared-card validation';
  const {parsePreparedPayload,PREPARED_CARDS_FOUNDER_EMAIL}=require('./src/lib/circle-card/prepared-cards.ts');
  if(PREPARED_CARDS_FOUNDER_EMAIL.toLowerCase()!=='admin@thebusinesscircle.net')throw Error('FOUNDER_CONTRACT_CHANGED');
  const link=(label,url)=>({label,url,description:''});
  const origin='https://circlecard.co.uk';
+ stage='validate Bransons payload';
  const payload=parsePreparedPayload({
  name:'Bransons',headline:'Home. Garden. Aquatics. A world of ideas in Hucknall.',
  about:'A family-run business in Hucknall offering fitted kitchens, bathrooms, DIY, gardening and specialist aquatics and reptile departments. Speak to the team about kitchen design and quotations, supply-only options or installation.\n\nOpen the custom Bransons Circle Card using the first link below.\n\nIndependent ScaleSmiths demonstration, awaiting business approval. This prepared record is private and unclaimed. Published hours: Monday to Friday 9am–5:30pm, Saturday 9am–4pm and Sunday 9:30am–2pm. Check with Bransons before travelling.',
@@ -43,6 +47,7 @@ const mode=process.argv[1];
  services:[{title:'Kitchens',description:'Discuss fitted kitchens, free design and quotations, with supply or installation options.'},{title:'Bathrooms',description:'Explore fitted bathroom options with advice about your space.'},{title:'Home, garden and aquatics',description:'Visit the local DIY, gardening, aquatics and reptile departments.'}]
  });
  if(payload.name!=='Bransons'||payload.links[0]?.url!==origin+'/samples/bransons.html')throw Error('PAYLOAD_VALIDATION_CHANGED');
+ stage='check founder account and existing samples';
  const result=await prisma.$transaction(async tx=>{
  const owner=await tx.user.findUnique({where:{email:PREPARED_CARDS_FOUNDER_EMAIL},select:{id:true,email:true,suspended:true,circleCardOperatorAccess:true}});
  if(!owner||owner.suspended||!owner.circleCardOperatorAccess?.active||!owner.circleCardOperatorAccess.canViewMembers)throw Error('OWNER_NOT_AUTHORISED');
@@ -61,7 +66,18 @@ const mode=process.argv[1];
  },{isolationLevel:'Serializable'});
  console.log(JSON.stringify(result));
  } finally {await prisma.$disconnect();}
-})().catch(error=>{console.error(/^[A-Z_]+$/.test(error.message)?error.message:'NATIVE_SAMPLE_CHECK_FAILED');process.exitCode=1});
+})().catch(error=>{
+ if(/^[A-Z_]+$/.test(error.message))console.error(error.message);
+ else {
+ let message=String(error.message||'Unknown error');
+ for(const [key,value] of Object.entries(process.env||{})){
+ if(/secret|password|token|database_url|api_key|credential/i.test(key)&&value&&value.length>=6)message=message.split(value).join('[redacted]');
+ }
+ message=message.replace(/\b(?:postgres(?:ql)?|https?):\/\/[^\s"']+/gi,'[redacted URL]');
+ console.error('BRANSONS_DIAGNOSTIC '+JSON.stringify({stage,name:error.name,code:error.code,message:message.slice(0,1600)}));
+ }
+ process.exitCode=1;
+});
 '''
 
 
@@ -100,7 +116,14 @@ class Images(HTMLParser):
 
 
 def native(mode, env):
-    result = run(['node', '-e', NODE, mode], cwd=LIVE, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+        result = run(['node', '-e', NODE, mode], cwd=LIVE, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except subprocess.CalledProcessError as error:
+        for line in (error.stderr or '').splitlines():
+            if line.startswith('BRANSONS_DIAGNOSTIC '):
+                detail = json.loads(line[len('BRANSONS_DIAGNOSTIC '):])
+                raise RuntimeError(f"{detail['stage']}: {detail.get('code') or detail.get('name')}: {detail['message']}") from None
+        raise
     for line in reversed(result.stdout.splitlines()):
         try:
             parsed = json.loads(line)
