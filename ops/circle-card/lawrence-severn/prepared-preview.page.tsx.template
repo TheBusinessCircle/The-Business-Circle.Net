@@ -1,0 +1,38 @@
+import { PreparedCardDocumentLink as Link } from "@/components/circle-card/prepared-card-document-link";
+import { PublicCircleCardProfile } from "@/components/circle-card/public-circle-card-profile";
+import { LawrenceSevernPreparedCard } from "@/components/circle-card/lawrence-severn/lawrence-severn-prepared-card";
+import { isLawrenceSevernCard } from "@/components/circle-card/lawrence-severn/content";
+import { parsePreparedPlan } from "@/lib/circle-card/prepared-cards";
+import { getOwnedPreparedCard } from "@/server/circle-card/prepared-cards.service";
+import { buildPreparedCardPreview } from "@/server/circle-card/prepared-card-preview";
+import { absoluteUrl } from "@/lib/utils";
+
+export const dynamic = "force-dynamic";
+export const metadata = { title: "Prepared Circle Card plan preview", robots: { index: false, follow: false } };
+
+export default async function PreparedPreview({ params, searchParams }: {
+  params: Promise<{ preparedId: string }>;
+  searchParams: Promise<{ plan?: string; presentation?: string }>;
+}) {
+  const [{ preparedId }, query] = await Promise.all([params, searchParams]);
+  const row = await getOwnedPreparedCard(preparedId);
+  const plan = parsePreparedPlan(query.plan);
+  const card = buildPreparedCardPreview(row, plan);
+  const hasCustom = isLawrenceSevernCard(card);
+  const custom = hasCustom && plan === "PRO" && query.presentation === "custom";
+  const publicUrl = absoluteUrl(`/prepared/${row.slug}`);
+  const contactDownloadHref = `/prepared/${row.slug}/vcard`;
+  const linkClass = "inline-flex min-h-11 items-center";
+  return <div className="space-y-4">
+    <nav aria-label="Circle Card samples" className="flex flex-wrap items-center gap-4">
+      <Link className={linkClass} href={`/app/prepared/${row.id}`}>Back to builder</Link>
+      <Link className={linkClass} href="?plan=free" aria-current={plan === "FREE" ? "page" : undefined}>Free</Link>
+      <Link className={linkClass} href="?plan=pro" aria-current={plan === "PRO" && !custom ? "page" : undefined}>Pro · £9.99/month</Link>
+      {hasCustom ? <Link className={linkClass} href="?plan=pro&presentation=custom" aria-current={custom ? "page" : undefined}>Custom</Link> : null}
+    </nav>
+    <p className="rounded-xl border border-amber-200/20 p-4 text-sm">Unofficial prepared Circle Card. {custom ? "Custom" : plan === "FREE" ? "Free" : "Pro"} presentation preview only. No subscription is changed and spins cannot save a connection until the business claims and publishes its card.</p>
+    {custom
+      ? <LawrenceSevernPreparedCard card={card} publicUrl={publicUrl} contactDownloadHref={contactDownloadHref} galleryEnabled={plan === "PRO"} />
+      : <PublicCircleCardProfile card={card} contactDownloadHref={contactDownloadHref} publicUrl={publicUrl} viewerIsOwner={true} isAuthenticated={true} savedContact={null} connectionState={{ viewerPrimaryCardId: null, request: null }} ownerAccountLabel="Prepared Circle Card" ownerIsBcnMember={false} />}
+  </div>;
+}
