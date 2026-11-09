@@ -1,4 +1,6 @@
 import importlib.util
+import io
+from contextlib import redirect_stdout
 from pathlib import Path
 import subprocess
 import unittest
@@ -40,9 +42,21 @@ class InstallationTests(unittest.TestCase):
         with patch.object(installer.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, b'checked')) as mocked:
             installer.check_route('/samples/bransons.html', b'checked')
             self.assertFalse(mocked.call_args.kwargs['text'])
+            command = mocked.call_args.args[0]
+            self.assertNotIn('--resolve', command)
+            self.assertNotIn('--insecure', command)
+            self.assertNotIn('-k', command)
+            self.assertTrue(command[-1].startswith('https://circlecard.co.uk/samples/bransons.html?bransons_check='))
         with patch.object(installer.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, b'wrong')):
             with self.assertRaises(RuntimeError):
                 installer.check_route('/samples/bransons.html', b'checked')
+
+    def test_binary_curl_error_reports_without_traceback(self):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            installer.report_command_failure(subprocess.CalledProcessError(60, ['curl'], stderr=b'curl: certificate verification failed'))
+        self.assertIn('command exit 60', output.getvalue())
+        self.assertIn('certificate verification failed', output.getvalue())
 
 
 if __name__ == '__main__':

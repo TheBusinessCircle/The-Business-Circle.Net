@@ -154,7 +154,9 @@ def native(mode, env):
 
 
 def check_route(url, expected):
-    response = run(['curl', '--fail', '--silent', '--show-error', '--max-time', '20', '--resolve', 'circlecard.co.uk:443:127.0.0.1', ORIGIN + url], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding=None, text=False)
+    # Public HTTPS terminates at the site's trusted edge. The origin listener
+    # may use an origin-only certificate, so do not force it through loopback.
+    response = run(['curl', '--fail', '--silent', '--show-error', '--max-time', '30', '--header', 'Cache-Control: no-cache', ORIGIN + url + '?bransons_check=' + HTML_SHA[:16]], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding=None, text=False)
     if response.stdout != expected:
         raise RuntimeError('Sample response did not match the checked file: ' + url)
 
@@ -244,15 +246,24 @@ def main():
         raise
 
 
+def report_command_failure(error):
+    safe = error.stderr or ''
+    if isinstance(safe, bytes):
+        safe = safe.decode('utf-8', errors='replace')
+    safe = safe.strip()
+    if re.fullmatch(r'[A-Z_]+', safe):
+        print('STOPPED: ' + safe)
+    else:
+        print(f'STOPPED: A required validation failed (command exit {error.returncode}). No existing card data was overwritten.')
+        if error.cmd and error.cmd[0] == 'curl':
+            print(safe[:1200])
+
+
 if __name__ == '__main__':
     try:
         main()
     except subprocess.CalledProcessError as error:
-        safe = (error.stderr or '').strip()
-        if re.fullmatch(r'[A-Z_]+', safe):
-            print('STOPPED: ' + safe)
-        else:
-            print('STOPPED: A required validation failed. No existing card data was overwritten.')
+        report_command_failure(error)
         raise SystemExit(1)
     except Exception as error:
         print('STOPPED:', str(error))
