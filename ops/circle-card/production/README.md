@@ -59,6 +59,14 @@ The 2 October recovery runner at `/opt/circle-card-recovery/run.mjs` asserts the
 
 **Do not fabricate a `PUBLIC_VERIFIED` registry record or bypass `assert.equal(records.length, 1)`.** That would falsely certify provenance. Repair must identify the true live release provenance, align recovery's selection with independently verified deployed artifact(s), and still validate database and app restore. Retain the old recovery service, timer, and script for rollback. Until a restorable backup is proven, prohibit live Circle Card code deployment.
 
+## Immediate safety-copy option independent of the stale recovery registry
+
+`one-shot-safety-backup.py` is a guarded manual PostgreSQL dump that identifies the actual live service, verifies healthy origin HTTP, reads the database URL **in memory** from the protected live process, validates the PostgreSQL URI, checks >= 5 GiB free disk, and creates a new root-private custom-format `pg_dump` archive under `/var/backups/circle-card-safety`. It caps output size at 2 GiB and checks `pg_restore --list`. It writes a SHA-256 and metadata manifest, never a connection URL or credentials.
+
+Use no-argument mode for read-only precheck; `--backup` explicitly creates the dump. This is a valuable **new database safety copy**, not a completed restore test, not a full backup of files/uploads, and not a repair of the failed automatic recovery timer. It does not modify Circle Card's database. If preconditions fail it aborts without changing the site.
+
+`recovery-bridge-plan.py` is read-only; it compares the actual live service with alternate native-installer deployment records and reports the old runner's redacted invocation structure. Use its results to design a compatible repair rather than fabricate a `PUBLIC_VERIFIED` record.
+
 ## Step 2: mandatory release gates
 
 1. Identify the active HTTPS vhost, loopback port, running systemd unit, protected launcher and actual process working directory. Confirm they all point to the same current release.
