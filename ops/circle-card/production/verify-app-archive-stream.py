@@ -53,6 +53,7 @@ def safe_member_path(name):
 
 def inspect_archive(path):
     seen = set()
+    linkable_files = set()
     regular_count = 0
     directory_count = 0
     symlink_count = 0
@@ -97,6 +98,7 @@ def inspect_archive(path):
                 if read_bytes != member.size:
                     raise RuntimeError("ARCHIVE_FILE_TRUNCATED")
                 regular_count += 1
+                linkable_files.add(name)
                 if name in EXPECTED_FILES:
                     critical_files.add(name)
                 if name.startswith(EXPECTED_RELEASE_PREFIX):
@@ -111,9 +113,10 @@ def inspect_archive(path):
                 # same archive under one of the verified source roots.
                 target = member.linkname.rstrip("/")
                 if (not safe_member_path(target) or target == name
-                        or target not in seen):
+                        or target not in linkable_files):
                     raise RuntimeError("ARCHIVE_HARDLINK_TARGET_UNAVAILABLE")
                 hardlink_count += 1
+                linkable_files.add(name)
             else:
                 raise RuntimeError("UNEXPECTED_ARCHIVE_MEMBER_TYPE")
     if set(EXPECTED_ROOTS) - root_presence or set(EXPECTED_FILES) - critical_files:
