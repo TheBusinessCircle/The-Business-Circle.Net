@@ -132,7 +132,7 @@ def verify_nginx() -> None:
 def verify_http() -> None:
     for path in ("/login", "/card/hucknall-circle-hub"):
         status = execute([
-            "curl", "--silent", "--show-error", "--output", "/dev/null",
+            "curl", "--silent", "--show-error", "--noproxy", "*", "--output", "/dev/null",
             "--write-out", "%{http_code}", "--connect-timeout", "5", "--max-time", "20",
             "--resolve", "circlecard.co.uk:443:127.0.0.1",
             "https://circlecard.co.uk" + path
@@ -152,9 +152,20 @@ def plan() -> None:
     verify_http()
 
 
+def available_memory_mib() -> float | None:
+    try:
+        for line in Path("/proc/meminfo").read_text().splitlines():
+            if line.startswith("MemAvailable:"):
+                return round(int(line.split()[1]) / 1024, 1)
+    except (OSError, ValueError, IndexError):
+        return None
+    return None
+
+
 def apply() -> None:
     # Exact second check immediately before stopping anything.
     plan()
+    before_mem = available_memory_mib()
     stopped: list[str] = []
     try:
         for name, port in OLD.items():
@@ -169,6 +180,8 @@ def apply() -> None:
         print(json.dumps({
             "result": "STOPPED_ONLY_OLD_SERVICES",
             "stopped": stopped,
+            "available_memory_before_MiB": before_mem,
+            "available_memory_after_MiB": available_memory_mib(),
             "live_preserved": LIVE[0],
             "rollback_preserved": list(PRESERVE),
             "release_files_deleted": False,
