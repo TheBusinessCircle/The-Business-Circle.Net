@@ -57,12 +57,12 @@ type CircleCardPlanPanelProps = {
   className?: string;
 };
 
-function limitValueLabel(value: number | "more" | "team") {
+function limitValueLabel(value: number | "more" | "team" | "unlimited") {
   if (typeof value === "number") {
     return String(value);
   }
 
-  return value === "more" ? "More" : "Team";
+  return value === "unlimited" ? "Unlimited" : value === "more" ? "More" : "Team";
 }
 
 function featureStatusClassName(feature: CircleCardPlanFeature) {
@@ -351,7 +351,9 @@ export function CircleCardPlanPanel({
     },
     {
       label: "Featured links",
-      value: `${activeFeaturedLinkCount}/${limitValueLabel(currentPlan.limits.activeFeaturedLinks)} active`,
+      value: currentPlan.limits.activeFeaturedLinks === "unlimited"
+        ? `${activeFeaturedLinkCount} active (unlimited)`
+        : `${activeFeaturedLinkCount}/${limitValueLabel(currentPlan.limits.activeFeaturedLinks)} active`,
       icon: LinkIcon
     },
     {
