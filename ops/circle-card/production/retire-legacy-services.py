@@ -175,7 +175,9 @@ def apply() -> None:
             "services_disabled": False,
             "database_touched": False,
         }, indent=2))
-    except Exception:
+    except BaseException:
+        # Include KeyboardInterrupt/SIGINT so an interrupted operator shell
+        # still attempts to restore previously stopped units.
         failures = []
         for name in reversed(stopped):
             try:
