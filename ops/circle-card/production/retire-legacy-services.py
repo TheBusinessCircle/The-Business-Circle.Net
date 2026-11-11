@@ -143,15 +143,21 @@ def verify_nginx() -> None:
 
 
 def verify_http() -> None:
+    # Verify the *already identified* production app on its loopback port.
+    # The site's edge-facing HTTPS certificate may not chain to the VPS
+    # system trust store; a local --resolve HTTPS request can fail with
+    # curl exit 60 even when the app is healthy. Never use --insecure.
+    # Nginx syntax and its exact upstream destination are checked separately.
     for path in ("/login", "/card/hucknall-circle-hub"):
         status = execute([
             "curl", "--silent", "--show-error", "--noproxy", "*", "--output", "/dev/null",
             "--write-out", "%{http_code}", "--connect-timeout", "5", "--max-time", "20",
-            "--resolve", "circlecard.co.uk:443:127.0.0.1",
-            "https://circlecard.co.uk" + path
+            "--header", "Host: circlecard.co.uk",
+            "--header", "X-Forwarded-Proto: https",
+            "http://127.0.0.1:3386" + path
         ]).strip()
         if status != "200":
-            raise RuntimeError(f"Live website returned HTTP {status} at {path}")
+            raise RuntimeError(f"Live application on loopback returned HTTP {status} at {path}")
 
 
 def plan() -> dict[str, int]:
