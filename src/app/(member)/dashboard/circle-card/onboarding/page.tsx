@@ -24,7 +24,7 @@ export const dynamic = "force-dynamic";
 
 export default async function CircleCardOnboardingPage({ searchParams }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
-} = {}) {
+}) {
   const query = await searchParams;
   const session = await requireCircleCardUser();
   const [card, member, circleCardAccess] = await Promise.all([
