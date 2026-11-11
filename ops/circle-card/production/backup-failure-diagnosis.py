@@ -73,10 +73,9 @@ def error_signals(stderr):
 def query_version(uri, executable):
     if not executable:
         return {"result": "PSQL_NOT_INSTALLED"}
-    env = dict(os.environ)
-    env["PGDATABASE"] = uri
-    env["PGCONNECT_TIMEOUT"] = "10"
-    env["PGAPPNAME"] = "circle_card_readonly_backup_diagnosis"
+    env = guard.libpq_environment(
+        uri, app_name="circle_card_readonly_backup_diagnosis", timeout_seconds=10
+    )
     args = [
         executable, "--no-psqlrc", "--quiet", "--tuples-only", "--no-align",
         "--set=ON_ERROR_STOP=1", "--command", "SHOW server_version_num",
@@ -103,10 +102,9 @@ def query_version(uri, executable):
 def probe_schema_dump(uri, executable):
     if not executable:
         return {"result": "PG_DUMP_NOT_INSTALLED"}
-    env = dict(os.environ)
-    env["PGDATABASE"] = uri
-    env["PGCONNECT_TIMEOUT"] = "10"
-    env["PGAPPNAME"] = "circle_card_schema_only_dump_diagnosis"
+    env = guard.libpq_environment(
+        uri, app_name="circle_card_schema_only_dump_diagnosis", timeout_seconds=10
+    )
     # This reads the schema, then writes the output to /dev/null. No backup is
     # created, no production data is changed, no user table rows are dumped.
     args = [
