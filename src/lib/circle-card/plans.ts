@@ -5,7 +5,7 @@ export const CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED = false;
 export const CIRCLE_CARD_LAUNCH_LIMITS = {
   FREE: {
     circleCards: 1,
-    activeLinks: 5,
+    activeLinks: Number.MAX_SAFE_INTEGER,
     creatorFeaturedContent: 3,
     creatorOffers: 2,
     creatorPressProof: 2,
@@ -13,7 +13,7 @@ export const CIRCLE_CARD_LAUNCH_LIMITS = {
   },
   PRO: {
     circleCards: 2,
-    activeLinks: 25,
+    activeLinks: Number.MAX_SAFE_INTEGER,
     businessServices: 12,
     businessProducts: 20,
     businessPriceListItems: 25,
@@ -128,7 +128,7 @@ export type CircleCardPlanCapabilityMap = {
 
 export type CircleCardPlanLimits = {
   circleCards: number | typeof CIRCLE_CARD_TEAMS_CARD_LIMIT;
-  activeFeaturedLinks: number | "more" | "team";
+  activeFeaturedLinks: number | "more" | "team" | "unlimited";
   profileLayouts: "classic-business-creator";
   qr: "basic" | "advanced";
   wallet: "basic" | "company";
@@ -175,9 +175,9 @@ export const CIRCLE_CARD_CAPABILITY_MAP: Record<CircleCardPlanKey, CircleCardPla
         status: "included"
       },
       {
-        id: "five-featured-links",
-        label: "5 active featured links",
-        description: "Enough public actions for a useful profile, offer, booking link and core proof.",
+        id: "unlimited-featured-links",
+        label: "Unlimited standard links",
+        description: "Share your websites, bookings, social profiles, offers and other useful public links without a plan cap.",
         status: "included"
       },
       {
@@ -261,9 +261,9 @@ export const CIRCLE_CARD_CAPABILITY_MAP: Record<CircleCardPlanKey, CircleCardPla
         status: "planned"
       },
       {
-        id: "twenty-five-featured-links",
-        label: "25 featured links",
-        description: "More public actions for offers, booking, content, proof, downloads and sales paths.",
+        id: "link-performance-insights",
+        label: "Link performance insights",
+        description: "Understand which public links attract attention and lead to opportunities.",
         status: "planned"
       },
       {
@@ -387,10 +387,10 @@ export const CIRCLE_CARD_CAPABILITY_MAP: Record<CircleCardPlanKey, CircleCardPla
 
 export const CIRCLE_CARD_PRO_FEATURE_PREVIEWS: CircleCardPlanFeature[] = [
   {
-    id: "twenty-five-featured-links",
-    label: "25 active links",
-    description: "More public actions for your work, offers, booking routes and proof.",
-    status: "included"
+    id: "pro-growth-reporting",
+    label: "Deeper growth reporting",
+    description: "More ways to understand visits, connections and outcomes beyond your public link list.",
+    status: "coming-soon"
   },
   {
     id: "two-cards",
@@ -508,7 +508,7 @@ export const CIRCLE_CARD_PLAN_DEFINITIONS: Record<CircleCardPlanKey, CircleCardP
     goodFor: "Start building relationships",
     limits: {
       circleCards: CIRCLE_CARD_FREE_CARD_LIMIT,
-      activeFeaturedLinks: 5,
+      activeFeaturedLinks: "unlimited",
       profileLayouts: "classic-business-creator",
       qr: "basic",
       wallet: "basic",
@@ -535,9 +535,9 @@ export const CIRCLE_CARD_PLAN_DEFINITIONS: Record<CircleCardPlanKey, CircleCardP
         status: "early-access"
       },
       {
-        id: "limited-featured-links",
-        label: "Limited featured links",
-        description: "Up to 5 active featured links, with paused links saved for later.",
+        id: "unlimited-featured-links",
+        label: "Unlimited standard links",
+        description: "Share as many public web and social links as you need, subject to content and abuse safeguards.",
         status: "included"
       },
       {
@@ -601,7 +601,7 @@ export const CIRCLE_CARD_PLAN_DEFINITIONS: Record<CircleCardPlanKey, CircleCardP
     goodFor: "Grow relationships",
     limits: {
       circleCards: CIRCLE_CARD_PRO_CARD_LIMIT,
-      activeFeaturedLinks: 25,
+      activeFeaturedLinks: "unlimited",
       profileLayouts: "classic-business-creator",
       qr: "advanced",
       wallet: "basic",
