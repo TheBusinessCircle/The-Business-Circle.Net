@@ -31,8 +31,11 @@ class DiagnosticTests(unittest.TestCase):
         self.assertIn("--schema-only", argv)
         self.assertIn("--file=/dev/null", argv)
         self.assertNotIn("--data-only", argv)
-        self.assertEqual(mocked.call_args.kwargs["env"]["PGDATABASE"],
-                         "postgresql://u:p@localhost/test")
+        env = mocked.call_args.kwargs["env"]
+        self.assertEqual(env["PGDATABASE"], "test")
+        self.assertEqual(env["PGHOST"], "localhost")
+        self.assertEqual(env["PGUSER"], "u")
+        self.assertEqual(env["PGPASSWORD"], "p")
 
     def test_query_version_accepts_numeric_result_only(self):
         class Result:
