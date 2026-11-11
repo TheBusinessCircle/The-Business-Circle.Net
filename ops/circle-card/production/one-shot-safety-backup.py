@@ -143,6 +143,56 @@ def guard_environment():
             "url_source": source}
 
 
+def classify_pg_dump_failure(stderr):
+    """Recognise the likely cause without ever emitting raw PostgreSQL stderr."""
+    message = stderr.decode("utf-8", errors="replace").lower() if isinstance(stderr, bytes) else str(stderr).lower()
+    cases = (
+        ("SERVER_CLIENT_VERSION_MISMATCH", ("server version mismatch", "aborting because of server version")),
+        ("AUTHENTICATION_FAILED", ("password authentication failed", "no password supplied", "fe_sendauth")),
+        ("DATABASE_CONNECTION_REFUSED", ("connection refused", "could not connect to server")),
+        ("DATABASE_HOST_UNRESOLVED", ("could not translate host name", "name or service not known")),
+        ("POSTGRES_ACCESS_POLICY", ("no pg_hba.conf entry",)),
+        ("TLS_CERTIFICATE_FAILURE", ("certificate verify failed", "ssl error", "certificate validation failed")),
+        ("BACKUP_ROLE_PERMISSION", ("permission denied for", "must be owner of", "permission denied to")),
+        ("ROW_LEVEL_SECURITY", ("row-level security",)),
+        ("POSTGRES_CLIENT_OPTION", ("unrecognized option", "invalid option", "illegal option")),
+        ("DATABASE_LOCK_TIMEOUT", ("lock timeout", "lock-wait timeout", "canceling statement due to lock timeout")),
+        ("DATABASE_QUERY_FAILED", ("query failed", "query was:")),
+        ("BACKUP_DISK_FULL", ("no space left on device", "disk full")),
+        ("DATABASE_CONNECTION_LOST", ("server closed the connection", "connection to server was lost")),
+        ("POSTGRES_RESOURCE_EXHAUSTED", ("out of memory", "too many connections", "remaining connection slots are reserved")),
+        ("DATABASE_NOT_FOUND", ("database", "does not exist")),
+    )
+    for category, hints in cases:
+        if any(h in message for h in hints):
+            return category
+    return "UNKNOWN_PG_DUMP_ERROR"
+
+
+def safe_version(binary):
+    try:
+        result = run([binary, "--version"], timeout=8)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode:
+        return None
+    # Display major/minor version only; do not print command stderr.
+    match = re.search(r"(\\d+)(?:\\.(\\d+))?", result.stdout)
+    return match.group(0) if match else None
+
+
+def installed_dump_clients():
+    root = Path("/usr/lib/postgresql")
+    clients = []
+    if not root.is_dir():
+        return clients
+    for path in root.glob("*/bin/pg_dump"):
+        if re.fullmatch(r"\\d{1,2}", path.parent.parent.name) and path.is_file():
+            clients.append({"major": int(path.parent.parent.name),
+                            "version": safe_version(str(path))})
+    return sorted(clients, key=lambda x: x["major"])
+
+
 def dump_limit():
     resource.setrlimit(resource.RLIMIT_FSIZE, (MAX_DUMP_BYTES, MAX_DUMP_BYTES))
 
@@ -179,10 +229,15 @@ def backup(context):
             context["pg_dump"], "--format=custom", "--compress=6",
             "--no-owner", "--no-privileges", "--lock-wait-timeout=3000",
             "--file", str(scratch)
-        ], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        ], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
            timeout=240, check=False, preexec_fn=dump_limit)
         if result.returncode:
-            raise RuntimeError("pg_dump could not complete; incomplete dump is discarded")
+            category = classify_pg_dump_failure(result.stderr[:32768])
+            raise RuntimeError(
+                f"pg_dump failed with category {category} (exit {result.returncode}); "
+                f"installed pg_dump clients: {installed_dump_clients()}. "
+                "Incomplete archive discarded; raw database errors not printed."
+            )
         if scratch.stat().st_size < 1024:
             raise RuntimeError("Dump is unexpectedly small")
         check = subprocess.run([context["pg_restore"], "--list", str(scratch)],
