@@ -90,8 +90,10 @@ jobs:
 
       - name: Validate read-only Circle Card release preflight
         run: |
-          python3 -m py_compile ops/circle-card/production/preflight.py
+          python3 -m py_compile ops/circle-card/production/preflight.py ops/circle-card/production/routing-inventory.py
           python3 ops/circle-card/production/preflight.py > /tmp/circle-card-preflight.json
+          python3 ops/circle-card/production/routing-inventory.py > /tmp/circle-card-routing.json
+          python3 -c "import json; r=json.load(open('/tmp/circle-card-routing.json')); assert r['mode'] == 'READ_ONLY_ROUTING_AND_RECOVERY' and not r['production_writes_performed']"
           python3 -c "import json; r=json.load(open('/tmp/circle-card-preflight.json')); assert r['mode'] == 'READ_ONLY_NO_DEPLOYMENT' and not r['deployment_authorised_by_this_report']"
 
       - name: Set up Node.js
