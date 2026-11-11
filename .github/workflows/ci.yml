@@ -92,6 +92,7 @@ jobs:
         run: |
           python3 -m py_compile ops/circle-card/production/preflight.py ops/circle-card/production/routing-inventory.py ops/circle-card/production/recovery-service-audit.py ops/circle-card/production/retire-legacy-services.py
           python3 ops/circle-card/production/retire-legacy-services.py --help > /tmp/circle-card-retire-help.txt
+          python3 -m unittest discover -s ops/circle-card/production -p test_retire_legacy_services.py
           python3 ops/circle-card/production/recovery-service-audit.py > /tmp/circle-card-recovery-audit.json
           python3 -c "import json; r=json.load(open('/tmp/circle-card-recovery-audit.json')); assert r['mode'] == 'READ_ONLY_CIRCLE_CARD_RECOVERY_AND_SERVICE_AUDIT' and not r['production_changes_made']"
           python3 ops/circle-card/production/preflight.py > /tmp/circle-card-preflight.json
