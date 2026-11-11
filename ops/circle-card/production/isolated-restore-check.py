@@ -129,16 +129,15 @@ def restore_test(ctx):
     socket.mkdir(mode=0o700)
     os.chown(socket, ctx["pg_uid"], ctx["pg_gid"])
     isolated_archive = root / "archive.dump"
-    shutil.copyfile(ARCHIVE, isolated_archive)
-    os.chmod(isolated_archive, 0o600)
-    os.chown(isolated_archive, ctx["pg_uid"], ctx["pg_gid"])
-    if hash_file(isolated_archive) != EXPECTED_HASH:
-        shutil.rmtree(root)
-        raise RuntimeError("ISOLATED_ARCHIVE_COPY_CHECKSUM_MISMATCH")
     started = False
     keep_directory = False
     result = {}
     try:
+        shutil.copyfile(ARCHIVE, isolated_archive)
+        os.chmod(isolated_archive, 0o600)
+        os.chown(isolated_archive, ctx["pg_uid"], ctx["pg_gid"])
+        if hash_file(isolated_archive) != EXPECTED_HASH:
+            raise RuntimeError("ISOLATED_ARCHIVE_COPY_CHECKSUM_MISMATCH")
         init = run_as_pg([
             PG_BIN / "initdb", "--pgdata", data, "--encoding=UTF8",
             "--locale=C", "--auth-local=trust", "--auth-host=reject", "--no-instructions",
