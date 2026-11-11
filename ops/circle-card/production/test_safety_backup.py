@@ -30,6 +30,26 @@ class BackupSafetyTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             script.sanitized_pg_url("postgres://u:p@localhost/")
 
+    def test_pg_dump_errors_are_classified_without_secret_strings(self):
+        cases = {
+            b"pg_dump: error: aborting because of server version mismatch": "SERVER_CLIENT_VERSION_MISMATCH",
+            b"password authentication failed for user private_user": "AUTHENTICATION_FAILED",
+            b"pg_dump: error: unrecognized option --bad": "POSTGRES_CLIENT_OPTION",
+            b"pg_dump: error: permission denied for table customer_private_data": "BACKUP_ROLE_PERMISSION",
+            b"pg_dump: error: database \"private\" does not exist": "DATABASE_NOT_FOUND",
+            b"unknown detail featuring private_token_abc": "UNKNOWN_PG_DUMP_ERROR",
+        }
+        for message, expected in cases.items():
+            with self.subTest(expected=expected):
+                self.assertEqual(script.classify_pg_dump_failure(message), expected)
+
+    def test_version_parser_and_client_inventory_are_numeric(self):
+        class MockResult:
+            returncode = 0
+            stdout = "pg_dump (PostgreSQL) 16.11"
+        with patch.object(script, "run", return_value=MockResult()):
+            self.assertEqual(script.safe_version("/usr/lib/postgresql/16/bin/pg_dump"), "16.11")
+
     def test_backup_mode_guarded_by_precheck(self):
         self.assertFalse("database" in script.LIVE_SERVICE.lower())
         with patch.object(script, "check_live", side_effect=RuntimeError("inactive")):
