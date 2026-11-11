@@ -136,7 +136,7 @@ describe("authoritative Circle Card access loader", () => {
       plan: "TEAMS",
       source: "teams",
       hasProAccess: true,
-      limits: { circleCards: 2, activeLinks: 25 }
+      limits: { circleCards: 2, activeLinks: Number.MAX_SAFE_INTEGER }
     });
   });
 
