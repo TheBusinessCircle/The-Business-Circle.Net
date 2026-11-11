@@ -135,7 +135,7 @@ export const CIRCLE_CARD_FEATURE_LOCK_MAP: Record<CircleCardPlanKey, CircleCardF
     positioning: "individual visibility, creator/founder/business growth tools",
     features: [
       { id: "two-cards", label: "2 Circle Cards", status: "available", enforcement: "active" },
-      { id: "unlimited-featured-links", label: "Unlimited standard links", status: "available", enforcement: "active" },
+      { id: "pro-advanced-branding", label: "Advanced card branding and styling", status: "available", enforcement: "active" },
       { id: "circle-studio", label: "Circle Studio public activation", status: "available", enforcement: "active" },
       { id: "business-builder", label: "Business Card Builder", status: "available", enforcement: "active" },
       { id: "creator-media-kit", label: "Creator Media Kit", status: "available", enforcement: "active" },
