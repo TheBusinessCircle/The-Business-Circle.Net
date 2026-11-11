@@ -47,6 +47,18 @@ The daily recovery service remains **failed**, with exit code 1 and a **Node Ass
 
 Next read-only diagnostic: `recovery-failure-forensics.py` reports Node recovery script path, sanitized assertion sites and stack frame line numbers without printing log messages, environment values or data records.
 
+## Root-cause checkpoint: recovery manifest incompatibility (11 November 2026, 22:11 GMT)
+
+The 2 October recovery runner at `/opt/circle-card-recovery/run.mjs` asserts there is exactly one verified deployment record for the live Nginx proxy port. Its line-14 assertion failed during the latest nightly run. The user-run SHA directory inspection proves:
+
+- Registry root: `/var/lib/thebusinesscircle/circle-card-artifacts`; **54** SHA-named directories.
+- **39** contain parseable `public-release.json` manifests, all status `PUBLIC_VERIFIED`, with each `applicationSha` agreeing with its SHA directory.
+- **0** manifests have `publicPort == 3386`. Exactly **0** satisfy the runner's three conditions for the live public release.
+- Real live production: `circle-card-bransons-account-20261109-115143.service`, PID on `127.0.0.1:3386`.
+- Historical native installer code in `ops/circle-card/hucknall-hub/install-membership-repair.py` writes a separate `deployment.json` under its own state directory; this is **not** evidence that the central registry was updated.
+
+**Do not fabricate a `PUBLIC_VERIFIED` registry record or bypass `assert.equal(records.length, 1)`.** That would falsely certify provenance. Repair must identify the true live release provenance, align recovery's selection with independently verified deployed artifact(s), and still validate database and app restore. Retain the old recovery service, timer, and script for rollback. Until a restorable backup is proven, prohibit live Circle Card code deployment.
+
 ## Step 2: mandatory release gates
 
 1. Identify the active HTTPS vhost, loopback port, running systemd unit, protected launcher and actual process working directory. Confirm they all point to the same current release.
