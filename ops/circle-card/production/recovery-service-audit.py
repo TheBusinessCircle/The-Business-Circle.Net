@@ -4,6 +4,7 @@
 No writes, restarts, deletions, environment dumps, configuration or journal content.
 """
 import datetime as dt
+import hashlib
 import json
 import re
 import subprocess
@@ -142,6 +143,51 @@ def failure_categories():
             for key, pattern in probes.items()}
 
 
+
+def live_source_fingerprints():
+    """Read only public-feature source, never environment or secrets."""
+    release = Path("/var/www/releases/circle-card-bransons-account-20261109-115143")
+    paths = [
+        "src/lib/circle-card/plans.ts",
+        "src/lib/circle-card/pricing.ts",
+        "src/actions/circle-card.actions.ts",
+        "src/components/circle-card/circle-card-plan-panel.tsx",
+        "src/app/(public)/circle-card/pro/page.tsx",
+        "src/app/(public)/card/hucknall-circle-hub/join/page.tsx",
+    ]
+    result = []
+    for relative in paths:
+        candidate = release / relative
+        item = {"path": relative, "exists": False}
+        try:
+            if not candidate.is_file() or candidate.is_symlink():
+                result.append(item)
+                continue
+            raw = candidate.read_bytes()
+            if len(raw) > 2 * 1024 * 1024:
+                item["too_large_for_read_only_feature_scan"] = True
+                result.append(item)
+                continue
+            source = raw.decode("utf-8")
+            item["exists"] = True
+            item["sha256"] = hashlib.sha256(raw).hexdigest()
+            if relative.endswith("/plans.ts"):
+                item["free_links_five_literal"] = bool(re.search(r"activeLinks:\s*5\b", source))
+                item["pro_links_twenty_five_literal"] = bool(re.search(r"activeLinks:\s*25\b", source))
+                item["already_has_unlimited_policy"] = "Number.MAX_SAFE_INTEGER" in source
+            if relative.endswith("/join/page.tsx"):
+                item["direct_register_cta"] = "/register?" in source
+                item["authentication_redirect_present"] = "redirect(" in source
+        except (OSError, UnicodeError):
+            item["read_error"] = True
+        result.append(item)
+    return {
+        "release": str(release),
+        "release_directory_exists": release.is_dir(),
+        "source_files": result,
+        "scan_does_not_read_environment_or_account_data": True,
+    }
+
 def main():
     services = service_pids()
     bindings = listening_pids()
@@ -157,6 +203,7 @@ def main():
             s["service"] == LIVE_SERVICE and 3386 in s["listening_tcp_ports_on_main_pid"]
             for s in services),
         "services": services,
+        "live_source_fingerprints": live_source_fingerprints(),
         "recovery_status": show(RECOVERY_SERVICE,
             ["ActiveState", "Result", "ExecMainStatus", "ActiveEnterTimestamp",
              "InactiveEnterTimestamp", "UnitFileState", "TriggeredBy"]),
