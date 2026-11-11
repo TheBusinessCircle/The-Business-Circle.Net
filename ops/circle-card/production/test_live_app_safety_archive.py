@@ -34,10 +34,11 @@ class LiveAppArchiveTests(unittest.TestCase):
             self.assertIs(m.filter_item(info), info)
 
     def test_check_is_pinned_to_actually_live_service(self):
-        with patch.object(m, "status", return_value={"ActiveState":"inactive",
-                       "MainPID":"0","WorkingDirectory":str(m.LIVE)}):
-            with self.assertRaisesRegex(RuntimeError,"LIVE_SERVICE_MISMATCH"):
-                m.sources()
+        with patch.object(m.os, "geteuid", return_value=0):
+            with patch.object(m, "status", return_value={"ActiveState":"inactive",
+                           "MainPID":"0","WorkingDirectory":str(m.LIVE)}):
+                with self.assertRaisesRegex(RuntimeError,"LIVE_SERVICE_MISMATCH"):
+                    m.sources()
 
 
 if __name__=="__main__":
