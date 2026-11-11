@@ -67,6 +67,14 @@ Use no-argument mode for read-only precheck; `--backup` explicitly creates the d
 
 `recovery-bridge-plan.py` is read-only; it compares the actual live service with alternate native-installer deployment records and reports the old runner's redacted invocation structure. Use its results to design a compatible repair rather than fabricate a `PUBLIC_VERIFIED` record.
 
+## PostgreSQL CLI root-cause and safe fix (11 November 2026, 23:16 GMT)
+
+The user-run diagnostic found `DIRECT_URL` absent, `DATABASE_URL` present, and `psql` attempting the **local Unix socket / default OS database role** instead of the application database target. It reported role-not-found and missing-socket signals. The original one-shot backup code mistakenly put a full PostgreSQL connection URI in the `PGDATABASE` environment variable; for our client invocation, this was **not interpreted as a connection URI**.
+
+`one-shot-safety-backup.py` and `backup-failure-diagnosis.py` now parse the vetted runtime URL and pass **separate** libpq `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER` and `PGPASSWORD` environment values, together with supported SSL connection options. Only the child process receives those credentials, never command-line arguments or logs. Tests confirm percent-decoding, role/host/database separation and rejection of unexpected connection options. Do not claim a backup exists until a user-run `--backup` prints a verified archive; an archive-list check is still **not** an isolated full restore test.
+
+The installed client is PostgreSQL 14.24. The live server database major version is **not yet confirmed** because the previous `psql` query targeted the wrong Unix socket. If the corrected connection exposes a server newer than client 14, handle version compatibility separately without upgrading the actual production database or OS blindly.
+
 ## Step 2: mandatory release gates
 
 1. Identify the active HTTPS vhost, loopback port, running systemd unit, protected launcher and actual process working directory. Confirm they all point to the same current release.
