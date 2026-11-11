@@ -36,6 +36,17 @@ class ArchiveStreamTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "UNSAFE_ARCHIVE_PATH"):
                 module.inspect_archive(archive)
 
+    def test_rejects_hardlink_outside_archive(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            archive = Path(tmp) / "bad-hardlink.tar.gz"
+            with tarfile.open(archive, "w:gz") as dst:
+                member = tarfile.TarInfo(module.EXPECTED_ROOTS[0] + "/file.txt")
+                member.type = tarfile.LNKTYPE
+                member.linkname = "var/backups/unrelated.file"
+                dst.addfile(member)
+            with self.assertRaisesRegex(RuntimeError, "ARCHIVE_HARDLINK_TARGET_UNAVAILABLE"):
+                module.inspect_archive(archive)
+
     def test_rejects_unexpected_root(self):
         with tempfile.TemporaryDirectory() as tmp:
             archive = Path(tmp) / "bad.tar.gz"
