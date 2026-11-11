@@ -101,6 +101,7 @@ jobs:
           python3 -m unittest discover -s ops/circle-card/production -p test_safety_backup.py
           python3 -m unittest discover -s ops/circle-card/production -p test_backup_failure_diagnosis.py
           python3 -m unittest discover -s ops/circle-card/production -p test_isolated_restore_check.py
+          python3 -m unittest discover -s ops/circle-card/production -p test_live_app_safety_archive.py
           python3 ops/circle-card/production/isolated-restore-check.py --help > /tmp/circle-card-restore-help.txt
           python3 ops/circle-card/production/one-shot-safety-backup.py --help > /tmp/circle-card-backup-help.txt
           python3 ops/circle-card/production/recovery-service-audit.py > /tmp/circle-card-recovery-audit.json
