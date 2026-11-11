@@ -71,7 +71,7 @@ const FREE_FEATURES = [
 
 const PRO_FEATURES = [
   "Two Circle Cards",
-  "Unlimited standard links",
+  "Custom branding and theme controls",
   "Circle Studio public activation",
   "Private Studio drafts and real-card preview",
   "Business Card Builder",
