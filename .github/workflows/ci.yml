@@ -88,6 +88,12 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
+      - name: Validate read-only Circle Card release preflight
+        run: |
+          python3 -m py_compile ops/circle-card/production/preflight.py
+          python3 ops/circle-card/production/preflight.py > /tmp/circle-card-preflight.json
+          python3 -c "import json; r=json.load(open('/tmp/circle-card-preflight.json')); assert r['mode'] == 'READ_ONLY_NO_DEPLOYMENT' and not r['deployment_authorised_by_this_report']"
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
