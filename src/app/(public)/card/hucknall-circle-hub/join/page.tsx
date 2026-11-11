@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { HUCKNALL_HUB_CARD_ID } from "@/lib/circle-card/hucknall-content";
-import { BUSINESS_DIRECTORY_CATEGORIES, HUCKNALL_HUB_PATH } from "@/lib/circle-card/local-hubs";
+import { BUSINESS_DIRECTORY_CATEGORIES, HUCKNALL_HUB_PATH, HUCKNALL_HUB_SLUG } from "@/lib/circle-card/local-hubs";
 import { filterPublicCircleCardTargetsWithinOwnerPlans } from "@/server/circle-card/plan-policy.service";
 import { saveHucknallMembershipAction } from "@/actions/hucknall-hub.actions";
 
@@ -14,7 +13,33 @@ export default async function JoinHucknallPage({ searchParams }: {
   searchParams: Promise<{ saved?: string; error?: string }>;
 }) {
   const session = await auth();
-  if (!session?.user?.id) redirect(`/login?from=${encodeURIComponent(`${HUCKNALL_HUB_PATH}/join`)}`);
+  if (!session?.user?.id) {
+    const joinPath = `${HUCKNALL_HUB_PATH}/join`;
+    const signupParams = new URLSearchParams({
+      source: "circle-card",
+      returnTo: joinPath,
+      sourceCardSlug: HUCKNALL_HUB_SLUG
+    });
+
+    return (
+      <div className="mx-auto max-w-2xl space-y-6 px-5 py-10">
+        <Link href={HUCKNALL_HUB_PATH} className="text-gold">Back to Hucknall Circle Hub</Link>
+        <h1 className="font-display text-4xl">Join Hucknall Circle Hub</h1>
+        <p className="text-muted">
+          Create a free Circle Card for your business or creator work in Hucknall and NG15.
+          Once your card is published, you can choose to show it in the directory.
+        </p>
+        <div className="flex flex-wrap items-center gap-4">
+          <Link href={`/register?${signupParams}`} className="inline-flex min-h-11 items-center rounded-full bg-gold px-5 font-semibold text-black">
+            Create your free Circle Card
+          </Link>
+          <Link href={`/login?from=${encodeURIComponent(joinPath)}`} className="inline-flex min-h-11 items-center text-gold underline">
+            Already have a card? Sign in
+          </Link>
+        </div>
+      </div>
+    );
+  }
   const query = await searchParams;
   const cards = await filterPublicCircleCardTargetsWithinOwnerPlans(await prisma.circleCard.findMany({
     where: { userId: session.user.id, id: { not: HUCKNALL_HUB_CARD_ID }, isPublished: true,
