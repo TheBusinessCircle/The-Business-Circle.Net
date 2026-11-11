@@ -82,7 +82,7 @@ describe("authoritative Circle Card access loader", () => {
       plan: "FREE",
       source: "free",
       hasProAccess: false,
-      limits: { circleCards: 1, activeLinks: 5 },
+      limits: { circleCards: 1, activeLinks: Number.MAX_SAFE_INTEGER },
       capabilities: {
         coreProfile: true,
         qr: true,
@@ -113,7 +113,7 @@ describe("authoritative Circle Card access loader", () => {
       lifecycleStatus: "active",
       accessEndsAt: future,
       subscriptionStatus: "ACTIVE",
-      limits: { circleCards: 2, activeLinks: 25 },
+      limits: { circleCards: 2, activeLinks: Number.MAX_SAFE_INTEGER },
       capabilities: {
         circleStudio: true,
         businessBuilder: true,
