@@ -128,6 +128,13 @@ def restore_test(ctx):
     os.chmod(root, 0o700)
     socket.mkdir(mode=0o700)
     os.chown(socket, ctx["pg_uid"], ctx["pg_gid"])
+    isolated_archive = root / "archive.dump"
+    shutil.copyfile(ARCHIVE, isolated_archive)
+    os.chmod(isolated_archive, 0o600)
+    os.chown(isolated_archive, ctx["pg_uid"], ctx["pg_gid"])
+    if hash_file(isolated_archive) != EXPECTED_HASH:
+        shutil.rmtree(root)
+        raise RuntimeError("ISOLATED_ARCHIVE_COPY_CHECKSUM_MISMATCH")
     started = False
     keep_directory = False
     result = {}
@@ -164,7 +171,7 @@ def restore_test(ctx):
             PG_BIN / "pg_restore", "--host", socket, "--port", PG_PORT,
             "--username", "postgres", "--dbname", RESTORE_NAME,
             "--no-owner", "--no-privileges", "--exit-on-error",
-            "--single-transaction", str(ARCHIVE),
+            "--single-transaction", str(isolated_archive),
         ], timeout=240, env=env)
         if restore.returncode:
             raise RuntimeError("ISOLATED_PG_RESTORE_FAILED")
