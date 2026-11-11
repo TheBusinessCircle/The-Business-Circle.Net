@@ -26,6 +26,19 @@ Next diagnostic: `recovery-service-audit.py` (read-only; includes service listen
 
 **Never stop any prior Circle Card service simply because it is not on the public Nginx port**: verify all listen sockets, reverse dependencies, background jobs, preview dependencies and rollback requirements first. Do not kill PIDs or run `disable --now` on guessed services.
 
+## Controlled memory recovery (11 November 2026, after 21:18 UTC)
+
+The user ran the guard-checked old-service retirement script on the VPS:
+
+- **11 older application instances stopped successfully**, keeping live port 3386 and the two newest rollback releases on ports 3384/3385 running.
+- Before: **2,926.7 MiB** available RAM; after: **8,043.8 MiB** available RAM; increase **5,117.1 MiB**.
+- Swap free after: approximately **1.7 GiB**; public live systemd service remained active.
+- Release directories, user data and database were not deleted or changed.
+- The old units remained **enabled** for boot; `persist-retirement.py` has been prepared to disable these 11 stopped units only, with dry run and reversible enablement. Do not disable the actual live or protected rollback units.
+- `recovery-deep-audit.py` is a read-only investigation of the failing timer, service entrypoint, categorized error logs and backup candidates. This is not backup verification.
+
+**The current blocker for a live app deployment remains a verified recoverable data backup and an isolated build of the true current release**, despite recovered memory.
+
 ## Step 2: mandatory release gates
 
 1. Identify the active HTTPS vhost, loopback port, running systemd unit, protected launcher and actual process working directory. Confirm they all point to the same current release.
