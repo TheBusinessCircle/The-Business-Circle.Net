@@ -102,16 +102,29 @@ def guard(name: str, port: int) -> None:
         raise RuntimeError(f"Unexpected reverse Want dependency for {name}")
 
 
-def connections_to(ports: set[int]) -> None:
+def connections_to(ports: set[int]) -> dict[str, int]:
+    # CLOSE-WAIT means the peer has already closed its half of the socket.
+    # TIME-WAIT is a fully closed connection awaiting kernel expiry.
+    # Neither state indicates an ongoing request. Everything else fails closed.
     tcp = execute(["ss", "-H", "-tn"])
+    stale = {"CLOSE-WAIT": 0, "TIME-WAIT": 0}
     for line in tcp.splitlines():
         cols = line.split()
         if len(cols) < 5:
             continue
+        state = cols[0].upper()
+        matched = False
         for address in cols[3:5]:
             match = re.search(r":(\d+)$", address)
             if match and int(match.group(1)) in ports:
-                raise RuntimeError(f"Active TCP connection exists on an old service port {match.group(1)}")
+                matched = True
+        if not matched:
+            continue
+        if state in stale:
+            stale[state] += 1
+            continue
+        raise RuntimeError(f"TCP connection state {state} exists on a retirement port; refusing to stop")
+    return stale
 
 
 def verify_nginx() -> None:
@@ -141,15 +154,16 @@ def verify_http() -> None:
             raise RuntimeError(f"Live website returned HTTP {status} at {path}")
 
 
-def plan() -> None:
+def plan() -> dict[str, int]:
     guard(*LIVE)
     for name, port in PRESERVE.items():
         guard(name, port)
     for name, port in OLD.items():
         guard(name, port)
     verify_nginx()
-    connections_to(set(OLD.values()))
+    stale_connections = connections_to(set(OLD.values()))
     verify_http()
+    return stale_connections
 
 
 def available_memory_mib() -> float | None:
@@ -164,7 +178,7 @@ def available_memory_mib() -> float | None:
 
 def apply() -> None:
     # Exact second check immediately before stopping anything.
-    plan()
+    stale_connections = plan()
     before_mem = available_memory_mib()
     stopped: list[str] = []
     try:
@@ -180,6 +194,7 @@ def apply() -> None:
         print(json.dumps({
             "result": "STOPPED_ONLY_OLD_SERVICES",
             "stopped": stopped,
+            "ignored_already_closing_connections": stale_connections,
             "available_memory_before_MiB": before_mem,
             "available_memory_after_MiB": available_memory_mib(),
             "live_preserved": LIVE[0],
@@ -213,9 +228,10 @@ def main():
     if args.apply:
         apply()
     else:
-        plan()
+        stale_connections = plan()
         print(json.dumps({
             "result": "READY_FOR_EXPLICIT_APPLY",
+            "ignored_already_closing_connections": stale_connections,
             "old_services_checked": list(OLD),
             "live_preserved": LIVE[0],
             "rollback_preserved": list(PRESERVE),
