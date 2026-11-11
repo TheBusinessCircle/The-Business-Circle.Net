@@ -120,22 +120,22 @@ export const CIRCLE_CARD_FEATURE_LOCK_MAP: Record<CircleCardPlanKey, CircleCardF
         enforcement: "messaging-only"
       },
       {
-        id: "five-active-featured-links",
-        label: "Up to 5 active featured links",
+        id: "unlimited-active-featured-links",
+        label: "Unlimited standard links",
         status: "available",
         enforcement: "active"
       },
       { id: "base-layouts", label: "Personal, Business and Creator base layouts", status: "available", enforcement: "active" }
     ],
     enforcementNote:
-      "Free remains fully usable, with card and active-link limits enforced by authoritative server policy."
+      "Free remains useful, with one card, unlimited standard public links and server-enforced safety rules."
   },
   PRO: {
     plan: "PRO",
     positioning: "individual visibility, creator/founder/business growth tools",
     features: [
       { id: "two-cards", label: "2 Circle Cards", status: "available", enforcement: "active" },
-      { id: "twenty-five-featured-links", label: "25 active links", status: "available", enforcement: "active" },
+      { id: "unlimited-featured-links", label: "Unlimited standard links", status: "available", enforcement: "active" },
       { id: "circle-studio", label: "Circle Studio public activation", status: "available", enforcement: "active" },
       { id: "business-builder", label: "Business Card Builder", status: "available", enforcement: "active" },
       { id: "creator-media-kit", label: "Creator Media Kit", status: "available", enforcement: "active" },
