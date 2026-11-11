@@ -56,6 +56,7 @@ def inspect_archive(path):
     regular_count = 0
     directory_count = 0
     symlink_count = 0
+    hardlink_count = 0
     unpacked_bytes = 0
     critical_files = set()
     release_files = 0
@@ -105,9 +106,14 @@ def inspect_archive(path):
             elif member.issym():
                 symlink_count += 1
             elif member.islnk():
-                # Hard links aren't extracted, but record and reject them
-                # to avoid false confidence in a self-contained snapshot.
-                raise RuntimeError("HARDLINK_REQUIRES_SEPARATE_RESTORE_VALIDATION")
+                # tarfile may encode duplicate inodes as hardlinks. They are
+                # self-contained only if the referent appeared earlier in the
+                # same archive under one of the verified source roots.
+                target = member.linkname.rstrip("/")
+                if (not safe_member_path(target) or target == name
+                        or target not in seen):
+                    raise RuntimeError("ARCHIVE_HARDLINK_TARGET_UNAVAILABLE")
+                hardlink_count += 1
             else:
                 raise RuntimeError("UNEXPECTED_ARCHIVE_MEMBER_TYPE")
     if set(EXPECTED_ROOTS) - root_presence or set(EXPECTED_FILES) - critical_files:
@@ -120,6 +126,7 @@ def inspect_archive(path):
         "regular_files_read_to_end": regular_count,
         "directories": directory_count,
         "symlinks_preserved_without_following": symlink_count,
+        "hardlinks_validated_to_prior_archived_entry": hardlink_count,
         "uncompressed_file_data_mib": round(unpacked_bytes / 1048576, 2),
         "all_five_requested_roots_present": True,
         "critical_service_nginx_receipt_files_present": True,
