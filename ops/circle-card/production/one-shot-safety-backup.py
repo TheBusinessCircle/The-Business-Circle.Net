@@ -161,11 +161,12 @@ def classify_pg_dump_failure(stderr):
         ("BACKUP_DISK_FULL", ("no space left on device", "disk full")),
         ("DATABASE_CONNECTION_LOST", ("server closed the connection", "connection to server was lost")),
         ("POSTGRES_RESOURCE_EXHAUSTED", ("out of memory", "too many connections", "remaining connection slots are reserved")),
-        ("DATABASE_NOT_FOUND", ("database", "does not exist")),
     )
     for category, hints in cases:
         if any(h in message for h in hints):
             return category
+    if "database" in message and "does not exist" in message:
+        return "DATABASE_NOT_FOUND"
     return "UNKNOWN_PG_DUMP_ERROR"
 
 
@@ -177,7 +178,7 @@ def safe_version(binary):
     if result.returncode:
         return None
     # Display major/minor version only; do not print command stderr.
-    match = re.search(r"(\\d+)(?:\\.(\\d+))?", result.stdout)
+    match = re.search(r"(\d+)(?:\.(\d+))?", result.stdout)
     return match.group(0) if match else None
 
 
@@ -187,7 +188,7 @@ def installed_dump_clients():
     if not root.is_dir():
         return clients
     for path in root.glob("*/bin/pg_dump"):
-        if re.fullmatch(r"\\d{1,2}", path.parent.parent.name) and path.is_file():
+        if re.fullmatch(r"\d{1,2}", path.parent.parent.name) and path.is_file():
             clients.append({"major": int(path.parent.parent.name),
                             "version": safe_version(str(path))})
     return sorted(clients, key=lambda x: x["major"])
