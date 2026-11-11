@@ -44,5 +44,32 @@ class ConnectionSafetyTests(unittest.TestCase):
             self.assertEqual(module.connections_to({3383}), {"CLOSE-WAIT": 0, "TIME-WAIT": 0})
 
 
+class LiveHealthTests(unittest.TestCase):
+    def test_checks_actual_loopback_release_without_disabling_certificate_validation(self):
+        calls = []
+
+        def fake_execute(arguments, timeout=30):
+            calls.append(arguments)
+            return "200"
+
+        with patch.object(module, "execute", side_effect=fake_execute):
+            module.verify_http()
+
+        self.assertEqual(len(calls), 2)
+        self.assertIn("http://127.0.0.1:3386/login", calls[0])
+        self.assertIn("http://127.0.0.1:3386/card/hucknall-circle-hub", calls[1])
+        for arguments in calls:
+            self.assertIn("Host: circlecard.co.uk", arguments)
+            self.assertIn("X-Forwarded-Proto: https", arguments)
+            self.assertNotIn("--insecure", arguments)
+            self.assertNotIn("-k", arguments)
+            self.assertNotIn("--resolve", arguments)
+
+    def test_aborts_when_the_live_app_fails_health_check(self):
+        with patch.object(module, "execute", return_value="502"):
+            with self.assertRaisesRegex(RuntimeError, "HTTP 502"):
+                module.verify_http()
+
+
 if __name__ == "__main__":
     unittest.main()
