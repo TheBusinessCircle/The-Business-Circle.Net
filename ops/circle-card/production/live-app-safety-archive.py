@@ -30,6 +30,7 @@ SERVICE = "circle-card-bransons-account-20261109-115143.service"
 UNIT = Path("/etc/systemd/system") / SERVICE
 NGINX = Path("/etc/nginx/sites-enabled/circlecard.co.uk")
 RECEIPT = Path("/var/lib/circle-card-bransons-account/20261109-115143/deployment.json")
+BRANSONS_STATIC_SAMPLES = Path("/var/www/circle-card-samples-bransons")
 DATABASE_COPY = ROOT / "circle-card-db-20261111T232300Z.dump"
 DB_SHA = "1cc9b8cc72d8da831c17cda6c77eb51e2a459714e0f95c18773950fee796dad7"
 MAX_TAR_BYTES = 4 * (1024 ** 3)
@@ -101,7 +102,13 @@ def sources():
         raise RuntimeError("DATABASE_BACKUP_NOT_VERIFIED")
     if shutil.disk_usage(ROOT).free < MIN_DISK_FREE:
         raise RuntimeError("INSUFFICIENT_DISK_SPACE")
-    paths = [LIVE, UNIT, nginx_real, RECEIPT]
+    if RECEIPT.parent.is_symlink():
+        raise RuntimeError("NATIVE_DEPLOYMENT_STATE_PATH_UNSAFE")
+    paths = [LIVE, UNIT, nginx_real, RECEIPT.parent]
+    if BRANSONS_STATIC_SAMPLES.exists() or BRANSONS_STATIC_SAMPLES.is_symlink():
+        if BRANSONS_STATIC_SAMPLES.is_symlink() or not BRANSONS_STATIC_SAMPLES.is_dir():
+            raise RuntimeError("BRANSONS_STATIC_ASSETS_UNSAFE")
+        paths.append(BRANSONS_STATIC_SAMPLES)
     # Inode-sized estimate doesn't follow symlinks; tar may be larger due to
     # headers. Enforce output size hard limit as well.
     file_count = 0
