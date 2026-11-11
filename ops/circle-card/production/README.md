@@ -75,6 +75,14 @@ The user-run diagnostic found `DIRECT_URL` absent, `DATABASE_URL` present, and `
 
 The installed client is PostgreSQL 14.24. The live server database major version is **not yet confirmed** because the previous `psql` query targeted the wrong Unix socket. If the corrected connection exposes a server newer than client 14, handle version compatibility separately without upgrading the actual production database or OS blindly.
 
+## Verified production PostgreSQL restore and next file-protection gate (11 November 2026)
+
+The user confirmed the exact private archive `/var/backups/circle-card-safety/circle-card-db-20261111T232300Z.dump` (3.09 MiB, SHA256 `1cc9b8cc72d8da831c17cda6c77eb51e2a459714e0f95c18773950fee796dad7`) successfully restored into a temporary PostgreSQL 14 cluster with no TCP listener. **132 public tables** restored, matching the 132 archive TABLE DATA entries. The production database was never connected to or modified and the isolated database was stopped and deleted. The printed outcome was `RESTORE_TEST_PASSED`. This verifies that particular database backup; it does **not** demonstrate application-file completeness, encrypted offsite safety or the automatic timer's compatibility.
+
+`live-app-safety-archive.py` provides a guarded root-private snapshot of the *actual active* release, systemd unit, effective site Nginx configuration, native deployment receipt and its rollback state, and any existing external Bransons sample assets. It preserves symlinks as symlinks and refuses to follow external targets; it checks for the verified database archive, live service identity, vhost health, >5 GiB free disk and snapshot size caps. Run it with no arguments to check first, then with `--backup` to create a new private archive. It **does not** capture all unspecified external uploads, domains, remote services or payment processor state. Do not present it as complete disaster recovery.
+
+**The old `circle-card-recovery.timer` still requires its own compatibility repair.** Until its replacement is validated, do not falsely register the November live release as a historical `PUBLIC_VERIFIED` artifact. Continue preserving the current/rollback services and existing backups.
+
 ## Step 2: mandatory release gates
 
 1. Identify the active HTTPS vhost, loopback port, running systemd unit, protected launcher and actual process working directory. Confirm they all point to the same current release.
