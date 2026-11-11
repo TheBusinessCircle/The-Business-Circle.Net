@@ -83,6 +83,17 @@ The user confirmed the exact private archive `/var/backups/circle-card-safety/ci
 
 **The old `circle-card-recovery.timer` still requires its own compatibility repair.** Until its replacement is validated, do not falsely register the November live release as a historical `PUBLIC_VERIFIED` artifact. Continue preserving the current/rollback services and existing backups.
 
+## Verified live application rollback archive (11 November 2026, 23:50 GMT)
+
+The user confirmed the guarded production application safety archive was created successfully:
+- `/var/backups/circle-card-safety/circle-card-app-20261111T235024Z.tar.gz`.
+- Size **583.36 MiB**, SHA256 `cafc513a55025975187296e95dec3515382816c7e1e0eb51c6dc80939d57380c`.
+- Verified archive entry listing: **68,512** entries. Uncompressed source estimate **2,280.4 MiB**, with **61,623** file entries observed in the precheck; **3** symlinks were not dereferenced.
+- Backed-up roots: current live `/var/www/releases/circle-card-bransons-account-20261109-115143`, its systemd unit, Nginx vhost, native deployment receipt directory and Bransons external static sample directory.
+- The previously independently restored database archive is separate (3.09 MiB, 132 tables).
+
+`verify-app-archive-stream.py` verifies the exact pinned tarball's SHA-256 and **reads every archived regular-file byte**, checks path safety and the required production components without extracting anything. It is a stronger content-integrity check than listing tar members, but **not** a proof the application can boot following full extraction or that all unspecified external uploads are included. Both archives are **server-local** and do not survive loss of the entire VPS. Automatic recovery remains a separate, unrepaired issue.
+
 ## Step 2: mandatory release gates
 
 1. Identify the active HTTPS vhost, loopback port, running systemd unit, protected launcher and actual process working directory. Confirm they all point to the same current release.
