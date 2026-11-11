@@ -242,6 +242,8 @@ if __name__ == "__main__":
     except Exception as exc:
         # Do not echo exceptions containing URLs or credentials.
         code = "BACKUP_PRECHECK_OR_DUMP_ABORTED"
-        print(json.dumps({"result": code, "error_type": type(exc).__name__,
+        # RuntimeError messages above are fixed, credential-free strings.
+        detail = str(exc) if isinstance(exc, RuntimeError) else type(exc).__name__
+        print(json.dumps({"result": code, "safe_reason": detail,
                           "credentials_printed": False}, indent=2))
         sys.exit(1)
