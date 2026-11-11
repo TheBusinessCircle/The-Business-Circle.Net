@@ -109,6 +109,60 @@ def sanitized_pg_url(url):
     return urlunsplit((p.scheme, p.netloc, p.path, query, ""))
 
 
+def libpq_environment(uri, *, app_name="circle_card_oneshot_backup", timeout_seconds=15):
+    """Map a verified PostgreSQL URL to libpq's PG* connection variables.
+
+    PGDATABASE is a database *name*, not an interchangeable environment
+    equivalent of passing a PostgreSQL connection URI as --dbname. Using the
+    URI in PGDATABASE led the CLI to a local socket/default root role.
+    No credentials are added to argv or printed.
+    """
+    clean = sanitized_pg_url(uri)
+    p = urlsplit(clean)
+    from urllib.parse import unquote
+    try:
+        parsed_port = p.port
+    except ValueError:
+        raise RuntimeError("Database URL contains an invalid port") from None
+    dbname = unquote(p.path.lstrip("/"))
+    user = unquote(p.username) if p.username else None
+    if not dbname or not user or not p.hostname:
+        raise RuntimeError("Database URL requires host, user and database name")
+    if "/" in dbname or "\\x00" in dbname:
+        raise RuntimeError("Invalid database name in connection URL")
+    env = {k: v for k, v in os.environ.items() if not k.startswith("PG")}
+    env.update({
+        "PGHOST": p.hostname,
+        "PGDATABASE": dbname,
+        "PGUSER": user,
+        "PGCONNECT_TIMEOUT": str(timeout_seconds),
+        "PGAPPNAME": app_name,
+    })
+    if parsed_port is not None:
+        env["PGPORT"] = str(parsed_port)
+    if p.password is not None:
+        env["PGPASSWORD"] = unquote(p.password)
+    mapping = {
+        "host": "PGHOST", "hostaddr": "PGHOSTADDR", "port": "PGPORT",
+        "sslmode": "PGSSLMODE", "sslcert": "PGSSLCERT",
+        "sslkey": "PGSSLKEY", "sslrootcert": "PGSSLROOTCERT",
+        "connect_timeout": "PGCONNECT_TIMEOUT",
+        "application_name": "PGAPPNAME",
+        "target_session_attrs": "PGTARGETSESSIONATTRS",
+        "options": "PGOPTIONS", "service": "PGSERVICE",
+        "passfile": "PGPASSFILE", "gssencmode": "PGGSSENCMODE",
+        "sslnegotiation": "PGSSLNEGOTIATION",
+    }
+    for k, value in parse_qsl(p.query, keep_blank_values=True):
+        target = mapping.get(k)
+        if target:
+            env[target] = value
+    # The caller's declared identity/timeouts override query defaults.
+    env["PGCONNECT_TIMEOUT"] = str(timeout_seconds)
+    env["PGAPPNAME"] = app_name
+    return env
+
+
 def safe_root(create=False):
     parent = BACKUP_ROOT.parent
     if parent.is_symlink() or not parent.is_dir():
@@ -222,10 +276,7 @@ def backup(context):
     try:
         # A connection URI in PGDATABASE is parsed by libpq and does not
         # appear on the command line. Never display subprocess stderr.
-        env = dict(os.environ)
-        env["PGDATABASE"] = context["pg_url"]
-        env["PGCONNECT_TIMEOUT"] = "15"
-        env["PGAPPNAME"] = "circle_card_oneshot_backup"
+        env = libpq_environment(context["pg_url"])
         result = subprocess.run([
             context["pg_dump"], "--format=custom", "--compress=6",
             "--no-owner", "--no-privileges", "--lock-wait-timeout=3000",
