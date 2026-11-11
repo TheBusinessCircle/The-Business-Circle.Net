@@ -30,6 +30,23 @@ class BackupSafetyTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             script.sanitized_pg_url("postgres://u:p@localhost/")
 
+    def test_libpq_url_components_are_used_instead_of_database_uri(self):
+        uri = "postgresql://test%40user:p%40ss%3Aword@db.internal:5543/circle_card?schema=public&sslmode=require"
+        with patch.dict("os.environ", {"PGHOST": "wrong.example", "PGUSER": "root", "PGDATABASE": "wrong"}, clear=False):
+            env = script.libpq_environment(uri)
+        self.assertEqual(env["PGHOST"], "db.internal")
+        self.assertEqual(env["PGPORT"], "5543")
+        self.assertEqual(env["PGUSER"], "test@user")
+        self.assertEqual(env["PGPASSWORD"], "p@ss:word")
+        self.assertEqual(env["PGDATABASE"], "circle_card")
+        self.assertEqual(env["PGSSLMODE"], "require")
+        self.assertNotIn("schema", env)
+        self.assertNotIn("postgresql://", env["PGDATABASE"])
+
+    def test_unexpected_connection_options_still_fail_closed(self):
+        with self.assertRaises(RuntimeError):
+            script.libpq_environment("postgresql://user:password@host/db?rogue=1")
+
     def test_pg_dump_errors_are_classified_without_secret_strings(self):
         cases = {
             b"pg_dump: error: aborting because of server version mismatch": "SERVER_CLIENT_VERSION_MISMATCH",
