@@ -10,6 +10,22 @@ Run `python3 ops/circle-card/production/preflight.py` from a checkout containing
 
 Do not mistake service names or generic Nginx loopback ports for a verified active release. This script deliberately does not claim it can prove Nginx's final routing, database consistency or backup restorability.
 
+## Verified production routing (11 November 2026, 20:06 UTC)
+
+The user-run read-only diagnostic identified:
+
+- `circlecard.co.uk` HTTPS Nginx vhost -> `127.0.0.1:3386`
+- Port `3386` is owned by PID `3022644`, whose process CWD is `/var/www/releases/circle-card-bransons-account-20261109-115143`
+- Active systemd unit: `circle-card-bransons-account-20261109-115143.service`
+- **14** active Circle Card application units (many older release directories), about **7,220 MiB** of cgroup memory reported in total (not guaranteed reclaimable)
+- At preflight: about **2.88 GiB** RAM available, **10.15 GiB** disk available, virtually all swap used
+- `circle-card-recovery.service` failed with exit status 1; last file metadata in `/var/lib/circle-card-recovery` dates from 2 November 2026. Files exist under `/var/backups` on 11 November, but **their identity, integrity and restorability are not verified**.
+- The other Nginx ports are separate services: port 8787 points to Crypto Radar, 3000 to the older BCN web service; **do not stop either**.
+
+Next diagnostic: `recovery-service-audit.py` (read-only; includes service listener ownership and dependency hints, backup metadata, error categories and fingerprints of relevant live source code). It provides candidate information **not** authority to stop services.
+
+**Never stop any prior Circle Card service simply because it is not on the public Nginx port**: verify all listen sockets, reverse dependencies, background jobs, preview dependencies and rollback requirements first. Do not kill PIDs or run `disable --now` on guessed services.
+
 ## Step 2: mandatory release gates
 
 1. Identify the active HTTPS vhost, loopback port, running systemd unit, protected launcher and actual process working directory. Confirm they all point to the same current release.
