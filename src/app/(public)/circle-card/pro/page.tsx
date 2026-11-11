@@ -58,7 +58,7 @@ export const metadata: Metadata = createCircleCardPageMetadata({
 
 const FREE_FEATURES = [
   "One useful Circle Card",
-  "Five active links",
+  "Unlimited standard links",
   "Personal, Business and Creator base layouts",
   "Profile image and business logo",
   "Contact and social details",
@@ -71,7 +71,7 @@ const FREE_FEATURES = [
 
 const PRO_FEATURES = [
   "Two Circle Cards",
-  "25 active links",
+  "Custom branding and theme controls",
   "Circle Studio public activation",
   "Private Studio drafts and real-card preview",
   "Business Card Builder",

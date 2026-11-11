@@ -93,6 +93,36 @@ describe("Circle Card deterministic plan policy", () => {
     ]);
   });
 
+  it("shows all eligible public links on Free and Pro once the upgrade cap is removed", () => {
+    const createdAt = new Date("2026-11-11T12:00:00.000Z");
+    const links = [
+      ...Array.from({ length: 40 }, (_, index) => ({
+        id: `public-${index + 1}`,
+        isActive: true,
+        visibility: "PUBLIC",
+        url: `https://example.com/${index + 1}`,
+        fileUrl: null,
+        sortOrder: index,
+        createdAt
+      })),
+      {
+        id: "inactive",
+        isActive: false,
+        visibility: "PUBLIC",
+        url: "https://example.com/inactive",
+        fileUrl: null,
+        sortOrder: 41,
+        createdAt
+      }
+    ];
+
+    const selected = selectCircleCardLinksWithinPlan(links, Number.MAX_SAFE_INTEGER);
+    expect(selected).toHaveLength(40);
+    expect(selected[0].id).toBe("public-1");
+    expect(selected[39].id).toBe("public-40");
+    expect(selected.some(link => link.id === "inactive")).toBe(false);
+  });
+
   it("keeps active-link ties deterministic by creation time then ID", () => {
     const links = [
       {
