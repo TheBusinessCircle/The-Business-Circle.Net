@@ -39,6 +39,14 @@ The user ran the guard-checked old-service retirement script on the VPS:
 
 **The current blocker for a live app deployment remains a verified recoverable data backup and an isolated build of the true current release**, despite recovered memory.
 
+## Persistent cleanup and recovery fault (11 November 2026, 21:44 GMT)
+
+User-run diagnostics confirm all 11 previously stopped older Circle Card services are now **disabled for future systemd boots**, without deleting their release directories or affecting the live service. The two rollback release units remain preserved, and live health checks passed. Available RAM remains about **7.8 GiB** and swap available **1.7 GiB**.
+
+The daily recovery service remains **failed**, with exit code 1 and a **Node AssertionError**; its timer remains **enabled**, last triggered 11 November 02:25 and next scheduled 12 November 02:24 GMT. Failure audit saw no evidence of disk-full, DB, permission or OOM failure, but found an assertion, not the exact expression. No database backup or restore test has been validated. Historical backup-looking files under /var/backups include an Oct 3 QA dump and other earlier artifacts, not evidence of a fresh recoverable backup. Do not automatically rerun the failed timer or attempt an app deployment until its failure and backup recoverability are understood.
+
+Next read-only diagnostic: `recovery-failure-forensics.py` reports Node recovery script path, sanitized assertion sites and stack frame line numbers without printing log messages, environment values or data records.
+
 ## Step 2: mandatory release gates
 
 1. Identify the active HTTPS vhost, loopback port, running systemd unit, protected launcher and actual process working directory. Confirm they all point to the same current release.
