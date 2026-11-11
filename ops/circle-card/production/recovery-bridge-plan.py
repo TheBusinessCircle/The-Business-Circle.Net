@@ -47,6 +47,7 @@ def candidate_ref(value):
 
 
 def redact_js(line):
+    line = re.sub(chr(96) + "[^" + chr(96) + "]*" + chr(96), "<literal>", line)
     line = re.sub(r"""(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')""",
                   "<literal>", line)
     line = re.sub(r"[a-zA-Z0-9_+/-]{50,}", "<long-token>", line)
