@@ -6141,6 +6141,7 @@ export default async function CircleCardDashboardPage({ searchParams }: PageProp
       {card ? (
         <CircleCardCurrentCardSelector
           cards={currentCardSelectorOptions}
+          hasProAccess={actualCircleCardAccess.hasProAccess}
           selectedCardId={card.id}
           hasExplicitSelection={Boolean(selectedCardId)}
           currentSection={activeSection}
