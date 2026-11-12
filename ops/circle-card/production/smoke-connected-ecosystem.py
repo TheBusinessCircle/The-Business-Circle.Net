@@ -83,7 +83,7 @@ def files_and_build():
     nginx=VHOST.resolve(strict=True)
     require(str(nginx).startswith("/etc/nginx/"),"NGINX_VHOST_UNEXPECTED")
     vhost_before=nginx.read_bytes()
-    require(vhost_before.count(b"proxy_pass http://127.0.0.1:3386;")==1,
+    require(len(re.findall(rb"\bproxy_pass\s+http://127\.0\.0\.1:3386\s*;",vhost_before))==1,
             "LIVE_PROXY_TARGET_UNEXPECTED")
     with socket.socket() as test:
         try: test.bind(("127.0.0.1",PORT))
