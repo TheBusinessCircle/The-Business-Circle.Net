@@ -70,7 +70,7 @@ def enforce_loopback_next_start(launcher):
     expected="'-H','127.0.0.1'"
     alternate="'--hostname','127.0.0.1'"
     if expected in launcher or alternate in launcher:
-        require(not re.search(r"['\"](?:-H|--hostname)['\"],\s*['\"](?!127\\.0\\.0\\.1)[^'\"]+",
+        require(not re.search(r"['\"](?:-H|--hostname)['\"],\s*['\"](?!127\.0\.0\.1)[^'\"]+",
                               launcher), "PREVIEW_UNSAFE_EXPLICIT_HOSTNAME")
         return launcher
     require(not re.search(r"['\"](?:-H|--hostname)['\"]",launcher),
