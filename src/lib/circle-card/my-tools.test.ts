@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CIRCLE_CARD_MY_TOOLS,
+  canUseMyTools,
   isMyToolId,
   myToolEditorHref,
   readMyToolsShelf,
@@ -13,6 +14,13 @@ describe("Circle Card My Tools: one accessible cross-category workspace", () => 
     expect(CIRCLE_CARD_MY_TOOLS.some((tool) => tool.family === "CREATOR")).toBe(true);
     expect(CIRCLE_CARD_MY_TOOLS.some((tool) => tool.family === "BUSINESS")).toBe(true);
     expect(CIRCLE_CARD_MY_TOOLS.find((tool) => tool.id === "wish-lists")?.stage).toBe("future");
+  });
+
+  it("requires an active Pro capability for the entire My Tools workspace", () => {
+    expect(canUseMyTools({ hasProAccess: true })).toBe(true);
+    expect(canUseMyTools({ hasProAccess: false })).toBe(false);
+    expect(canUseMyTools(null)).toBe(false);
+    expect(canUseMyTools(undefined)).toBe(false);
   });
 
   it("recovers a saved shelf while ignoring unknown IDs and duplicates", () => {
@@ -53,7 +61,11 @@ describe("Circle Card My Tools: one accessible cross-category workspace", () => 
     expect(myToolEditorHref(get("services"), "cm12345678901234", "CREATOR", true)).toBeNull();
     expect(myToolEditorHref(get("services"), "cm12345678901234", "BUSINESS", true))
       .toBe("/dashboard/circle-card?section=business&cardId=cm12345678901234#business-card-services");
-    expect(myToolEditorHref(get("scan-card"), "cm12345678901234", "CREATOR", false))
+    // Scanner itself stays in the Free Connect Hub. Only its premium
+    // My Tools shortcut is locked until Pro is active.
+    expect(myToolEditorHref(get("scan-card"), "cm12345678901234", "CREATOR", false)).toBeNull();
+    expect(myToolEditorHref(get("featured-content"), "cm12345678901234", "CREATOR", false)).toBeNull();
+    expect(myToolEditorHref(get("scan-card"), "cm12345678901234", "CREATOR", true))
       .toBe("/dashboard/circle-card?section=network&cardId=cm12345678901234#connect-hub");
   });
 });
