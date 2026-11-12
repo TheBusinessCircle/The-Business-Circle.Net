@@ -151,7 +151,7 @@ def smoke(ctx):
             if source.is_dir():
                 require(not source.is_symlink() and not destination.is_symlink(),
                         "STATIC_SOURCE_OR_TARGET_SYMLINK_UNSAFE")
-                shutil.copytree(source,destination,dirs_exist_ok=True)
+                shutil.copytree(source,destination,dirs_exist_ok=True,symlinks=True)
         LAUNCHER_DIR.mkdir(mode=0o755)
         created.append("launcher_directory")
         LAUNCHER_FILE.write_text(ctx["launcher"])
