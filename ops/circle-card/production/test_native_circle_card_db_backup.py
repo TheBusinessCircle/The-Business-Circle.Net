@@ -12,7 +12,7 @@ spec.loader.exec_module(m)
 
 class NativeBackupPolicies(unittest.TestCase):
     def test_only_verified_release_service_pairs(self):
-        self.assertEqual(set(m.RELEASE_BY_PORT),(3386,3387))
+        self.assertEqual(set(m.RELEASE_BY_PORT),{3386,3387})
         self.assertIn("bransons-account",m.RELEASE_BY_PORT[3386][0])
         self.assertIn("ecosystem-20261112-002058",m.RELEASE_BY_PORT[3387][0])
         self.assertNotEqual(m.RELEASE_BY_PORT[3386],m.RELEASE_BY_PORT[3387])
