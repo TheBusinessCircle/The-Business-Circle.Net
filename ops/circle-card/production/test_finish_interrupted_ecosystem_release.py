@@ -26,6 +26,38 @@ class InterruptedReleaseTests(unittest.TestCase):
         self.assertNotIn("pg_dump --file",source)
         self.assertIn("old_rollback_unit_preserved",source)
 
+    def test_origin_https_only_ignores_ca_for_pinned_loopback(self):
+        core=Mock()
+        core.cmd.return_value=Mock(returncode=0,stdout="200")
+        m.local_origin_https_health(core,("/login",))
+        request=core.cmd.call_args.args[0]
+        self.assertIn("--insecure",request)
+        self.assertIn("--resolve",request)
+        self.assertIn("circlecard.co.uk:443:127.0.0.1",request)
+        self.assertIn("https://circlecard.co.uk/login",request)
+        self.assertNotIn("http://127.0.0.1:3387/login",request)
+        core.cmd.return_value=Mock(returncode=60,stdout="000")
+        with self.assertRaisesRegex(RuntimeError,"POST_SWITCH_ORIGIN_HTTPS_HEALTH_FAILED"):
+            m.local_origin_https_health(core,("/login",))
+
+    def test_origin_certificate_mismatch_rolls_back(self):
+        with tempfile.TemporaryDirectory() as d:
+            core=self._fake_core(d)
+            original=core.vhost_path().read_bytes()
+            core.rollback_nginx.side_effect=lambda target,previous:target.write_bytes(previous) or True
+            context={"core":core,"target":core.vhost_path(),"original":original,
+                     "db":{"latest_verified_db_dump":"/private/backup.dump",
+                           "created_utc":"2026-11-12T15:58:00Z"},
+                     "old_pid":"456","new_pid":"123",
+                     "origin_cert_sha256":"original-sha"}
+            with patch.object(m,"core_module",return_value=core),\
+                 patch.object(m,"verified_existing_components",return_value=context),\
+                 patch.object(m,"local_origin_certificate_sha256",return_value="different-sha"):
+                with self.assertRaisesRegex(RuntimeError,"NGINX_ORIGIN_CERTIFICATE_CHANGED"):
+                    m.finish()
+            self.assertEqual(core.vhost_path().read_bytes(),original)
+            self.assertFalse(core.DEPLOYMENT.exists())
+
     def test_verifies_private_listener_only(self):
         core=Mock()
         core.cmd.return_value=Mock(returncode=0,stdout="LISTEN 0 511 127.0.0.1:3387 0.0.0.0:*")
@@ -63,11 +95,13 @@ class InterruptedReleaseTests(unittest.TestCase):
             context={"core":core,"target":core.vhost_path(),"original":original,
                      "db":{"latest_verified_db_dump":"/private/backup.dump",
                            "created_utc":"2026-11-12T15:58:00Z"},
-                     "old_pid":"456","new_pid":"123"}
+                     "old_pid":"456","new_pid":"123",
+                     "origin_cert_sha256":"test-origin-cert"}
             with patch.object(m,"core_module",return_value=core),\
                  patch.object(m,"verified_existing_components",return_value=context),\
-                 patch.object(m,"public_https_health",side_effect=RuntimeError("POST_SWITCH_PUBLIC_HTTPS_HEALTH_FAILED")):
-                with self.assertRaisesRegex(RuntimeError,"POST_SWITCH_PUBLIC_HTTPS_HEALTH_FAILED"):
+                 patch.object(m,"local_origin_certificate_sha256",return_value="test-origin-cert"),\
+                 patch.object(m,"local_origin_https_health",side_effect=RuntimeError("POST_SWITCH_ORIGIN_HTTPS_HEALTH_FAILED")):
+                with self.assertRaisesRegex(RuntimeError,"POST_SWITCH_ORIGIN_HTTPS_HEALTH_FAILED"):
                     m.finish()
             self.assertEqual(core.vhost_path().read_bytes(),original)
             self.assertFalse(core.DEPLOYMENT.exists())
@@ -79,10 +113,12 @@ class InterruptedReleaseTests(unittest.TestCase):
             context={"core":core,"target":core.vhost_path(),"original":original,
                      "db":{"latest_verified_db_dump":"/private/backup.dump",
                            "created_utc":"2026-11-12T15:58:00Z"},
-                     "old_pid":"456","new_pid":"123"}
+                     "old_pid":"456","new_pid":"123",
+                     "origin_cert_sha256":"test-origin-cert"}
             with patch.object(m,"core_module",return_value=core),\
                  patch.object(m,"verified_existing_components",return_value=context),\
-                 patch.object(m,"public_https_health"):
+                 patch.object(m,"local_origin_certificate_sha256",return_value="test-origin-cert"),\
+                 patch.object(m,"local_origin_https_health"):
                 with patch("builtins.print"):
                     m.finish()
             import json
