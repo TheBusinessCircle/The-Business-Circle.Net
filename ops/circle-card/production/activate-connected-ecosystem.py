@@ -47,6 +47,7 @@ PREVIOUS_APP_ARCHIVE=BACKUP_DIR/"circle-card-app-20261111T235024Z.tar.gz"
 PREVIOUS_APP_SHA="cafc513a55025975187296e95dec3515382816c7e1e0eb51c6dc80939d57380c"
 FRESH_BACKUP_MAX_AGE_SECONDS=7200
 SAVED_PATCH_REF="eb668250c363376978fa9f2d9dc27b865e066032"
+APPROVED_BUILD_ID="IlUYNmvKirPq-sFwpeimH"
 PREVIEW_BASENAME="smoke-connected-ecosystem.py"
 
 
@@ -175,7 +176,11 @@ def validate():
     need(receipt.get("result")=="CONNECTED_ECOSYSTEM_ISOLATED_BUILD_READY"
          and receipt.get("patch_ref")==SAVED_PATCH_REF
          and receipt.get("stage")==str(STAGE),"CANDIDATE_RECEIPT_INVALID")
-    for path in (context["dist"]/"BUILD_ID",context["dist"]/"server/app-paths-manifest.json"):
+    build_id=context["dist"]/"BUILD_ID"
+    need(build_id.is_file() and not build_id.is_symlink()
+         and build_id.read_text(encoding="utf-8").strip()==APPROVED_BUILD_ID,
+         "CORRECTED_APPROVED_BUILD_ID_MISMATCH")
+    for path in (build_id,context["dist"]/"server/app-paths-manifest.json"):
         need(cmd(["runuser","-u","circle-card-app","--","test","-r",str(path)]).returncode==0,
              "STAGED_RUNTIME_PERMISSIONS_INSUFFICIENT")
     config=vhost_path().read_bytes()
@@ -273,8 +278,17 @@ def write_launch_components(ctx,mod):
     need(str(NEW_LAUNCHER) in unit and "EnvironmentFile="+str(NEW_ENV) in unit,
          "PREPARED_SERVICE_UNIT_NOT_PINNED")
     NEW_LAUNCHER.parent.mkdir(mode=0o755)
+    # deploy() sets umask 0077, which would otherwise create a 0700
+    # directory unreadable to the unprivileged service account.
+    NEW_LAUNCHER.parent.chmod(0o755)
+    need(not NEW_LAUNCHER.parent.is_symlink()
+         and NEW_LAUNCHER.parent.stat().st_uid==0,
+         "LAUNCHER_DIRECTORY_UNSAFE")
     NEW_LAUNCHER.write_text(newlauncher)
     NEW_LAUNCHER.chmod(0o644)
+    need(cmd(["runuser","-u","circle-card-app","--","test","-x",str(NEW_LAUNCHER.parent)]).returncode==0
+         and cmd(["runuser","-u","circle-card-app","--","test","-r",str(NEW_LAUNCHER)]).returncode==0,
+         "LAUNCHER_NOT_READABLE_BY_APP_USER")
     need(cmd(["node","--check",str(NEW_LAUNCHER)]).returncode==0,
          "PINNED_LAUNCHER_SYNTAX_FAILED")
     NEW_ENV.write_text("PORT=3387\nHOSTNAME=127.0.0.1\n")
@@ -317,12 +331,13 @@ def deploy():
         need(cmd(["systemctl","reload","nginx"],timeout=30).returncode==0,
              "NGINX_RELOAD_FAILED")
         switched=True
-        public=cmd(["curl","--noproxy","*","-sS",
-                    "--resolve","circlecard.co.uk:443:127.0.0.1",
-                    "--max-time","20","-o","/dev/null","-w","%{http_code}",
-                    "https://circlecard.co.uk/circle-card/pro"],timeout=25)
-        need(public.returncode==0 and public.stdout.strip()=="200",
-             "PUBLIC_HTTPS_CHECK_FAILED")
+        for route in ("/login", "/circle-card/pro", "/card/hucknall-circle-hub/join"):
+            public=cmd(["curl","--noproxy","*","-sS",
+                        "--resolve","circlecard.co.uk:443:127.0.0.1",
+                        "--max-time","20","-o","/dev/null","-w","%{http_code}",
+                        "https://circlecard.co.uk"+route],timeout=25)
+            need(public.returncode==0 and public.stdout.strip()=="200",
+                 "PUBLIC_HTTPS_CHECK_FAILED")
         need(vhost_path().read_bytes()==candidate
              and expected_process(NEW_UNIT,STAGE)
              and expected_process(OLD_UNIT,LIVE),
@@ -344,6 +359,7 @@ def deploy():
             "nginx_previous_sha256":hashlib.sha256(original).hexdigest(),
             "nginx_new_sha256":hashlib.sha256(candidate).hexdigest(),
             "patch_ref":SAVED_PATCH_REF,
+            "approved_build_id":APPROVED_BUILD_ID,
             "newest_verified_db_dump":db["latest_verified_db_dump"],
             "newest_db_dump_full_restore_test":False,
             "newest_database_dump_created_utc":db["created_utc"],
@@ -419,6 +435,7 @@ def main():
         print(json.dumps({"result":"CONNECTED_ECOSYSTEM_LIVE_DEPLOYMENT_GATE_READY",
                           "current_site_service_healthy":True,
                           "repaired_candidate_build_and_launcher_verified":True,
+                          "exact_approved_corrected_build_id":APPROVED_BUILD_ID,
                           "fresh_pg_backup":backup,
                           "nginx_config_stable_and_pinned":True,
                           "rollback_service_verified":True,
