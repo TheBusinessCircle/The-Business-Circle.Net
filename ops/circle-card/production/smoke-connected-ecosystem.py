@@ -314,7 +314,7 @@ def smoke(ctx,diagnose=False):
                     "LIVE_PROCESS_CHANGED")
         else:
             page_results={}
-                for attempt in range(35):
+            for attempt in range(35):
                 try:
                     status,data=request("/login")
                     if status==200: break
