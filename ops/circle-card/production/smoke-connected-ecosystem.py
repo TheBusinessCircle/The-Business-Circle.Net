@@ -196,17 +196,27 @@ def smoke(ctx):
         require(ctx["nginx"].read_bytes()==ctx["vhost"],"NGINX_VHOST_CHANGED")
         require(props(LIVE_UNIT).get("MainPID")==str(ctx["pid"]),
                 "LIVE_PROCESS_CHANGED")
-        print(json.dumps({
+        passed={
             "result":"ISOLATED_ECOSYSTEM_PREVIEW_SMOKE_PASSED",
             "preview_port":PORT,"live_port":OLD_PORT,
             "anonymous_routes":page_results,
             "billing_or_authenticated_actions_tested":False,
             "production_site_switched":False,
             "nginx_configuration_unchanged":True,
-        },indent=2))
+        }
     finally:
         if created:
-            run(["systemctl","stop",UNIT_NAME],timeout=45)
+            stop=run(["systemctl","stop",UNIT_NAME],timeout=45)
+            listeners=run(["ss","-H","-lnt"],timeout=8)
+            still_open=(listeners.returncode!=0 or any(
+                re.search(r"(?<!\\d):3387(?!\\d)",line)
+                for line in listeners.stdout.splitlines()
+            ))
+            if stop.returncode!=0 or still_open:
+                # Keep the unit and launcher so an operator can investigate
+                # or stop this exact transient unit; do not sever the service
+                # while the preview could still be running.
+                raise RuntimeError("PREVIEW_STOP_NOT_CONFIRMED_ARTIFACTS_PRESERVED")
             run(["systemctl","reset-failed",UNIT_NAME],timeout=25)
             if UNIT_FILE.exists(): UNIT_FILE.unlink()
             if ENV_FILE.exists(): ENV_FILE.unlink()
@@ -214,7 +224,9 @@ def smoke(ctx):
             if LAUNCHER_DIR.is_dir():
                 try: LAUNCHER_DIR.rmdir()
                 except OSError: pass
-            run(["systemctl","daemon-reload"],timeout=25)
+            require(run(["systemctl","daemon-reload"],timeout=25).returncode==0,
+                    "PREVIEW_CLEANUP_DAEMON_RELOAD_FAILED")
+    print(json.dumps(passed,indent=2))
 
 def main():
     parser=argparse.ArgumentParser()
