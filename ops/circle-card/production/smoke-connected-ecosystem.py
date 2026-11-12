@@ -48,6 +48,23 @@ def props(unit):
     require(p.returncode==0,"SYSTEMD_IDENTITY_CHECK_FAILED")
     return dict(line.split("=",1) for line in p.stdout.splitlines() if "=" in line)
 
+def find_compiled_build(stage):
+    """Select verified Next.js output, standalone or normal next start."""
+    for rel in (".runtime/circle-card",".next"):
+        candidate=stage/rel
+        if ((candidate/"BUILD_ID").is_file()
+                and (candidate/"server/app-paths-manifest.json").is_file()):
+            require(candidate.resolve().is_relative_to(stage),
+                    "BUILD_OUTPUT_NOT_IN_STAGE")
+            standalone=candidate/"standalone"
+            require(not standalone.is_symlink(),"STANDALONE_DIRECTORY_UNSAFE")
+            if standalone.exists():
+                require(standalone.is_dir() and (standalone/"server.js").is_file(),
+                        "STANDALONE_SERVER_INCOMPLETE")
+            return candidate
+    raise RuntimeError("COMPILED_NEXT_BUILD_NOT_FOUND")
+
+
 def files_and_build():
     require(os.geteuid()==0,"ROOT_REQUIRED")
     p=props(LIVE_UNIT)
@@ -72,19 +89,7 @@ def files_and_build():
     require("Create your free Circle Card" in
             (STAGE/"src/app/(public)/card/hucknall-circle-hub/join/page.tsx").read_text(),
             "STAGED_HUCKNALL_SIGNUP_MISSING")
-    dist=None
-    for rel in (".runtime/circle-card",".next"):
-        candidate=STAGE/rel
-        if (candidate/"BUILD_ID").is_file() and (candidate/"server/app-paths-manifest.json").is_file():
-            dist=candidate
-            break
-    require(dist is not None,"COMPILED_NEXT_BUILD_NOT_FOUND")
-    require(dist.resolve().is_relative_to(STAGE),"BUILD_OUTPUT_NOT_IN_STAGE")
-    standalone=dist/"standalone"
-    require(not standalone.is_symlink(),"STANDALONE_DIRECTORY_UNSAFE")
-    if standalone.exists():
-        require(standalone.is_dir() and (standalone/"server.js").is_file(),
-                "STANDALONE_SERVER_INCOMPLETE")
+    dist=find_compiled_build(STAGE)
     nginx=VHOST.resolve(strict=True)
     require(str(nginx).startswith("/etc/nginx/"),"NGINX_VHOST_UNEXPECTED")
     vhost_before=nginx.read_bytes()
