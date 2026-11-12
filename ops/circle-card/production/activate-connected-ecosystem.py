@@ -179,7 +179,6 @@ def validate():
         need(cmd(["runuser","-u","circle-card-app","--","test","-r",str(path)]).returncode==0,
              "STAGED_RUNTIME_PERMISSIONS_INSUFFICIENT")
     config=vhost_path().read_bytes()
-    old=b"proxy_pass http://127.0.0.1:3386;"
     new=b"proxy_pass http://127.0.0.1:3387;"
     hits=list(re.finditer(rb"\bproxy_pass\s+http://127\.0\.0\.1:3386\s*;",config))
     need(len(hits)==1 and new not in config,"UNEXPECTED_EXISTING_PROXY_CONFIGURATION")
@@ -287,7 +286,7 @@ def write_launch_components(ctx,mod):
 
 
 def deploy():
-    mod,ctx,original,db=fresh=validate()
+    mod,ctx,original,db=validate()
     oldpid=props(OLD_UNIT).get("MainPID")
     target=vhost_path()
     need(target.read_bytes()==original,"NGINX_CHANGED_SINCE_PREFLIGHT")
@@ -305,8 +304,9 @@ def deploy():
         need(checksum(NGINX_BACKUP)==hashlib.sha256(original).hexdigest(),
              "NGINX_BACKUP_HASH_MISMATCH")
         write_launch_components(ctx,mod)
-        started=cmd(["systemctl","start",NEW_UNIT],timeout=60).returncode==0
-        need(started,"NEW_RELEASE_SERVICE_FAILED_TO_START")
+        start_result=cmd(["systemctl","start",NEW_UNIT],timeout=60)
+        started=True
+        need(start_result.returncode==0,"NEW_RELEASE_SERVICE_FAILED_TO_START")
         smoke_new_service(mod,oldpid)
         need(vhost_path().read_bytes()==original,"NGINX_CHANGED_DURING_PREVIEW")
         candidate=nginx_switched_content(original)
