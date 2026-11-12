@@ -167,11 +167,11 @@ def main():
     with log.open("wb") as stream:
         result=cmd(["node","node_modules/next/dist/bin/next","build"],
                    cwd=stage,env=build_env(pid,stage),
-                   stdout=stream,stderr=subprocess.STDOUT,timeout=720)
+                   stdout=stream,timeout=720)
         if result.returncode==0 and "verify-circle-card-action-build.mjs" in build:
             result=cmd(["node","scripts/verify-circle-card-action-build.mjs"],
                        cwd=stage,env=build_env(pid,stage),
-                       stdout=stream,stderr=subprocess.STDOUT,timeout=120)
+                       stdout=stream,timeout=120)
     need(result.returncode==0,"STAGING_BUILD_FAILED_LOG_PRIVATE_LIVE_UNCHANGED")
     need(live()==pid,"LIVE_CHANGED_DURING_STAGING")
     record={"result":"CONNECTED_ECOSYSTEM_ISOLATED_BUILD_READY",
