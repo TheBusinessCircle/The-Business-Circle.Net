@@ -2,16 +2,18 @@ import { describe, expect, it } from "vitest";
 import {
   CIRCLE_CARD_CAPABILITY_MAP,
   CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT,
+  CIRCLE_CARD_PRO_ACTIVE_CUSTOM_LINK_LIMIT,
   CIRCLE_CARD_ONBOARDING_PLAN_GUIDANCE,
   CIRCLE_CARD_PLAN_DEFINITIONS
 } from "@/lib/circle-card/plans";
 
 describe("circle card plan boundaries", () => {
-  it("defines Free as one personal card with the existing active featured-link limit", () => {
+  it("keeps a useful Free card with no plan-based active link cap", () => {
     expect(CIRCLE_CARD_PLAN_DEFINITIONS.FREE.limits.circleCards).toBe(1);
-    expect(CIRCLE_CARD_PLAN_DEFINITIONS.FREE.limits.activeFeaturedLinks).toBe(
-      CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT
-    );
+    expect(CIRCLE_CARD_PLAN_DEFINITIONS.FREE.limits.activeFeaturedLinks).toBe("unlimited");
+    expect(CIRCLE_CARD_PLAN_DEFINITIONS.PRO.limits.activeFeaturedLinks).toBe("unlimited");
+    expect(CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT).toBe(Number.MAX_SAFE_INTEGER);
+    expect(CIRCLE_CARD_PRO_ACTIVE_CUSTOM_LINK_LIMIT).toBe(Number.MAX_SAFE_INTEGER);
     expect(CIRCLE_CARD_PLAN_DEFINITIONS.FREE.notFor).toContain("Staff cards");
     expect(CIRCLE_CARD_PLAN_DEFINITIONS.FREE.notFor).toContain("Team analytics");
   });
@@ -31,7 +33,7 @@ describe("circle card plan boundaries", () => {
     );
     expect(CIRCLE_CARD_CAPABILITY_MAP.PRO.unlocked).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: "twenty-five-featured-links" }),
+        expect.objectContaining({ id: "link-performance-insights" }),
         expect.objectContaining({ id: "lead-capture-tools" })
       ])
     );
