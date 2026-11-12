@@ -168,6 +168,12 @@ def smoke(ctx):
         require(run(["systemctl","start",UNIT_NAME],timeout=65).returncode==0,
                 "PREVIEW_SERVICE_START_FAILED")
         started=True
+        listeners=run(["ss","-H","-lnt"],timeout=8)
+        require(listeners.returncode==0,"PREVIEW_LISTENER_INSPECTION_FAILED")
+        local_lines=[line for line in listeners.stdout.splitlines()
+                     if re.search(r"(?<!\d):3387(?!\d)",line)]
+        require(local_lines and all("127.0.0.1:3387" in line for line in local_lines),
+                "PREVIEW_LISTENING_NOT_RESTRICTED_TO_LOOPBACK")
         page_results={}
         for attempt in range(35):
             try:
