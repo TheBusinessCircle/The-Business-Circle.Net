@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ContactRound, RefreshCw, Wrench } from "lucide-react";
+import { ContactRound, LockKeyhole, RefreshCw, Wrench } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -32,6 +32,7 @@ type CircleCardCurrentCardSelectorProps = {
   currentSection: string;
   isPlatformOwner?: boolean;
   previewCardTypeLabel?: string;
+  hasProAccess: boolean;
 };
 
 function cardSwitchUrl(cardId: string, section: string) {
@@ -49,7 +50,8 @@ export function CircleCardCurrentCardSelector({
   hasExplicitSelection = false,
   currentSection,
   isPlatformOwner = false,
-  previewCardTypeLabel
+  previewCardTypeLabel,
+  hasProAccess
 }: CircleCardCurrentCardSelectorProps) {
   const router = useRouter();
   const [pendingCardId, setPendingCardId] = useState(selectedCardId || cards[0]?.id || "");
@@ -171,11 +173,22 @@ export function CircleCardCurrentCardSelector({
       <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-silver/12 pt-4">
         <Link
           href={"/dashboard/circle-card/tools?cardId=" + encodeURIComponent(selectedCard.id)}
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}
+          aria-label={hasProAccess ? "Open My Tools" : "My Tools is locked. Preview Circle Card Pro"}
+          className={cn(
+            buttonVariants({ variant: "outline", size: "sm" }),
+            "gap-2",
+            !hasProAccess && "border-gold/20 opacity-65 hover:opacity-90"
+          )}
         >
-          <Wrench size={15} /> My Tools
+          {hasProAccess ? <Wrench size={15} /> : <LockKeyhole size={15} />}
+          My Tools
+          {!hasProAccess ? <Badge variant="premium">Pro</Badge> : null}
         </Link>
-        <span className="text-xs text-muted">Your Creator and Business tools, together on one card.</span>
+        <span className="text-xs text-muted">
+          {hasProAccess
+            ? "Your Creator and Business tools, together on one card."
+            : "Locked until Pro is active. Open for a preview."}
+        </span>
       </div>
     </CircleCardDashboardSection>
   );
