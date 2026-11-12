@@ -89,9 +89,18 @@ export function updateMyToolsShelf(
   } as Prisma.InputJsonObject;
 }
 
+/**
+ * My Tools itself is an active-Pro capability. The separate free Circle Wallet
+ * and scanning journeys remain available outside this premium workspace.
+ */
+export function canUseMyTools(access: { hasProAccess: boolean } | null | undefined): boolean {
+  return access?.hasProAccess === true;
+}
+
 export function myToolEditorHref(
   tool: MyTool, cardId: string, cardType: string, hasProAccess: boolean
 ): string | null {
+  if (!hasProAccess) return null;
   if (tool.stage !== "editor" || !tool.section || !tool.hash) return null;
   if (tool.editorCardType && tool.editorCardType !== cardType) return null;
   if (tool.proOnly && !hasProAccess) return null;
