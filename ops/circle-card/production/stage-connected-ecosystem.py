@@ -33,8 +33,11 @@ def need(value,code):
 
 
 def cmd(args,**kwargs):
+    destination=kwargs.get("stdout")
+    error_destination=(subprocess.STDOUT if destination is not None
+                       and destination != subprocess.PIPE else subprocess.DEVNULL)
     return subprocess.run(args,check=False,stdin=subprocess.DEVNULL,
-                          stderr=subprocess.DEVNULL,**kwargs)
+                          stderr=error_destination,**kwargs)
 
 
 def sha(file):
