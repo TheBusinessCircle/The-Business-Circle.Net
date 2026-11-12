@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireCircleCardUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { selectCircleCardIdsWithinPlan } from "@/lib/circle-card/plan-policy";
-import { isMyToolId, updateMyToolsShelf } from "@/lib/circle-card/my-tools";
+import { canUseMyTools, isMyToolId, updateMyToolsShelf } from "@/lib/circle-card/my-tools";
 import { loadCircleCardAccessForUser } from "@/server/circle-card";
 
 export async function setCircleCardMyToolPinnedAction(formData: FormData): Promise<void> {
@@ -23,20 +23,25 @@ export async function setCircleCardMyToolPinnedAction(formData: FormData): Promi
     throw new Error("Invalid My Tools request.");
   }
 
-  const [allCards, access] = await Promise.all([
-    prisma.circleCard.findMany({
-      where: { userId, archivedAt: null },
-      orderBy: [
-        { isDefaultCard: "desc" }, { isPrimary: "desc" },
-        { displayOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }
-      ],
-      select: {
-        id: true, isDefaultCard: true, isPrimary: true,
-        displayOrder: true, createdAt: true
-      }
-    }),
-    loadCircleCardAccessForUser(userId)
-  ]);
+  // Pro is checked authoritatively on every mutation, not inferred from the
+  // page that submitted the form. Free and lapsed Pro may not pin or unpin
+  // tools even through a crafted server-action request.
+  const access = await loadCircleCardAccessForUser(userId);
+  if (!canUseMyTools(access)) {
+    throw new Error("My Tools is available with active Circle Card Pro.");
+  }
+
+  const allCards = await prisma.circleCard.findMany({
+    where: { userId, archivedAt: null },
+    orderBy: [
+      { isDefaultCard: "desc" }, { isPrimary: "desc" },
+      { displayOrder: "asc" }, { createdAt: "asc" }, { id: "asc" }
+    ],
+    select: {
+      id: true, isDefaultCard: true, isPrimary: true,
+      displayOrder: true, createdAt: true
+    }
+  });
 
   // A cancelled Pro subscription cannot use a saved second card to bypass
   // plan limits. Pinning never activates a Pro feature or publishes content.
