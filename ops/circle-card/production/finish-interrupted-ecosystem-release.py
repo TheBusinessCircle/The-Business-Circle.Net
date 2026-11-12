@@ -212,22 +212,50 @@ def verified_existing_components(core):
          and core.props(core.NEW_UNIT).get("MainPID")==new_pid
          and core.vhost_path().read_bytes()==original,
          "LIVE_PROCESSES_OR_NGINX_CHANGED_DURING_CHECK")
+    existing_certificate_sha256=local_origin_certificate_sha256()
     return {
         "core":core,"target":target,"original":original,
         "db":fresh_db,"old_pid":old_pid,"new_pid":new_pid,
+        "origin_cert_sha256":existing_certificate_sha256,
     }
 
 
-def public_https_health(core,paths):
+def local_origin_certificate_sha256():
+    """Pin the EXISTING origin's SNI leaf cert before and after Nginx reload.
+
+    Origin uses a certificate chain untrusted by the VPS system CA bundle.
+    This is an identity *continuity* check, not public CA validation.
+    """
+    import socket
+    import ssl
+    context=ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.check_hostname=False
+    context.verify_mode=ssl.CERT_NONE
+    with socket.create_connection(("127.0.0.1",443),timeout=12) as sock:
+        with context.wrap_socket(sock,server_hostname="circlecard.co.uk") as tls:
+            certificate=tls.getpeercert(binary_form=True)
+            need(isinstance(certificate,bytes) and len(certificate)>100,
+                 "ORIGIN_CERTIFICATE_UNAVAILABLE")
+            return hashlib.sha256(certificate).hexdigest()
+
+
+def local_origin_https_health(core,paths):
+    """Check Nginx->Next HTTPS locally, without claiming public TLS trust.
+
+    --insecure is used ONLY with --resolve pinned to loopback. A pre/post
+    certificate SHA256 guard verifies that the existing origin certificate
+    was not replaced by the deployment. Public CA trust must be tested
+    separately from an external client or trusted edge.
+    """
     for route in paths:
         r=core.cmd([
-            "curl","--noproxy","*","-sS",
+            "curl","--noproxy","*","--insecure","-sS",
             "--resolve","circlecard.co.uk:443:127.0.0.1",
             "--max-time","20","-o","/dev/null","-w","%{http_code}",
             "https://circlecard.co.uk"+route,
         ],timeout=26)
         need(r.returncode==0 and r.stdout.strip()=="200",
-             "POST_SWITCH_PUBLIC_HTTPS_HEALTH_FAILED")
+             "POST_SWITCH_ORIGIN_HTTPS_HEALTH_FAILED")
 
 
 def finish():
@@ -244,7 +272,9 @@ def finish():
              "NEW_NGINX_CONFIGURATION_INVALID")
         need(core.cmd(["systemctl","reload","nginx"],timeout=25).returncode==0,
              "NEW_NGINX_RELOAD_FAILED")
-        public_https_health(core,(
+        need(local_origin_certificate_sha256()==ctx["origin_cert_sha256"],
+             "NGINX_ORIGIN_CERTIFICATE_CHANGED")
+        local_origin_https_health(core,(
             "/login","/circle-card/pro","/card/hucknall-circle-hub/join",
             "/card/hucknall-circle-hub",
         ))
@@ -277,6 +307,9 @@ def finish():
             "old_rollback_unit_preserved":True,
             "authenticated_and_billing_write_tests_performed":False,
             "automatic_recovery_timer_repaired":False,
+            "origin_certificate_fingerprint_unchanged":True,
+            "post_switch_local_https_routes_healthy":True,
+            "external_public_certificate_chain_verified":False,
         }
         need(not core.DEPLOYMENT.exists(),"RECORD_CREATED_BY_CONCURRENT_OPERATION")
         temporary=core.DEPLOYMENT.parent/(".resumed-activation-"+str(os.getpid())+".json")
@@ -317,6 +350,8 @@ def main():
             "nginx_original_backup_matches":True,
             "all_public_candidate_smoke_routes_passed":True,
             "private_card_redirect_protected":True,
+            "existing_origin_certificate_fingerprint_recorded_for_switch":True,
+            "external_public_certificate_chain_verified":False,
             "fresh_verified_database_backup":context["db"],
             "old_rollback_service_remains_running":True,
             "live_website_changed":False,
