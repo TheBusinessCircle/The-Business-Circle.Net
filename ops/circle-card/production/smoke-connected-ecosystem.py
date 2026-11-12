@@ -191,7 +191,70 @@ def request(path):
     finally:
         conn.close()
 
-def smoke(ctx):
+def preview_http_diagnosis(path, marker=None):
+    """Report only the status and approved redirect class; never HTML/URL secrets."""
+    conn=http.client.HTTPConnection("127.0.0.1",PORT,timeout=12)
+    try:
+        conn.request("GET",path,headers={"Host":"circlecard.co.uk",
+                                        "X-Forwarded-Proto":"https",
+                                        "Cache-Control":"no-cache"})
+        response=conn.getresponse()
+        status=int(response.status)
+        location=response.getheader("Location") or ""
+        data=response.read(300000)
+        redirect_type="none"
+        if location:
+            from urllib.parse import urlsplit
+            parsed=urlsplit(location)
+            if not parsed.netloc:
+                redirect_type="relative"
+            elif parsed.hostname=="circlecard.co.uk":
+                redirect_type="public_site"
+            elif parsed.hostname in ("127.0.0.1","localhost"):
+                redirect_type="localhost"
+            else:
+                redirect_type="other_host"
+        return {
+            "status":status,
+            "redirect_scope":redirect_type,
+            "marker_present":bool(marker and marker in data),
+            "received_html_bytes":len(data),
+        }
+    except (OSError, http.client.HTTPException) as error:
+        return {
+            "status":None, "redirect_scope":"none",
+            "marker_present":False,"received_html_bytes":0,
+            "transport_error_type":type(error).__name__,
+        }
+    finally:
+        conn.close()
+
+
+def preview_journal_signals():
+    """Match fixed startup-error classes without emitting raw logs or credentials."""
+    result=run(["journalctl","--unit",UNIT_NAME,"--since","-5min",
+                "--no-pager","--output=cat","--lines=100"],timeout=15)
+    if result.returncode:
+        return ["JOURNAL_UNAVAILABLE"]
+    content=result.stdout.lower()
+    cases={
+        "MISSING_NEXT_BUILD":("could not find a production build","couldn't find a production build"),
+        "MISSING_RUNTIME_FILE":("enoent","no such file or directory"),
+        "MISSING_NODE_MODULE":("cannot find module","module_not_found"),
+        "DATABASE_CONNECTION":("econnrefused","p1001","database server at"),
+        "DATABASE_SCHEMA":("p2022","does not exist in the current database"),
+        "PRISMA_STARTUP":("prismaclientinitializationerror","prisma client could not"),
+        "AUTH_CONFIGURATION":("untrustedhost","autherror","nextauth_url"),
+        "BILLING_VALIDATION":("validateprotectedstandalonebilling","billing configuration"),
+        "MISSING_REQUIRED_ENV":("missing required environment","required environment variable"),
+        "NEXT_RUNTIME_EXCEPTION":("uncaught exception","unhandledrejection","⨯ error"),
+        "START_PORT_CONFLICT":("eaddrinuse","address already in use"),
+        "REQUEST_500":("get /login 500","get /circle-card/pro 500"),
+    }
+    return [name for name,phrases in cases.items() if any(p in content for p in phrases)]
+
+
+def smoke(ctx,diagnose=False):
     created=[]
     started=False
     try:
@@ -225,36 +288,61 @@ def smoke(ctx):
                 "PREVIEW_SERVICE_START_FAILED")
         started=True
         wait_for_safe_preview_listener(attempts=30,delay=1)
-        page_results={}
-        for attempt in range(35):
-            try:
-                status,data=request("/login")
-                if status==200: break
-            except (OSError,http.client.HTTPException):
-                pass
-            time.sleep(1.2)
+        if diagnose:
+            page_results={}
+            for path,marker in (
+                ("/login",None),
+                ("/circle-card/pro",b"Unlimited standard links"),
+                ("/card/hucknall-circle-hub/join",b"Create your free Circle Card"),
+            ):
+                page_results[path]=preview_http_diagnosis(path,marker)
+            service=props(UNIT_NAME).get("ActiveState")
+            passed={
+                "result":"ISOLATED_PREVIEW_RUNTIME_DIAGNOSIS_COLLECTED",
+                "http_probes":page_results,
+                "preview_systemd_state":service if service in ("active","activating","failed","inactive") else "other",
+                "preview_journal_error_categories":preview_journal_signals(),
+                "compiled_next_directory":str(ctx["dist"].relative_to(STAGE)),
+                "production_site_switched":False,
+                "nginx_configuration_unchanged":ctx["nginx"].read_bytes()==ctx["vhost"],
+                "billing_or_authenticated_actions_tested":False,
+                "journal_raw_text_printed":False,
+                "credentials_printed":False,
+            }
+            require(passed["nginx_configuration_unchanged"],"NGINX_VHOST_CHANGED")
+            require(props(LIVE_UNIT).get("MainPID")==str(ctx["pid"]),
+                    "LIVE_PROCESS_CHANGED")
         else:
-            raise RuntimeError("PREVIEW_LOGIN_NOT_HEALTHY")
-        for route,expected_marker in [
-            ("/circle-card/pro",b"Unlimited standard links"),
-            ("/card/hucknall-circle-hub/join",b"Create your free Circle Card"),
-        ]:
-            status,body=request(route)
-            require(status==200,"PREVIEW_ROUTE_NON_200")
-            require(expected_marker in body,
-                    "PREVIEW_FEATURE_MARKER_NOT_RENDERED")
-            page_results[route]={"status":status,"feature_marker_present":True}
-        require(ctx["nginx"].read_bytes()==ctx["vhost"],"NGINX_VHOST_CHANGED")
-        require(props(LIVE_UNIT).get("MainPID")==str(ctx["pid"]),
-                "LIVE_PROCESS_CHANGED")
-        passed={
-            "result":"ISOLATED_ECOSYSTEM_PREVIEW_SMOKE_PASSED",
-            "preview_port":PORT,"live_port":OLD_PORT,
-            "anonymous_routes":page_results,
-            "billing_or_authenticated_actions_tested":False,
-            "production_site_switched":False,
-            "nginx_configuration_unchanged":True,
-        }
+            page_results={}
+                for attempt in range(35):
+                try:
+                    status,data=request("/login")
+                    if status==200: break
+                except (OSError,http.client.HTTPException):
+                    pass
+                time.sleep(1.2)
+            else:
+                raise RuntimeError("PREVIEW_LOGIN_NOT_HEALTHY")
+            for route,expected_marker in [
+                ("/circle-card/pro",b"Unlimited standard links"),
+                ("/card/hucknall-circle-hub/join",b"Create your free Circle Card"),
+            ]:
+                status,body=request(route)
+                require(status==200,"PREVIEW_ROUTE_NON_200")
+                require(expected_marker in body,
+                        "PREVIEW_FEATURE_MARKER_NOT_RENDERED")
+                page_results[route]={"status":status,"feature_marker_present":True}
+            require(ctx["nginx"].read_bytes()==ctx["vhost"],"NGINX_VHOST_CHANGED")
+            require(props(LIVE_UNIT).get("MainPID")==str(ctx["pid"]),
+                    "LIVE_PROCESS_CHANGED")
+            passed={
+                "result":"ISOLATED_ECOSYSTEM_PREVIEW_SMOKE_PASSED",
+                "preview_port":PORT,"live_port":OLD_PORT,
+                "anonymous_routes":page_results,
+                "billing_or_authenticated_actions_tested":False,
+                "production_site_switched":False,
+                "nginx_configuration_unchanged":True,
+            }
     finally:
         if created:
             if "service" in created:
@@ -279,9 +367,11 @@ def main():
     parser=argparse.ArgumentParser()
     parser.add_argument("--smoke",action="store_true",
                         help="Start and stop a disabled private preview, test public routes only")
+    parser.add_argument("--diagnose",action="store_true",
+                        help="Temporary preview, collect sanitized HTTP and startup status, then stop")
     opts=parser.parse_args()
     ctx=files_and_build()
-    if opts.smoke: smoke(ctx)
+    if opts.smoke or opts.diagnose: smoke(ctx,diagnose=opts.diagnose)
     else:
         print(json.dumps({"result":"ISOLATED_PREVIEW_PRECHECK_READY",
                           "protected_launcher_clone_compatible":True,
