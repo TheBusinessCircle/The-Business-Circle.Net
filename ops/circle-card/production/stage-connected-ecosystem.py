@@ -60,6 +60,8 @@ def live():
     for name in FILES:
         path=LIVE/name
         need(path.is_file() and not path.is_symlink(),"MISSING_LIVE_SOURCE_FILE")
+        need(path.resolve(strict=True).is_relative_to(LIVE),
+             "LIVE_SOURCE_PATH_RESOLVES_OUTSIDE_RELEASE")
     health=cmd(["curl","--noproxy","*","-sS","-o","/dev/null","-w","%{http_code}",
                 "--max-time","15","-H","Host: circlecard.co.uk",
                 "-H","X-Forwarded-Proto: https","http://127.0.0.1:3386/login"],
@@ -157,7 +159,12 @@ def main():
     need(copy.returncode==0,"ISOLATED_STAGE_COPY_FAILED_LIVE_UNCHANGED")
     need((stage/"package.json").read_bytes()==(LIVE/"package.json").read_bytes(),
          "STAGE_PACKAGE_DIFFERS_FROM_LIVE")
+    for name in FILES:
+        need((stage/name).resolve(strict=True).is_relative_to(stage),
+             "STAGING_PATCH_TARGET_IS_EXTERNAL_SYMLINK")
     need(git_apply(stage,patch,False),"STAGE_PATCH_FAILED_LIVE_UNCHANGED")
+    need(not (stage/".runtime").is_symlink(),
+         "STAGING_RUNTIME_PARENT_IS_SYMLINK")
     for name in (".next",".runtime/circle-card"):
         output=stage/name
         if output.is_symlink(): output.unlink()
