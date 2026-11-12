@@ -209,7 +209,7 @@ def smoke(ctx):
             stop=run(["systemctl","stop",UNIT_NAME],timeout=45)
             listeners=run(["ss","-H","-lnt"],timeout=8)
             still_open=(listeners.returncode!=0 or any(
-                re.search(r"(?<!\\d):3387(?!\\d)",line)
+                re.search(r"(?<!\d):3387(?!\d)",line)
                 for line in listeners.stdout.splitlines()
             ))
             if stop.returncode!=0 or still_open:
