@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ContactRound, RefreshCw } from "lucide-react";
+import Link from "next/link";
+import { ContactRound, RefreshCw, Wrench } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { CircleCardDashboardSection } from "@/components/circle-card/circle-card-dashboard-section";
+import { cn } from "@/lib/utils";
 import {
   clearCircleCardCurrentCardPreference,
   persistCircleCardCurrentCardPreference,
@@ -165,6 +167,15 @@ export function CircleCardCurrentCardSelector({
             {isPending ? "Switching card…" : "Switch card"}
           </Button>
         </div>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-silver/12 pt-4">
+        <Link
+          href={"/dashboard/circle-card/tools?cardId=" + encodeURIComponent(selectedCard.id)}
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}
+        >
+          <Wrench size={15} /> My Tools
+        </Link>
+        <span className="text-xs text-muted">Your Creator and Business tools, together on one card.</span>
       </div>
     </CircleCardDashboardSection>
   );
