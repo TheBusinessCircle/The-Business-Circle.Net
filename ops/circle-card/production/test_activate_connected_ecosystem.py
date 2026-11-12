@@ -20,6 +20,7 @@ class EcosystemActivationTests(unittest.TestCase):
         self.assertNotEqual(m.NEW_UNIT,m.OLD_UNIT)
         self.assertEqual(m.SAVED_PATCH_REF,"eb668250c363376978fa9f2d9dc27b865e066032")
         self.assertTrue(m.NGINX_BACKUP.name.endswith(".conf"))
+        self.assertEqual(m.APPROVED_BUILD_ID,"IlUYNmvKirPq-sFwpeimH")
 
     def test_nginx_rewrite_changes_only_verified_public_port_and_release_aliases(self):
         original=(
@@ -64,6 +65,14 @@ class EcosystemActivationTests(unittest.TestCase):
                 m.nginx_write(b"replacement",path)
             self.assertEqual(path.read_bytes(),b"replacement")
             self.assertEqual(path.stat().st_mode & 0o777,0o640)
+
+    def test_launch_script_sets_private_app_launcher_directory_access(self):
+        source=p.read_text()
+        self.assertIn("NEW_LAUNCHER.parent.chmod(0o755)",source)
+        self.assertIn("LAUNCHER_NOT_READABLE_BY_APP_USER",source)
+        self.assertIn("CORRECTED_APPROVED_BUILD_ID_MISMATCH",source)
+        self.assertIn("runuser",source)
+        self.assertIn("APPROVED_BUILD_ID",source)
 
     def test_release_script_never_references_legacy_registry_write(self):
         source=p.read_text()
