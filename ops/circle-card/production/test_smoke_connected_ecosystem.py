@@ -55,6 +55,35 @@ class PreviewTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError,"BAD_GUARD"):
             m.require(False,"BAD_GUARD")
 
+    def test_wait_for_listener_readiness_after_systemd_start(self):
+        with patch.object(m,"preview_listening_addresses",
+                          side_effect=[[], [], ["127.0.0.1:3387"]]) as listing:
+            with patch.object(m.time,"sleep") as sleeping:
+                result=m.wait_for_safe_preview_listener(attempts=4,delay=1)
+        self.assertEqual(result,["127.0.0.1:3387"])
+        self.assertEqual(listing.call_count,3)
+        self.assertEqual(sleeping.call_count,2)
+
+    def test_rejects_public_or_wildcard_preview_bind(self):
+        for address in ("0.0.0.0:3387","[::]:3387","*:3387","10.0.0.1:3387"):
+            with self.subTest(address=address):
+                with patch.object(m,"preview_listening_addresses",return_value=[address]):
+                    with self.assertRaisesRegex(RuntimeError,"PREVIEW_BOUND_TO_NON_LOOPBACK_ADDRESS"):
+                        m.wait_for_safe_preview_listener(attempts=1)
+
+    def test_reports_listener_missing_after_readiness_window(self):
+        with patch.object(m,"preview_listening_addresses",return_value=[]):
+            with self.assertRaisesRegex(RuntimeError,"PREVIEW_NO_LISTENER_AFTER_START"):
+                m.wait_for_safe_preview_listener(attempts=1)
+
+    def test_ss_parser_checks_local_endpoint_not_peer_column(self):
+        class Result:
+            returncode=0
+            stdout=("LISTEN 0 511 127.0.0.1:3387 0.0.0.0:*\\n"
+                    "LISTEN 0 511 0.0.0.0:3386 0.0.0.0:*\\n")
+        with patch.object(m,"run",return_value=Result()):
+            self.assertEqual(m.preview_listening_addresses(),["127.0.0.1:3387"])
+
     def test_anonymous_get_closes_connection(self):
         class DummyResponse:
             status=200
