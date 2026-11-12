@@ -206,18 +206,18 @@ def smoke(ctx):
         }
     finally:
         if created:
-            stop=run(["systemctl","stop",UNIT_NAME],timeout=45)
-            listeners=run(["ss","-H","-lnt"],timeout=8)
-            still_open=(listeners.returncode!=0 or any(
-                re.search(r"(?<!\d):3387(?!\d)",line)
-                for line in listeners.stdout.splitlines()
-            ))
-            if stop.returncode!=0 or still_open:
-                # Keep the unit and launcher so an operator can investigate
-                # or stop this exact transient unit; do not sever the service
-                # while the preview could still be running.
-                raise RuntimeError("PREVIEW_STOP_NOT_CONFIRMED_ARTIFACTS_PRESERVED")
-            run(["systemctl","reset-failed",UNIT_NAME],timeout=25)
+            if "service" in created:
+                stop=run(["systemctl","stop",UNIT_NAME],timeout=45)
+                listeners=run(["ss","-H","-lnt"],timeout=8)
+                still_open=(listeners.returncode!=0 or any(
+                    re.search(r"(?<!\d):3387(?!\d)",line)
+                    for line in listeners.stdout.splitlines()
+                ))
+                if stop.returncode!=0 or still_open:
+                    # Keep the unit and launcher so an operator can inspect
+                    # this specific service before removing anything.
+                    raise RuntimeError("PREVIEW_STOP_NOT_CONFIRMED_ARTIFACTS_PRESERVED")
+                run(["systemctl","reset-failed",UNIT_NAME],timeout=25)
             if UNIT_FILE.exists(): UNIT_FILE.unlink()
             if ENV_FILE.exists(): ENV_FILE.unlink()
             if LAUNCHER_FILE.exists(): LAUNCHER_FILE.unlink()
