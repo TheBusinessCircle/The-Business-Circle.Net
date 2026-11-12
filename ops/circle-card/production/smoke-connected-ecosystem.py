@@ -126,18 +126,32 @@ def files_and_build():
             "unit":cloned_unit,"launcher":cloned_launcher}
 
 def request(path):
-    with http.client.HTTPConnection("127.0.0.1",PORT,timeout=15) as conn:
+    conn=http.client.HTTPConnection("127.0.0.1",PORT,timeout=15)
+    try:
         conn.request("GET",path,headers={"Host":"circlecard.co.uk",
                                          "X-Forwarded-Proto":"https",
                                          "Cache-Control":"no-cache"})
         res=conn.getresponse()
         data=res.read(500000)
         return res.status,data
+    finally:
+        conn.close()
 
 def smoke(ctx):
     created=[]
     started=False
     try:
+        dist=ctx["dist"]
+        standalone=dist/"standalone"
+        require(not standalone.is_symlink(),"STANDALONE_DIRECTORY_UNSAFE")
+        for source,destination in (
+            (STAGE/"public",standalone/"public"),
+            (dist/"static",standalone/dist.relative_to(STAGE)/"static"),
+        ):
+            if source.is_dir():
+                require(not source.is_symlink() and not destination.is_symlink(),
+                        "STATIC_SOURCE_OR_TARGET_SYMLINK_UNSAFE")
+                shutil.copytree(source,destination,dirs_exist_ok=True)
         LAUNCHER_DIR.mkdir(mode=0o755)
         created.append("launcher_directory")
         LAUNCHER_FILE.write_text(ctx["launcher"])
