@@ -24,6 +24,7 @@ import re
 import stat
 import subprocess
 import sys
+import time
 
 CORE_NAME="activate-connected-ecosystem.py"
 APPROVED_BUILD_ID="IlUYNmvKirPq-sFwpeimH"
@@ -64,14 +65,25 @@ def check_root_file(path,*,private=False):
              "PINNED_DEPLOYMENT_ARTIFACT_NOT_PRIVATE")
 
 
-def check_public_http(core,port,path,marker=None):
+def check_public_http(core,port,path,marker=None,nginx_equivalent=False):
     import http.client
+    headers={
+        "Host":"circlecard.co.uk","X-Forwarded-Proto":"https",
+        "Cache-Control":"no-cache"
+    }
+    if nginx_equivalent:
+        # Match the forwarded headers in the real HTTPS Nginx location /.
+        # This is an additional read-only pre-switch diagnostic.
+        headers.update({
+            "X-Forwarded-Host":"circlecard.co.uk",
+            "X-Forwarded-Port":"443",
+            "X-Forwarded-For":"127.0.0.1",
+            "X-Real-IP":"127.0.0.1",
+            "Connection":"upgrade",
+        })
     conn=http.client.HTTPConnection("127.0.0.1",port,timeout=16)
     try:
-        conn.request("GET",path,headers={
-            "Host":"circlecard.co.uk","X-Forwarded-Proto":"https",
-            "Cache-Control":"no-cache"
-        })
+        conn.request("GET",path,headers=headers)
         response=conn.getresponse()
         status=response.status
         data=response.read(500000)
@@ -207,6 +219,9 @@ def verified_existing_components(core):
         ("/robots.txt",None),
     ):
         check_public_http(core,3387,route,marker)
+    check_public_http(core,3387,"/card/hucknall-circle-hub/join",
+                      marker=b"Create your free Circle Card",
+                      nginx_equivalent=True)
     check_private_auth(3387)
     need(core.props(core.OLD_UNIT).get("MainPID")==old_pid
          and core.props(core.NEW_UNIT).get("MainPID")==new_pid
@@ -239,14 +254,13 @@ def local_origin_certificate_sha256():
             return hashlib.sha256(certificate).hexdigest()
 
 
-def local_origin_https_health(core,paths):
-    """Verify each new-release route through local Nginx HTTPS.
+def local_origin_https_health(core,paths,join_retries=21,join_delay=0.5):
+    """Prove new join page is served after Nginx has finished reloading.
 
-    The origin's existing local certificate is checked for SHA256 continuity
-    across Nginx reload. The --insecure flag is restricted to a fixed loopback
-    --resolve target and does not affect public client TLS trust. On failure,
-    return only a safe route label and HTTP/curl status; never log HTML, URLs
-    containing parameters, headers, cookies or response bodies.
+    Nginx -s reload sends a signal and exits before worker replacement is
+    necessarily complete. Old workers may briefly answer with the former
+    hub-join 307. Only retry that known 307 and only for a bounded window.
+    Other failures abort and restore the old Nginx configuration.
     """
     labels={
         "/login":"LOGIN",
@@ -254,22 +268,32 @@ def local_origin_https_health(core,paths):
         "/card/hucknall-circle-hub/join":"HUB_JOIN",
         "/card/hucknall-circle-hub":"HUB",
     }
-    for route in paths:
+    join="/card/hucknall-circle-hub/join"
+    need(join in paths and 1<=join_retries<=21 and 0<=join_delay<=1,
+         "POST_SWITCH_PROBE_ARGUMENTS_INVALID")
+    ordered=(join,)+(tuple(path for path in paths if path!=join))
+    for route in ordered:
         need(route in labels,"UNRECOGNISED_POST_SWITCH_ROUTE")
-        r=core.cmd([
-            "curl","--noproxy","*","--insecure","-sS",
-            "--resolve","circlecard.co.uk:443:127.0.0.1",
-            "--max-time","20","-o","/dev/null","-w","%{http_code}",
-            "https://circlecard.co.uk"+route,
-        ],timeout=26)
-        if r.returncode:
-            need(1<=r.returncode<=99,"POST_SWITCH_CURL_EXIT_UNRECOGNISED")
-            raise RuntimeError("POST_SWITCH_"+labels[route]
-                               +"_CURL_EXIT_"+str(r.returncode))
-        status=r.stdout.strip()
-        need(re.fullmatch(r"[1-5][0-9]{2}",status) is not None,
-             "POST_SWITCH_"+labels[route]+"_HTTP_UNRECOGNISED")
-        if status!="200":
+        attempts=join_retries if route==join else 1
+        for attempt in range(attempts):
+            r=core.cmd([
+                "curl","--noproxy","*","--insecure","-sS",
+                "--resolve","circlecard.co.uk:443:127.0.0.1",
+                "--max-time","20","-o","/dev/null","-w","%{http_code}",
+                "https://circlecard.co.uk"+route,
+            ],timeout=26)
+            if r.returncode:
+                need(1<=r.returncode<=99,"POST_SWITCH_CURL_EXIT_UNRECOGNISED")
+                raise RuntimeError("POST_SWITCH_"+labels[route]
+                                   +"_CURL_EXIT_"+str(r.returncode))
+            status=r.stdout.strip()
+            need(re.fullmatch(r"[1-5][0-9]{2}",status) is not None,
+                 "POST_SWITCH_"+labels[route]+"_HTTP_UNRECOGNISED")
+            if status=="200":
+                break
+            if route==join and status=="307" and attempt<attempts-1:
+                time.sleep(join_delay)
+                continue
             raise RuntimeError("POST_SWITCH_"+labels[route]+"_HTTP_"+status)
 
 
@@ -324,6 +348,8 @@ def finish():
             "automatic_recovery_timer_repaired":False,
             "origin_certificate_fingerprint_unchanged":True,
             "post_switch_local_https_routes_healthy":True,
+            "nginx_proxy_equivalent_join_prechecked":True,
+            "nginx_reload_worker_settle_verified":True,
             "external_public_certificate_chain_verified":False,
         }
         need(not core.DEPLOYMENT.exists(),"RECORD_CREATED_BY_CONCURRENT_OPERATION")
@@ -364,6 +390,7 @@ def main():
             "new_candidate_healthy":True,
             "nginx_original_backup_matches":True,
             "all_public_candidate_smoke_routes_passed":True,
+            "candidate_nginx_equivalent_join_header_check_passed":True,
             "private_card_redirect_protected":True,
             "existing_origin_certificate_fingerprint_recorded_for_switch":True,
             "external_public_certificate_chain_verified":False,
