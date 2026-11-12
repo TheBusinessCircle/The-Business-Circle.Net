@@ -4,11 +4,12 @@ import { cookies } from "next/headers";
 import { ArrowLeft, ArrowUpRight, BriefcaseBusiness, LockKeyhole, Plus, Search, Sparkles, Wrench, X } from "lucide-react";
 import { setCircleCardMyToolPinnedAction } from "@/actions/circle-card-my-tools.actions";
 import { CircleCardPageHeader } from "@/components/circle-card/circle-card-page-header";
+import { CircleCardMyToolsLockedPreview } from "@/components/circle-card/circle-card-my-tools-locked-preview";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CIRCLE_CARD_CURRENT_CARD_COOKIE, normalizeCircleCardCurrentCardId } from "@/lib/circle-card/current-card-preference";
-import { CIRCLE_CARD_MY_TOOLS, myToolEditorHref, readMyToolsShelf, type MyTool, type MyToolsFamily } from "@/lib/circle-card/my-tools";
+import { CIRCLE_CARD_MY_TOOLS, canUseMyTools, myToolEditorHref, readMyToolsShelf, type MyTool, type MyToolsFamily } from "@/lib/circle-card/my-tools";
 import { CIRCLE_CARD_PLAN_ORDER, selectCircleCardsWithinPlan } from "@/lib/circle-card/plan-policy";
 import { prisma } from "@/lib/prisma";
 import { requireCircleCardUser } from "@/lib/session";
@@ -96,8 +97,16 @@ function ToolTile({
 
 export default async function CircleCardMyToolsPage({ searchParams }: Props) {
   const session = await requireCircleCardUser();
+  // The Pro entitlement is loaded before any card/tool preferences. Free and
+  // lapsed Pro see an entirely static preview, even when requesting a direct
+  // URL with a cardId, filter or saved-tool query.
+  const access = await loadCircleCardAccessForUser(session.user.id);
+  if (!canUseMyTools(access)) {
+    return <CircleCardMyToolsLockedPreview />;
+  }
+
   const params = await searchParams;
-  const [cards, access, cookieStore] = await Promise.all([
+  const [cards, cookieStore] = await Promise.all([
     prisma.circleCard.findMany({
       where: { userId: session.user.id, archivedAt: null },
       orderBy: [...CIRCLE_CARD_PLAN_ORDER],
@@ -107,7 +116,6 @@ export default async function CircleCardMyToolsPage({ searchParams }: Props) {
         displayOrder: true, createdAt: true, contentBlocks: true
       }
     }),
-    loadCircleCardAccessForUser(session.user.id),
     cookies()
   ]);
 
@@ -148,10 +156,10 @@ export default async function CircleCardMyToolsPage({ searchParams }: Props) {
         title="My Tools"
         icon={<Wrench size={20} />}
         description="Choose tools that fit you. Creator and Business are filters, not limits."
-        badge={<Badge variant="outline">{access.hasProAccess ? "Pro workspace" : "Free workspace"}</Badge>}
+        badge={<Badge variant="premium">Pro workspace</Badge>}
       >
-        Save a shortcut from either category to the same card. Your existing editors control what appears publicly.
-        Saving a shortcut alone never publishes content or unlocks paid tools.
+        Mix Creator and Business tools on your saved shelf. Existing editors control what
+        appears publicly, and tools still being developed are labelled clearly.
       </CircleCardPageHeader>
 
       {allowedCards.length > 1 ? (
