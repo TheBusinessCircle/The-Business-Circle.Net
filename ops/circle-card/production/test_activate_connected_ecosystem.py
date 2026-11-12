@@ -59,7 +59,9 @@ class EcosystemActivationTests(unittest.TestCase):
             path=Path(t)/"nginx.test"
             path.write_bytes(b"original")
             path.chmod(0o640)
-            m.nginx_write(b"replacement",path)
+            from unittest.mock import patch
+            with patch.object(m.os,"chown"):
+                m.nginx_write(b"replacement",path)
             self.assertEqual(path.read_bytes(),b"replacement")
             self.assertEqual(path.stat().st_mode & 0o777,0o640)
 
