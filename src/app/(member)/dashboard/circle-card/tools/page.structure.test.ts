@@ -2,30 +2,31 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const pagePath = fileURLToPath(new URL("./page.tsx", import.meta.url));
-const source = readFileSync(pagePath, "utf8");
+const page = readFileSync(fileURLToPath(new URL("./page.tsx", import.meta.url)), "utf8");
+const catalog = readFileSync(fileURLToPath(new URL("../../../../../components/circle-card/circle-card-my-tools-catalog.tsx", import.meta.url)), "utf8");
 
 describe("Circle Card My Tools Pro hub", () => {
-  it("derives access from the server billing access snapshot", () => {
-    expect(source).toContain("loadCircleCardAccessForUser(session.user.id)");
-    expect(source).toContain("const hasPro = access.hasProAccess");
-    expect(source).toContain("requireCircleCardUser()");
+  it("derives access from the authenticated server billing access snapshot", () => {
+    expect(page).toContain("loadCircleCardAccessForUser(session.user.id)");
+    expect(page).toContain("const hasPro = access.hasProAccess");
+    expect(page).toContain("requireCircleCardUser()");
+    expect(page).toContain("<CircleCardMyToolsCatalog hasPro={hasPro}");
   });
 
-  it("makes both creator and business tools discoverable", () => {
-    expect(source).toContain('category: "Creators"');
-    expect(source).toContain('category: "Business"');
-    expect(source).toContain('href="#creators"');
-    expect(source).toContain('href="#business"');
+  it("filters creator and business tools while allowing either category", () => {
+    expect(catalog).toContain('category: "Creators"');
+    expect(catalog).toContain('category: "Business"');
+    expect(catalog).toContain('setCategory(option)');
+    expect(catalog).toContain('aria-pressed={category === option}');
   });
 
-  it("offers an upgrade rather than a tool action to Free members", () => {
-    expect(source).toContain('hasPro ? <Link href={tool.href}');
-    expect(source).toContain('<Link href={upgradeHref}');
-    expect(source).toContain('LockKeyhole');
+  it("does not expose Pro tool actions to Free users", () => {
+    expect(catalog).toContain('hasPro ? <Link href={tool.href}');
+    expect(catalog).toContain('<Link href={upgradeHref}');
+    expect(catalog).toContain('LockKeyhole');
   });
 
-  it("leaves the existing free scanner and wallet intact", () => {
-    expect(source).toContain("wallet, scanning and normal contact sharing remain accessible");
+  it("leaves core free wallet and scanning separate from Pro tools", () => {
+    expect(page).toContain("wallet, scanning and normal contact sharing remain accessible");
   });
 });
