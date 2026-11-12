@@ -84,6 +84,23 @@ class PreviewTests(unittest.TestCase):
         with patch.object(m,"run",return_value=Result()):
             self.assertEqual(m.preview_listening_addresses(),["127.0.0.1:3387"])
 
+    def test_preview_launcher_forces_next_cli_loopback_hostname(self):
+        source="childArgs=['next','start','-p','3387']"
+        rewritten=m.enforce_loopback_next_start(source)
+        self.assertIn("'-p','3387','-H','127.0.0.1'",rewritten)
+        self.assertEqual(rewritten.count("'-H','127.0.0.1'"),1)
+        self.assertEqual(m.enforce_loopback_next_start(rewritten),rewritten)
+
+    def test_preview_launcher_refuses_public_hostname(self):
+        source="childArgs=['next','start','-p','3387','-H','0.0.0.0']"
+        with self.assertRaisesRegex(RuntimeError,"PREVIEW_HOSTNAME_FLAG_UNRECOGNISED"):
+            m.enforce_loopback_next_start(source)
+
+    def test_preview_launcher_refuses_conflicting_hostname(self):
+        source="childArgs=['next','start','-p','3387','-H','127.0.0.1','-H','0.0.0.0']"
+        with self.assertRaisesRegex(RuntimeError,"PREVIEW_UNSAFE_EXPLICIT_HOSTNAME"):
+            m.enforce_loopback_next_start(source)
+
     def test_anonymous_get_closes_connection(self):
         class DummyResponse:
             status=200
