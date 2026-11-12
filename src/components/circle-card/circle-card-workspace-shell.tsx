@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { Wrench } from "lucide-react";
 import { CircleCardBackButton } from "@/components/circle-card/circle-card-back-button";
 import { BackToTopButton } from "@/components/ui/back-to-top-button";
 import { CIRCLE_CARD_DASHBOARD_PATH } from "@/lib/circle-card/routes";
@@ -12,7 +14,8 @@ const SCROLL_KEY_PREFIX = "circle-card:scroll:";
 const PREFETCH_ROUTES = [
   CIRCLE_CARD_DASHBOARD_PATH,
   `${CIRCLE_CARD_DASHBOARD_PATH}/studio`,
-  `${CIRCLE_CARD_DASHBOARD_PATH}/wallet`
+  `${CIRCLE_CARD_DASHBOARD_PATH}/wallet`,
+  `${CIRCLE_CARD_DASHBOARD_PATH}/tools`
 ] as const;
 
 function locationKey() {
@@ -105,6 +108,11 @@ export function CircleCardWorkspaceShell({ children }: { children: ReactNode }) 
   return (
     <div className="circle-card-workspace-shell" data-route-pending={pending ? "true" : "false"}>
       <div className="circle-card-route-progress" role="progressbar" aria-label="Loading page" aria-hidden={!pending} />
+      <nav aria-label="Circle Card quick navigation" className="flex justify-end px-3 pt-3 sm:px-6">
+        <Link href={`${CIRCLE_CARD_DASHBOARD_PATH}/tools`} className="inline-flex items-center gap-2 rounded-xl border border-silver/20 bg-card/70 px-4 py-2 text-sm font-semibold hover:border-primary/50">
+          <Wrench size={16} aria-hidden /> My Tools <span className="rounded-md border border-primary/40 px-1.5 py-0.5 text-[10px] font-bold text-primary">PRO</span>
+        </Link>
+      </nav>
       {nestedPage ? (
         <div className="circle-card-back-row">
           <CircleCardBackButton />
