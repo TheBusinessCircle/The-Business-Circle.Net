@@ -1,0 +1,343 @@
+diff --git a/src/app/(public)/circle-card/pro/page.tsx b/src/app/(public)/circle-card/pro/page.tsx
+--- a/src/app/(public)/circle-card/pro/page.tsx
++++ b/src/app/(public)/circle-card/pro/page.tsx
+@@ -58,7 +58,7 @@ export const metadata: Metadata = createCircleCardPageMetadata({
+ 
+ const FREE_FEATURES = [
+   "One useful Circle Card",
+-  "Five active links",
++  "Unlimited standard links",
+   "Personal, Business and Creator base layouts",
+   "Profile image and business logo",
+   "Contact and social details",
+@@ -71,7 +71,7 @@ const FREE_FEATURES = [
+ 
+ const PRO_FEATURES = [
+   "Two Circle Cards",
+-  "25 active links",
++  "Custom branding and theme controls",
+   "Circle Studio public activation",
+   "Private Studio drafts and real-card preview",
+   "Business Card Builder",
+
+diff --git a/src/components/circle-card/circle-card-plan-panel.tsx b/src/components/circle-card/circle-card-plan-panel.tsx
+--- a/src/components/circle-card/circle-card-plan-panel.tsx
++++ b/src/components/circle-card/circle-card-plan-panel.tsx
+@@ -57,12 +57,12 @@ type CircleCardPlanPanelProps = {
+   className?: string;
+ };
+ 
+-function limitValueLabel(value: number | "more" | "team") {
++function limitValueLabel(value: number | "more" | "team" | "unlimited") {
+   if (typeof value === "number") {
+     return String(value);
+   }
+ 
+-  return value === "more" ? "More" : "Team";
++  return value === "unlimited" ? "Unlimited" : value === "more" ? "More" : "Team";
+ }
+ 
+ function featureStatusClassName(feature: CircleCardPlanFeature) {
+@@ -351,7 +351,9 @@ export function CircleCardPlanPanel({
+     },
+     {
+       label: "Featured links",
+-      value: `${activeFeaturedLinkCount}/${limitValueLabel(currentPlan.limits.activeFeaturedLinks)} active`,
++      value: currentPlan.limits.activeFeaturedLinks === "unlimited"
++        ? `${activeFeaturedLinkCount} active (unlimited)`
++        : `${activeFeaturedLinkCount}/${limitValueLabel(currentPlan.limits.activeFeaturedLinks)} active`,
+       icon: LinkIcon
+     },
+     {
+
+diff --git a/src/lib/circle-card/plan-policy.test.ts b/src/lib/circle-card/plan-policy.test.ts
+--- a/src/lib/circle-card/plan-policy.test.ts
++++ b/src/lib/circle-card/plan-policy.test.ts
+@@ -93,6 +93,36 @@ describe("Circle Card deterministic plan policy", () => {
+     ]);
+   });
+ 
++  it("shows all eligible public links on Free and Pro once the upgrade cap is removed", () => {
++    const createdAt = new Date("2026-11-11T12:00:00.000Z");
++    const links = [
++      ...Array.from({ length: 40 }, (_, index) => ({
++        id: `public-${index + 1}`,
++        isActive: true,
++        visibility: "PUBLIC",
++        url: `https://example.com/${index + 1}`,
++        fileUrl: null,
++        sortOrder: index,
++        createdAt
++      })),
++      {
++        id: "inactive",
++        isActive: false,
++        visibility: "PUBLIC",
++        url: "https://example.com/inactive",
++        fileUrl: null,
++        sortOrder: 41,
++        createdAt
++      }
++    ];
++
++    const selected = selectCircleCardLinksWithinPlan(links, Number.MAX_SAFE_INTEGER);
++    expect(selected).toHaveLength(40);
++    expect(selected[0].id).toBe("public-1");
++    expect(selected[39].id).toBe("public-40");
++    expect(selected.some(link => link.id === "inactive")).toBe(false);
++  });
++
+   it("keeps active-link ties deterministic by creation time then ID", () => {
+     const links = [
+       {
+
+diff --git a/src/lib/circle-card/plans.test.ts b/src/lib/circle-card/plans.test.ts
+--- a/src/lib/circle-card/plans.test.ts
++++ b/src/lib/circle-card/plans.test.ts
+@@ -2,16 +2,18 @@ import { describe, expect, it } from "vitest";
+ import {
+   CIRCLE_CARD_CAPABILITY_MAP,
+   CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT,
++  CIRCLE_CARD_PRO_ACTIVE_CUSTOM_LINK_LIMIT,
+   CIRCLE_CARD_ONBOARDING_PLAN_GUIDANCE,
+   CIRCLE_CARD_PLAN_DEFINITIONS
+ } from "@/lib/circle-card/plans";
+ 
+ describe("circle card plan boundaries", () => {
+-  it("defines Free as one personal card with the existing active featured-link limit", () => {
++  it("keeps a useful Free card with no plan-based active link cap", () => {
+     expect(CIRCLE_CARD_PLAN_DEFINITIONS.FREE.limits.circleCards).toBe(1);
+-    expect(CIRCLE_CARD_PLAN_DEFINITIONS.FREE.limits.activeFeaturedLinks).toBe(
+-      CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT
+-    );
++    expect(CIRCLE_CARD_PLAN_DEFINITIONS.FREE.limits.activeFeaturedLinks).toBe("unlimited");
++    expect(CIRCLE_CARD_PLAN_DEFINITIONS.PRO.limits.activeFeaturedLinks).toBe("unlimited");
++    expect(CIRCLE_CARD_FREE_ACTIVE_CUSTOM_LINK_LIMIT).toBe(Number.MAX_SAFE_INTEGER);
++    expect(CIRCLE_CARD_PRO_ACTIVE_CUSTOM_LINK_LIMIT).toBe(Number.MAX_SAFE_INTEGER);
+     expect(CIRCLE_CARD_PLAN_DEFINITIONS.FREE.notFor).toContain("Staff cards");
+     expect(CIRCLE_CARD_PLAN_DEFINITIONS.FREE.notFor).toContain("Team analytics");
+   });
+@@ -31,7 +33,7 @@ describe("circle card plan boundaries", () => {
+     );
+     expect(CIRCLE_CARD_CAPABILITY_MAP.PRO.unlocked).toEqual(
+       expect.arrayContaining([
+-        expect.objectContaining({ id: "twenty-five-featured-links" }),
++        expect.objectContaining({ id: "link-performance-insights" }),
+         expect.objectContaining({ id: "lead-capture-tools" })
+       ])
+     );
+
+diff --git a/src/lib/circle-card/plans.ts b/src/lib/circle-card/plans.ts
+--- a/src/lib/circle-card/plans.ts
++++ b/src/lib/circle-card/plans.ts
+@@ -5,15 +5,15 @@ export const CIRCLE_CARD_LAUNCH_FILE_LINKS_ENABLED = false;
+ export const CIRCLE_CARD_LAUNCH_LIMITS = {
+   FREE: {
+     circleCards: 1,
+-    activeLinks: 5,
++    activeLinks: Number.MAX_SAFE_INTEGER,
+     creatorFeaturedContent: 3,
+     creatorOffers: 2,
+     creatorPressProof: 2,
+     creatorBrandPartnerships: 2
+   },
+   PRO: {
+     circleCards: 2,
+-    activeLinks: 25,
++    activeLinks: Number.MAX_SAFE_INTEGER,
+     businessServices: 12,
+     businessProducts: 20,
+     businessPriceListItems: 25,
+@@ -128,7 +128,7 @@ export type CircleCardPlanCapabilityMap = {
+ 
+ export type CircleCardPlanLimits = {
+   circleCards: number | typeof CIRCLE_CARD_TEAMS_CARD_LIMIT;
+-  activeFeaturedLinks: number | "more" | "team";
++  activeFeaturedLinks: number | "more" | "team" | "unlimited";
+   profileLayouts: "classic-business-creator";
+   qr: "basic" | "advanced";
+   wallet: "basic" | "company";
+@@ -175,9 +175,9 @@ export const CIRCLE_CARD_CAPABILITY_MAP: Record<CircleCardPlanKey, CircleCardPla
+         status: "included"
+       },
+       {
+-        id: "five-featured-links",
+-        label: "5 active featured links",
+-        description: "Enough public actions for a useful profile, offer, booking link and core proof.",
++        id: "unlimited-featured-links",
++        label: "Unlimited standard links",
++        description: "Share your websites, bookings, social profiles, offers and other useful public links without a plan cap.",
+         status: "included"
+       },
+       {
+@@ -261,9 +261,9 @@ export const CIRCLE_CARD_CAPABILITY_MAP: Record<CircleCardPlanKey, CircleCardPla
+         status: "planned"
+       },
+       {
+-        id: "twenty-five-featured-links",
+-        label: "25 featured links",
+-        description: "More public actions for offers, booking, content, proof, downloads and sales paths.",
++        id: "link-performance-insights",
++        label: "Link performance insights",
++        description: "Understand which public links attract attention and lead to opportunities.",
+         status: "planned"
+       },
+       {
+@@ -387,10 +387,10 @@ export const CIRCLE_CARD_CAPABILITY_MAP: Record<CircleCardPlanKey, CircleCardPla
+ 
+ export const CIRCLE_CARD_PRO_FEATURE_PREVIEWS: CircleCardPlanFeature[] = [
+   {
+-    id: "twenty-five-featured-links",
+-    label: "25 active links",
+-    description: "More public actions for your work, offers, booking routes and proof.",
+-    status: "included"
++    id: "pro-growth-reporting",
++    label: "Deeper growth reporting",
++    description: "More ways to understand visits, connections and outcomes beyond your public link list.",
++    status: "coming-soon"
+   },
+   {
+     id: "two-cards",
+@@ -508,7 +508,7 @@ export const CIRCLE_CARD_PLAN_DEFINITIONS: Record<CircleCardPlanKey, CircleCardP
+     goodFor: "Start building relationships",
+     limits: {
+       circleCards: CIRCLE_CARD_FREE_CARD_LIMIT,
+-      activeFeaturedLinks: 5,
++      activeFeaturedLinks: "unlimited",
+       profileLayouts: "classic-business-creator",
+       qr: "basic",
+       wallet: "basic",
+@@ -535,9 +535,9 @@ export const CIRCLE_CARD_PLAN_DEFINITIONS: Record<CircleCardPlanKey, CircleCardP
+         status: "early-access"
+       },
+       {
+-        id: "limited-featured-links",
+-        label: "Limited featured links",
+-        description: "Up to 5 active featured links, with paused links saved for later.",
++        id: "unlimited-featured-links",
++        label: "Unlimited standard links",
++        description: "Share as many public web and social links as you need, subject to content and abuse safeguards.",
+         status: "included"
+       },
+       {
+@@ -601,7 +601,7 @@ export const CIRCLE_CARD_PLAN_DEFINITIONS: Record<CircleCardPlanKey, CircleCardP
+     goodFor: "Grow relationships",
+     limits: {
+       circleCards: CIRCLE_CARD_PRO_CARD_LIMIT,
+-      activeFeaturedLinks: 25,
++      activeFeaturedLinks: "unlimited",
+       profileLayouts: "classic-business-creator",
+       qr: "advanced",
+       wallet: "basic",
+
+diff --git a/src/lib/circle-card/pricing.ts b/src/lib/circle-card/pricing.ts
+--- a/src/lib/circle-card/pricing.ts
++++ b/src/lib/circle-card/pricing.ts
+@@ -120,22 +120,22 @@ export const CIRCLE_CARD_FEATURE_LOCK_MAP: Record<CircleCardPlanKey, CircleCardF
+         enforcement: "messaging-only"
+       },
+       {
+-        id: "five-active-featured-links",
+-        label: "Up to 5 active featured links",
++        id: "unlimited-active-featured-links",
++        label: "Unlimited standard links",
+         status: "available",
+         enforcement: "active"
+       },
+       { id: "base-layouts", label: "Personal, Business and Creator base layouts", status: "available", enforcement: "active" }
+     ],
+     enforcementNote:
+-      "Free remains fully usable, with card and active-link limits enforced by authoritative server policy."
++      "Free remains useful, with one card, unlimited standard public links and server-enforced safety rules."
+   },
+   PRO: {
+     plan: "PRO",
+     positioning: "individual visibility, creator/founder/business growth tools",
+     features: [
+       { id: "two-cards", label: "2 Circle Cards", status: "available", enforcement: "active" },
+-      { id: "twenty-five-featured-links", label: "25 active links", status: "available", enforcement: "active" },
++      { id: "pro-advanced-branding", label: "Advanced card branding and styling", status: "available", enforcement: "active" },
+       { id: "circle-studio", label: "Circle Studio public activation", status: "available", enforcement: "active" },
+       { id: "business-builder", label: "Business Card Builder", status: "available", enforcement: "active" },
+       { id: "creator-media-kit", label: "Creator Media Kit", status: "available", enforcement: "active" },
+
+diff --git a/src/server/circle-card/billing-access.service.test.ts b/src/server/circle-card/billing-access.service.test.ts
+--- a/src/server/circle-card/billing-access.service.test.ts
++++ b/src/server/circle-card/billing-access.service.test.ts
+@@ -82,7 +82,7 @@ describe("authoritative Circle Card access loader", () => {
+       plan: "FREE",
+       source: "free",
+       hasProAccess: false,
+-      limits: { circleCards: 1, activeLinks: 5 },
++      limits: { circleCards: 1, activeLinks: Number.MAX_SAFE_INTEGER },
+       capabilities: {
+         coreProfile: true,
+         qr: true,
+@@ -113,7 +113,7 @@ describe("authoritative Circle Card access loader", () => {
+       lifecycleStatus: "active",
+       accessEndsAt: future,
+       subscriptionStatus: "ACTIVE",
+-      limits: { circleCards: 2, activeLinks: 25 },
++      limits: { circleCards: 2, activeLinks: Number.MAX_SAFE_INTEGER },
+       capabilities: {
+         circleStudio: true,
+         businessBuilder: true,
+@@ -136,7 +136,7 @@ describe("authoritative Circle Card access loader", () => {
+       plan: "TEAMS",
+       source: "teams",
+       hasProAccess: true,
+-      limits: { circleCards: 2, activeLinks: 25 }
++      limits: { circleCards: 2, activeLinks: Number.MAX_SAFE_INTEGER }
+     });
+   });
+
+diff --git a/src/app/(public)/card/hucknall-circle-hub/join/page.tsx b/src/app/(public)/card/hucknall-circle-hub/join/page.tsx
+--- a/src/app/(public)/card/hucknall-circle-hub/join/page.tsx
++++ b/src/app/(public)/card/hucknall-circle-hub/join/page.tsx
+@@ -1,10 +1,9 @@
+ import type { Metadata } from "next";
+ import Link from "next/link";
+-import { redirect } from "next/navigation";
+ import { auth } from "@/auth";
+ import { prisma } from "@/lib/prisma";
+ import { HUCKNALL_HUB_CARD_ID } from "@/lib/circle-card/hucknall-content";
+-import { BUSINESS_DIRECTORY_CATEGORIES, HUCKNALL_HUB_PATH } from "@/lib/circle-card/local-hubs";
++import { BUSINESS_DIRECTORY_CATEGORIES, HUCKNALL_HUB_PATH, HUCKNALL_HUB_SLUG } from "@/lib/circle-card/local-hubs";
+ import { filterPublicCircleCardTargetsWithinOwnerPlans } from "@/server/circle-card/plan-policy.service";
+ import { saveHucknallMembershipAction } from "@/actions/hucknall-hub.actions";
+ 
+@@ -14,7 +13,33 @@ export default async function JoinHucknallPage({ searchParams }: {
+   searchParams: Promise<{ saved?: string; error?: string }>;
+ }) {
+   const session = await auth();
+-  if (!session?.user?.id) redirect(`/login?from=${encodeURIComponent(`${HUCKNALL_HUB_PATH}/join`)}`);
++  if (!session?.user?.id) {
++    const joinPath = `${HUCKNALL_HUB_PATH}/join`;
++    const signupParams = new URLSearchParams({
++      source: "circle-card",
++      returnTo: joinPath,
++      sourceCardSlug: HUCKNALL_HUB_SLUG
++    });
++
++    return (
++      <div className="mx-auto max-w-2xl space-y-6 px-5 py-10">
++        <Link href={HUCKNALL_HUB_PATH} className="text-gold">Back to Hucknall Circle Hub</Link>
++        <h1 className="font-display text-4xl">Join Hucknall Circle Hub</h1>
++        <p className="text-muted">
++          Create a free Circle Card for your business or creator work in Hucknall and NG15.
++          Once your card is published, you can choose to show it in the directory.
++        </p>
++        <div className="flex flex-wrap items-center gap-4">
++          <Link href={`/register?${signupParams}`} className="inline-flex min-h-11 items-center rounded-full bg-gold px-5 font-semibold text-black">
++            Create your free Circle Card
++          </Link>
++          <Link href={`/login?from=${encodeURIComponent(joinPath)}`} className="inline-flex min-h-11 items-center text-gold underline">
++            Already have a card? Sign in
++          </Link>
++        </div>
++      </div>
++    );
++  }
+   const query = await searchParams;
+   const cards = await filterPublicCircleCardTargetsWithinOwnerPlans(await prisma.circleCard.findMany({
+     where: { userId: session.user.id, id: { not: HUCKNALL_HUB_CARD_ID }, isPublished: true,
