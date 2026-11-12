@@ -75,11 +75,16 @@ def files_and_build():
     dist=None
     for rel in (".runtime/circle-card",".next"):
         candidate=STAGE/rel
-        if (candidate/"BUILD_ID").is_file() and (candidate/"standalone/server.js").is_file():
+        if (candidate/"BUILD_ID").is_file() and (candidate/"server/app-paths-manifest.json").is_file():
             dist=candidate
             break
-    require(dist is not None,"PROTECTED_STANDALONE_BUILD_NOT_FOUND")
+    require(dist is not None,"COMPILED_NEXT_BUILD_NOT_FOUND")
     require(dist.resolve().is_relative_to(STAGE),"BUILD_OUTPUT_NOT_IN_STAGE")
+    standalone=dist/"standalone"
+    require(not standalone.is_symlink(),"STANDALONE_DIRECTORY_UNSAFE")
+    if standalone.exists():
+        require(standalone.is_dir() and (standalone/"server.js").is_file(),
+                "STANDALONE_SERVER_INCOMPLETE")
     nginx=VHOST.resolve(strict=True)
     require(str(nginx).startswith("/etc/nginx/"),"NGINX_VHOST_UNEXPECTED")
     vhost_before=nginx.read_bytes()
@@ -143,15 +148,17 @@ def smoke(ctx):
     try:
         dist=ctx["dist"]
         standalone=dist/"standalone"
-        require(not standalone.is_symlink(),"STANDALONE_DIRECTORY_UNSAFE")
-        for source,destination in (
-            (STAGE/"public",standalone/"public"),
-            (dist/"static",standalone/dist.relative_to(STAGE)/"static"),
-        ):
-            if source.is_dir():
-                require(not source.is_symlink() and not destination.is_symlink(),
-                        "STATIC_SOURCE_OR_TARGET_SYMLINK_UNSAFE")
-                shutil.copytree(source,destination,dirs_exist_ok=True,symlinks=True)
+        if standalone.is_dir():
+            # Only standalone builds need their public/static trees copied
+            # beside server.js. Standard Next.js production builds do not.
+            for source,destination in (
+                (STAGE/"public",standalone/"public"),
+                (dist/"static",standalone/dist.relative_to(STAGE)/"static"),
+            ):
+                if source.is_dir():
+                    require(not source.is_symlink() and not destination.is_symlink(),
+                            "STATIC_SOURCE_OR_TARGET_SYMLINK_UNSAFE")
+                    shutil.copytree(source,destination,dirs_exist_ok=True,symlinks=True)
         LAUNCHER_DIR.mkdir(mode=0o755)
         created.append("launcher_directory")
         LAUNCHER_FILE.write_text(ctx["launcher"])
@@ -238,7 +245,7 @@ def main():
     else:
         print(json.dumps({"result":"ISOLATED_PREVIEW_PRECHECK_READY",
                           "protected_launcher_clone_compatible":True,
-                          "staged_compiled_standalone_present":True,
+                          "staged_compiled_production_build_present":True,
                           "live_service_preserved":True,
                           "writes_made":False},indent=2))
 
