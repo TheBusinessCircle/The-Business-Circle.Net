@@ -192,7 +192,7 @@ def main():
 
 if __name__=="__main__":
     try: main()
-    except BaseException as error:
+    except Exception as error:
         code=str(error) if isinstance(error,RuntimeError) else type(error).__name__.upper()
         if not re.fullmatch("[A-Z_0-9]+",code): code="STAGING_ABORTED"
         print(json.dumps({"result":"ISOLATED_STAGE_ABORTED","reason":code,
