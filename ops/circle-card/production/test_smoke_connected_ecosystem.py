@@ -19,6 +19,38 @@ class PreviewTests(unittest.TestCase):
         self.assertEqual(m.UNIT_NAME,"circle-card-ecosystem-preview-20261112-002058.service")
         self.assertEqual(m.EXPECTED_PATCH,"eb668250c363376978fa9f2d9dc27b865e066032")
 
+    def test_accepts_standard_compiled_next_build_without_standalone(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as root:
+            stage=Path(root)
+            compiled=stage/".next"
+            (compiled/"server").mkdir(parents=True)
+            (compiled/"BUILD_ID").write_text("test-build-id")
+            (compiled/"server/app-paths-manifest.json").write_text("{}")
+            self.assertEqual(m.find_compiled_build(stage),compiled)
+
+    def test_rejects_incomplete_compiled_build(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as root:
+            stage=Path(root)
+            compiled=stage/".next"
+            compiled.mkdir()
+            (compiled/"BUILD_ID").write_text("test-build-id")
+            with self.assertRaisesRegex(RuntimeError,"COMPILED_NEXT_BUILD_NOT_FOUND"):
+                m.find_compiled_build(stage)
+
+    def test_rejects_incomplete_standalone_when_present(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as root:
+            stage=Path(root)
+            compiled=stage/".next"
+            (compiled/"server").mkdir(parents=True)
+            (compiled/"standalone").mkdir()
+            (compiled/"BUILD_ID").write_text("test-build-id")
+            (compiled/"server/app-paths-manifest.json").write_text("{}")
+            with self.assertRaisesRegex(RuntimeError,"STANDALONE_SERVER_INCOMPLETE"):
+                m.find_compiled_build(stage)
+
     def test_checks_reject_wrong_preconditions(self):
         with self.assertRaisesRegex(RuntimeError,"BAD_GUARD"):
             m.require(False,"BAD_GUARD")
