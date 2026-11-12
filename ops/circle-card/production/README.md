@@ -102,6 +102,14 @@ The pinned feature patch `one-connected-ecosystem-features.patch` contains eight
 
 A successful isolated build is **not live deployment**. The next release gate is preview service, role-based Free/Pro acceptance, mobile/public link tests, unchanged billing, explicit switch plan and tested rollback. The old automatic recovery timer is still incompatible with new-style deployments and requires a follow-up repair that understands the new release identity.
 
+## First isolated candidate build and private preview
+
+At **12 November 2026 00:20:58 UTC**, the user ran the guarded live release stage installer successfully. The preflight verified the genuine running release, identical database and application safety archive SHA256 hashes, sufficient disk space (9.57 GiB) and clean applicability of the reviewed feature patch. The resulting release candidate is `/var/www/releases/circle-card-ecosystem-20261112-002058`, with private build log in `/var/lib/circle-card-ecosystem-stage/20261112-002058/build.log`. Result: `CONNECTED_ECOSYSTEM_ISOLATED_BUILD_READY`. The public site remained on port 3386 and Nginx was not switched.
+
+`smoke-connected-ecosystem.py` confirms the stage receipt, actual live process, protected application launcher compatibility, exact route markers, and exclusive availability of loopback port 3387. The optional `--smoke` action temporarily clones a DISABLED systemd service and launcher, starts it on localhost 3387, checks anonymous public route responses and key Free/Pro copy, then stops and cleans up the temporary service **without touching Nginx or switching public traffic**. Any incompatibility aborts. The smoke test does not exercise logged-in accounts or billing changes; the preview reads the same production services and should not be used for customer-modifying test actions.
+
+Gate before public release: successful preview smoke, actual authenticated Free/Pro regression test with non-destructive test accounts, restored backup availability, explicit protected-credentials and billing verification, safe rollback plan, and an updated recovery automation procedure that no longer assumes pre-November manifest formats.
+
 ## Step 2: mandatory release gates
 
 1. Identify the active HTTPS vhost, loopback port, running systemd unit, protected launcher and actual process working directory. Confirm they all point to the same current release.
