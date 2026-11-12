@@ -5,32 +5,32 @@ Draft PR: #26
 Live public release before this branch: One Connected Ecosystem, approved BUILD_ID IlUYNmvKirPq-sFwpeimH
 
 ## Founder-approved product rules
-1. My Tools has two initial **catalogue filters**, Creator and Business. Both are visible and selectable to **every account**. Neither imposes a permanent account type restriction.
-2. A user's chosen set of tools is **card-scoped and portable across category filters**. A tool must not disappear merely because a user switches filters.
+1. **My Tools is Pro-only.** Free users see a faded, locked preview and an honest £9.99/month Pro upgrade route, but cannot activate, pin/unpin or access the workspace via direct URL or crafted actions. Within active Pro, Creator and Business are interchangeable catalogue filters, never permanent account-type restrictions.
+2. An active Pro subscriber's chosen set of tools is **card-scoped and portable across category filters**. A tool must not disappear merely because a user switches filters. Downgrade preserves these choices privately and locks access until Pro returns.
 3. Free and Pro both have **unlimited standard links** (no marketing plan cap). This branch carries forward the verified production ecosystem patch. It MUST NOT regress.
 4. Pro (£9.99/month) earns value from enhanced editing, presentation, analytics and working modules; not from link caps.
 5. Bespoke custom-card design is a **£49.99 one-time add-on available for purchase only while Pro is active**. Free accounts must not see or call the purchase option. A server-side entitlement check is mandatory before quote request, checkout creation and fulfilment. Paid design data remains stored but the Pro-only presentation is disabled after Pro ends and restored upon renewal.
 6. Existing paid customers, custom designs, card data, subscriptions, wallet contacts, referrals, commissions and existing public URLs must not be broken or destructively migrated.
 
 ## Release 1: My Tools foundation (this draft PR)
-- New authenticated /dashboard/circle-card/tools route; two accessible filter links and catalogue search.
+- New authenticated /dashboard/circle-card/tools route, Pro-gated on the server; Free sees a static blurred/locked preview with no customer card data or mutating actions. Active Pro gets two accessible filter links and catalogue search.
 - Launch with 24 tools listed in a typed, testable registry: editor, recovery, or future.
-- Save chosen shortcuts for a card in its existing contentBlocks.myTools without a schema migration.
+- Only active Pro may save chosen shortcuts for a card in its existing contentBlocks.myTools without a schema migration. Recheck entitlement on every mutation.
 - Save tools from either filter on the same card, even if the existing editor currently only supports the original card type.
 - **Pinning means saved workspace shortcut only**. It does NOT enable or disable public content or override paid access.
 - Reuse existing editor paths only when present, plan-eligible and card-type compatible. No fake activations or dead file-upload buttons.
-- Authenticated action validates card ownership and active plan card limit before changing saved shortcut data.
+- Authenticated action first validates active Pro entitlement, then card ownership and active plan card limit before changing saved shortcut data.
 - Link from existing current-card selector.
 - Existing files and scan routes unchanged; no email sent, checkout started, or production changes.
 - Unit tests cover cross-category persistence, unknown IDs, JSON preservation, safety and Pro editor gates.
 - CI checks and signed-in preview QA must pass before considering release.
 
 ### Release 1 acceptance
-- Free account: browse both filters, save/remove tools, access existing Free-eligible tools, no paid editor bypass, unlimited standard links remain.
-- Pro account: existing active Pro modules open from My Tools; saved list persists across page loads and category changes.
-- Account with two cards: saved tools remain independent; downgrade-locked second card cannot be modified via crafted form POST.
+- Free account: sees faded locked preview with Pro CTA, cannot browse/use/pin/remove My Tools even by direct URL or crafted server action. Unlimited standard links, Wallet and scanner remain available outside My Tools.
+- Pro account: unlocks both filters, compatible existing modules open from My Tools, saved list persists across page loads and category changes.
+- Account with two cards: saved tools remain independent. Cancelled/expired Pro cannot modify any shelf via crafted form POST and saved preferences are retained for reactivation.
 - Existing business and creator block data remains byte-for-byte logically intact when updating tools.
-- No created/modified user payments, subscriptions, actual files, email invitations, moderation state, or live database migration.
+- No created/modified user payments, subscriptions, actual files, email invitations, moderation state, or live database migration. Bespoke builds remain a separate strictly active-Pro purchase flow.
 
 ## Release 2: true mixed-type tools (not implemented yet)
 Currently some business action handlers and public rendering explicitly require cardType BUSINESS. Creator editors and renderers also use cardType CREATOR. The new My Tools shelf deliberately does not pretend those restrictions are solved.
