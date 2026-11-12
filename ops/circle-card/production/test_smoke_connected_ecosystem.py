@@ -79,8 +79,8 @@ class PreviewTests(unittest.TestCase):
     def test_ss_parser_checks_local_endpoint_not_peer_column(self):
         class Result:
             returncode=0
-            stdout=("LISTEN 0 511 127.0.0.1:3387 0.0.0.0:*\\n"
-                    "LISTEN 0 511 0.0.0.0:3386 0.0.0.0:*\\n")
+            stdout=("LISTEN 0 511 127.0.0.1:3387 0.0.0.0:*\n"
+                    "LISTEN 0 511 0.0.0.0:3386 0.0.0.0:*\n")
         with patch.object(m,"run",return_value=Result()):
             self.assertEqual(m.preview_listening_addresses(),["127.0.0.1:3387"])
 
