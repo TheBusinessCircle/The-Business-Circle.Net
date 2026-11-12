@@ -135,6 +135,34 @@ def files_and_build():
     return {"pid":pid,"dist":dist,"nginx":nginx,"vhost":vhost_before,
             "unit":cloned_unit,"launcher":cloned_launcher}
 
+def preview_listening_addresses():
+    """Read only TCP LISTEN local endpoints for the exact preview port."""
+    status=run(["ss","-H","-lnt"],timeout=8)
+    require(status.returncode==0,"PREVIEW_LISTENER_INSPECTION_FAILED")
+    addresses=[]
+    for line in status.stdout.splitlines():
+        fields=line.split()
+        # ss -H -lnt: State Recv-Q Send-Q Local-Address:Port Peer-Address:Port
+        require(len(fields)>=5,"PREVIEW_LISTENER_TABLE_MALFORMED")
+        local=fields[3]
+        if local.endswith(":"+str(PORT)):
+            addresses.append(local)
+    return addresses
+
+
+def wait_for_safe_preview_listener(*, attempts=30, delay=1):
+    """Wait for systemd's child to bind; never accept wildcard/public listeners."""
+    for attempt in range(attempts):
+        addresses=preview_listening_addresses()
+        if addresses:
+            require(set(addresses)=={"127.0.0.1:"+str(PORT)},
+                    "PREVIEW_BOUND_TO_NON_LOOPBACK_ADDRESS")
+            return addresses
+        if attempt+1<attempts:
+            time.sleep(delay)
+    raise RuntimeError("PREVIEW_NO_LISTENER_AFTER_START")
+
+
 def request(path):
     conn=http.client.HTTPConnection("127.0.0.1",PORT,timeout=15)
     try:
@@ -180,12 +208,7 @@ def smoke(ctx):
         require(run(["systemctl","start",UNIT_NAME],timeout=65).returncode==0,
                 "PREVIEW_SERVICE_START_FAILED")
         started=True
-        listeners=run(["ss","-H","-lnt"],timeout=8)
-        require(listeners.returncode==0,"PREVIEW_LISTENER_INSPECTION_FAILED")
-        local_lines=[line for line in listeners.stdout.splitlines()
-                     if re.search(r"(?<!\d):3387(?!\d)",line)]
-        require(local_lines and all("127.0.0.1:3387" in line for line in local_lines),
-                "PREVIEW_LISTENING_NOT_RESTRICTED_TO_LOOPBACK")
+        wait_for_safe_preview_listener(attempts=30,delay=1)
         page_results={}
         for attempt in range(35):
             try:
@@ -220,12 +243,8 @@ def smoke(ctx):
         if created:
             if "service" in created:
                 stop=run(["systemctl","stop",UNIT_NAME],timeout=45)
-                listeners=run(["ss","-H","-lnt"],timeout=8)
-                still_open=(listeners.returncode!=0 or any(
-                    re.search(r"(?<!\d):3387(?!\d)",line)
-                    for line in listeners.stdout.splitlines()
-                ))
-                if stop.returncode!=0 or still_open:
+                addresses=preview_listening_addresses()
+                if stop.returncode!=0 or addresses:
                     # Keep the unit and launcher so an operator can inspect
                     # this specific service before removing anything.
                     raise RuntimeError("PREVIEW_STOP_NOT_CONFIRMED_ARTIFACTS_PRESERVED")
