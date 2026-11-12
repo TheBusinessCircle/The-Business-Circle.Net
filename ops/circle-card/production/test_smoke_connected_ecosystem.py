@@ -101,6 +101,51 @@ class PreviewTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError,"PREVIEW_UNSAFE_EXPLICIT_HOSTNAME"):
             m.enforce_loopback_next_start(source)
 
+    def test_diagnostic_captures_only_safe_http_details(self):
+        class Response:
+            status=307
+            def getheader(self,name):
+                return "https://circlecard.co.uk/login?token=never-print-this-secret"
+            def read(self,limit):
+                return b"Redirecting"
+        class Connection:
+            closed=False
+            def request(self,*args,**kwargs):
+                pass
+            def getresponse(self):
+                return Response()
+            def close(self):
+                self.closed=True
+        instance=Connection()
+        with patch.object(m.http.client,"HTTPConnection",return_value=instance):
+            result=m.preview_http_diagnosis("/login")
+        self.assertEqual(result["status"],307)
+        self.assertEqual(result["redirect_scope"],"public_site")
+        self.assertNotIn("never-print-this-secret",str(result))
+        self.assertTrue(instance.closed)
+
+    def test_journal_classifies_errors_without_returning_raw_logs(self):
+        class Result:
+            returncode=0
+            stdout="Error: Cannot find module secret_user/keys.json; P1001 database auth failure"
+        with patch.object(m,"run",return_value=Result()):
+            result=m.preview_journal_signals()
+        self.assertIn("MISSING_NODE_MODULE",result)
+        self.assertIn("DATABASE_CONNECTION",result)
+        self.assertNotIn("secret_user",str(result))
+
+    def test_http_diagnostic_reports_transport_error_class_only(self):
+        class Connection:
+            def request(self,*args,**kwargs):
+                raise ConnectionRefusedError("secret-password")
+            def close(self):
+                pass
+        with patch.object(m.http.client,"HTTPConnection",return_value=Connection()):
+            result=m.preview_http_diagnosis("/login")
+        self.assertIsNone(result["status"])
+        self.assertEqual(result["transport_error_type"],"ConnectionRefusedError")
+        self.assertNotIn("secret-password",str(result))
+
     def test_anonymous_get_closes_connection(self):
         class DummyResponse:
             status=200
