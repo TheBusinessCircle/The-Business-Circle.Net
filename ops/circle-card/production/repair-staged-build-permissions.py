@@ -164,7 +164,7 @@ def grant_group_only(path,group_id, *, writable=False):
         add=stat.S_IRGRP
         if writable: add|=stat.S_IWGRP
     if mode | add != mode:
-        os.chmod(path,mode|add,follow_symlinks=False)
+        os.chmod(path,mode|add)
 
 
 def main():
@@ -194,7 +194,7 @@ def main():
         os.chown(BUILD_PARENT,-1,user.pw_gid,follow_symlinks=False)
     mode=stat.S_IMODE(BUILD_PARENT.stat().st_mode)
     if not mode&stat.S_IXGRP:
-        os.chmod(BUILD_PARENT,mode|stat.S_IXGRP,follow_symlinks=False)
+        os.chmod(BUILD_PARENT,mode|stat.S_IXGRP)
     cache_prefix=BUILD/"cache"
     for item,meta in [(BUILD,BUILD.lstat()),*entries]:
         allow_cache=item==cache_prefix or cache_prefix in item.parents
