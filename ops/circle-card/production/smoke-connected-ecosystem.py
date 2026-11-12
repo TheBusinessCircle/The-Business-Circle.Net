@@ -65,6 +65,21 @@ def find_compiled_build(stage):
     raise RuntimeError("COMPILED_NEXT_BUILD_NOT_FOUND")
 
 
+def enforce_loopback_next_start(launcher):
+    """Pin Next CLI's hostname before preview can listen on any socket."""
+    expected="'-H','127.0.0.1'"
+    alternate="'--hostname','127.0.0.1'"
+    if expected in launcher or alternate in launcher:
+        require(not re.search(r"['\"](?:-H|--hostname)['\"],\s*['\"](?!127\\.0\\.0\\.1)[^'\"]+",
+                              launcher), "PREVIEW_UNSAFE_EXPLICIT_HOSTNAME")
+        return launcher
+    require(not re.search(r"['\"](?:-H|--hostname)['\"]",launcher),
+            "PREVIEW_HOSTNAME_FLAG_UNRECOGNISED")
+    port_args="'-p','3387'"
+    require(launcher.count(port_args)==1,"PREVIEW_NEXT_PORT_ARGUMENTS_CHANGED")
+    return launcher.replace(port_args,port_args+",'-H','127.0.0.1'")
+
+
 def files_and_build():
     require(os.geteuid()==0,"ROOT_REQUIRED")
     p=props(LIVE_UNIT)
@@ -129,6 +144,7 @@ def files_and_build():
     cloned_launcher=launcher.replace(str(LIVE),str(STAGE))
     for before,after in replacements:
         cloned_launcher=cloned_launcher.replace(before,after)
+    cloned_launcher=enforce_loopback_next_start(cloned_launcher)
     cloned_unit=unit_source.replace(str(LIVE),str(STAGE)).replace(str(original),str(LAUNCHER_FILE))
     require(cloned_unit!=unit_source,"UNIT_NOT_CLONED")
     cloned_unit += "\n[Service]\nEnvironmentFile="+str(ENV_FILE)+"\n"
