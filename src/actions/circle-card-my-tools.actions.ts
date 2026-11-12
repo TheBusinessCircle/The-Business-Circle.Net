@@ -16,7 +16,7 @@ export async function setCircleCardMyToolPinnedAction(formData: FormData): Promi
 
   if (
     typeof cardId !== "string" ||
-    !/^cm[a-z0-9]{10,36}$/i.test(cardId) ||
+    !/^c[a-z0-9]{16,40}$/i.test(cardId) ||
     !isMyToolId(toolId) ||
     (operation !== "pin" && operation !== "unpin")
   ) {
