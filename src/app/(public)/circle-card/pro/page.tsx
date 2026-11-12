@@ -51,14 +51,14 @@ type PageProps = {
 export const metadata: Metadata = createCircleCardPageMetadata({
   title: "Circle Card Pro — £9.99/month",
   description:
-    "Circle Card Pro is the active working layer for a living professional identity: two cards, Circle Studio, Business Builder and expanded Creator tools.",
+    "Circle Card Pro unlocks My Tools: a Creator and Business workspace, alongside Circle Studio, richer presentation and relationship features.",
   path: "/circle-card/pro",
   keywords: ["Circle Card Pro", "professional identity platform", "creator media kit", "business card builder"]
 });
 
 const FREE_FEATURES = [
   "One useful Circle Card",
-  "Five active links",
+  "Unlimited standard links",
   "Personal, Business and Creator base layouts",
   "Profile image and business logo",
   "Contact and social details",
@@ -71,10 +71,11 @@ const FREE_FEATURES = [
 
 const PRO_FEATURES = [
   "Two Circle Cards",
-  "25 active links",
+  "Custom branding and theme controls",
   "Circle Studio public activation",
   "Private Studio drafts and real-card preview",
   "Business Card Builder",
+  "My Tools: mix Creator and Business tools in one saved workspace",
   "Creator Media Kit",
   "Audience Snapshot",
   "Expanded creator content, offers, proof and partnerships",
@@ -99,6 +100,10 @@ const FAQS = [
   {
     question: "What happens after I downgrade?",
     answer: "Your public card safely follows Free limits while Pro cards, links, Studio designs and presentation content remain stored. Reactivating Pro restores them automatically."
+  },
+  {
+    question: "Do I need Pro for My Tools?",
+    answer: "Yes. Free members can preview My Tools, but adding or managing tools requires active Circle Card Pro. Unlimited standard links, Circle Wallet and business-card scanning remain part of Free."
   },
   {
     question: "Do I need Pro for Circle Trust or networking?",
@@ -198,7 +203,7 @@ export default async function CircleCardProPage({ searchParams }: PageProps) {
             Your professional identity should keep working after the introduction.
           </h1>
           <p className="mt-5 max-w-3xl text-base leading-relaxed text-silver sm:text-xl">
-            Circle Card is a living professional identity, connection and relationship platform. Pro is the active working layer for people who need more than one card, a stronger public presentation, and focused Business or Creator tools.
+            Circle Card is a living professional identity, connection and relationship platform. Pro is the active working layer for people who need more than one card, a stronger public presentation, and My Tools, a flexible Creator and Business workspace for those who want more.
           </p>
           <div className="mt-6 flex flex-wrap items-end gap-3">
             <p className="font-display text-4xl font-semibold text-foreground">£9.99</p>
