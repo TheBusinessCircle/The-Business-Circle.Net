@@ -94,6 +94,14 @@ The user confirmed the guarded production application safety archive was created
 
 `verify-app-archive-stream.py` verifies the exact pinned tarball's SHA-256 and **reads every archived regular-file byte**, checks path safety and the required production components without extracting anything. It is a stronger content-integrity check than listing tar members, but **not** a proof the application can boot following full extraction or that all unspecified external uploads are included. Both archives are **server-local** and do not survive loss of the entire VPS. Automatic recovery remains a separate, unrepaired issue.
 
+## Controlled feature staging against the current live release
+
+The pinned feature patch `one-connected-ecosystem-features.patch` contains eight reviewed source/test file updates from draft PR #24 (unlimited standard Free and Pro links) and PR #23 (signed-out Hucknall Hub direct Free registration). It deliberately excludes both PRs' duplicate historical onboarding compile fix. GitHub CI runs `git apply --check` on the review branch as an additional compatibility gate.
+
+`stage-connected-ecosystem.py` first checks the **actual** November 9 production service, all eight source paths, exact verified database/application archive SHA256 digests, port 3387 availability, free disk and RAM, and whether the approved patch applies cleanly to the *live release*. Default mode is read-only. `--prepare` copies the running release into a new isolated path, applies the patch only to that copy and builds/verifies its Next.js release. Build failures leave live production untouched, with private logs in `/var/lib/circle-card-ecosystem-stage/<timestamp>/build.log`. No Nginx switch, migrations, systemd unit creation or customer record writes are part of this stage.
+
+A successful isolated build is **not live deployment**. The next release gate is preview service, role-based Free/Pro acceptance, mobile/public link tests, unchanged billing, explicit switch plan and tested rollback. The old automatic recovery timer is still incompatible with new-style deployments and requires a follow-up repair that understands the new release identity.
+
 ## Step 2: mandatory release gates
 
 1. Identify the active HTTPS vhost, loopback port, running systemd unit, protected launcher and actual process working directory. Confirm they all point to the same current release.
