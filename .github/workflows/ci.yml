@@ -90,7 +90,7 @@ jobs:
 
       - name: Validate read-only Circle Card release preflight
         run: |
-          python3 -m py_compile ops/circle-card/production/preflight.py ops/circle-card/production/routing-inventory.py ops/circle-card/production/recovery-service-audit.py ops/circle-card/production/recovery-deep-audit.py ops/circle-card/production/recovery-failure-forensics.py ops/circle-card/production/recovery-sha-manifest-audit.py ops/circle-card/production/recovery-bridge-plan.py ops/circle-card/production/one-shot-safety-backup.py ops/circle-card/production/backup-failure-diagnosis.py ops/circle-card/production/isolated-restore-check.py ops/circle-card/production/live-app-safety-archive.py ops/circle-card/production/verify-app-archive-stream.py ops/circle-card/production/stage-connected-ecosystem.py ops/circle-card/production/retire-legacy-services.py ops/circle-card/production/persist-retirement.py
+          python3 -m py_compile ops/circle-card/production/preflight.py ops/circle-card/production/routing-inventory.py ops/circle-card/production/recovery-service-audit.py ops/circle-card/production/recovery-deep-audit.py ops/circle-card/production/recovery-failure-forensics.py ops/circle-card/production/recovery-sha-manifest-audit.py ops/circle-card/production/recovery-bridge-plan.py ops/circle-card/production/one-shot-safety-backup.py ops/circle-card/production/backup-failure-diagnosis.py ops/circle-card/production/isolated-restore-check.py ops/circle-card/production/live-app-safety-archive.py ops/circle-card/production/verify-app-archive-stream.py ops/circle-card/production/stage-connected-ecosystem.py ops/circle-card/production/smoke-connected-ecosystem.py ops/circle-card/production/retire-legacy-services.py ops/circle-card/production/persist-retirement.py
           python3 ops/circle-card/production/retire-legacy-services.py --help > /tmp/circle-card-retire-help.txt
           python3 ops/circle-card/production/persist-retirement.py --help > /tmp/circle-card-retirement-persist-help.txt
           python3 ops/circle-card/production/recovery-deep-audit.py > /tmp/circle-card-recovery-rootcause.json
@@ -104,6 +104,8 @@ jobs:
           python3 -m unittest discover -s ops/circle-card/production -p test_live_app_safety_archive.py
           python3 -m unittest discover -s ops/circle-card/production -p test_verify_app_archive_stream.py
           python3 -m unittest discover -s ops/circle-card/production -p test_stage_connected_ecosystem.py
+          python3 -m unittest discover -s ops/circle-card/production -p test_smoke_connected_ecosystem.py
+          python3 ops/circle-card/production/smoke-connected-ecosystem.py --help > /tmp/circle-card-ecosystem-smoke-help.txt
           git apply --check --whitespace=nowarn ops/circle-card/production/one-connected-ecosystem-features.patch
           python3 ops/circle-card/production/stage-connected-ecosystem.py --help > /tmp/circle-card-stage-help.txt
           python3 ops/circle-card/production/isolated-restore-check.py --help > /tmp/circle-card-restore-help.txt
