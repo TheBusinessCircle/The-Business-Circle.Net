@@ -110,6 +110,22 @@ At **12 November 2026 00:20:58 UTC**, the user ran the guarded live release stag
 
 Gate before public release: successful preview smoke, actual authenticated Free/Pro regression test with non-destructive test accounts, restored backup availability, explicit protected-credentials and billing verification, safe rollback plan, and an updated recovery automation procedure that no longer assumes pre-November manifest formats.
 
+## First Connected Ecosystem release activation gate (12 November 2026)
+
+The founder executed a successful private preview on the repaired compiled release:
+`ISOLATED_ECOSYSTEM_PREVIEW_SMOKE_PASSED`, port 3387 only, public Pro and Hucknall signup routes both returned HTTP 200 with the reviewed feature markers. Nginx and the live process (port 3386) were unchanged. An earlier preview failure was traced to runtime permissions in the isolated compiled build, which have now been repaired for the `circle-card-app` runtime user. **No public switch has happened yet.**
+
+`activate-connected-ecosystem.py` prepares a pinned live switch with guarded rollback:
+- Requires the verified prior application archive and a fresh root-private DB dump created within two hours, checksum matching its manifest; verifies the original live process, authentic published routes, staged build receipt, runtime access and original Nginx target.
+- Creates a separate protected launcher and systemd unit for the already built release on 127.0.0.1:3387, with old 3386 service preserved.
+- Checks login, new Pro and Hucknall signup markers, the public Hub, registration page, robots, and the unauthenticated private-card redirect **before** switching.
+- Saves the exact original Nginx vhost bytes and checksum for rollback, atomically changes only the known Circle Card proxy and release-specific paths, validates/reloads Nginx, checks public HTTPS and both live process identities, then enables the new unit. On activation failure it restores previous Nginx bytes and leaves old service running.
+- Offers `--check` (read-only), `--deploy`, `--status`, and `--rollback`. The last rollback operation refuses to overwrite a later unrelated deployment.
+
+`native-circle-card-db-backup.py` recognizes the **actual Nginx-selected** Circle Card backend on port 3386 or 3387 and reuses the verified one-shot PostgreSQL dumper. `install-native-db-backup-timer.py` can create an independent daily database backup schedule, but only after an initial fresh dump succeeds. This is a **database backup workaround**, not a repair of the historical full-site recovery registry/timer or an offsite backup. The old recovery timer is left untouched by this installer, so it must be reviewed for safe retirement separately, after the replacement schedule is verified.
+
+**Not yet verified:** logged-in plan and Stripe billing flows, Wallet/QR/vCard, actual application boot from extracted archive, full-site automatic recovery, or offsite durability. Do not state otherwise. All customer-data-modifying acceptance tests must use properly authorised test accounts only.
+
 ## Step 2: mandatory release gates
 
 1. Identify the active HTTPS vhost, loopback port, running systemd unit, protected launcher and actual process working directory. Confirm they all point to the same current release.
