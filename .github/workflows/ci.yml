@@ -117,7 +117,14 @@ jobs:
           python3 ops/circle-card/production/activate-connected-ecosystem.py --help > /tmp/circle-card-activate-help.txt
           python3 ops/circle-card/production/repair-staged-build-permissions.py --help > /tmp/circle-card-permissions-help.txt
           python3 ops/circle-card/production/smoke-connected-ecosystem.py --help > /tmp/circle-card-ecosystem-smoke-help.txt
-          git apply --check --whitespace=nowarn ops/circle-card/production/one-connected-ecosystem-features.patch
+          if git apply --check --whitespace=nowarn ops/circle-card/production/one-connected-ecosystem-features.patch >/dev/null 2>&1; then
+            echo "Verified ecosystem patch ready for isolated staging"
+          elif git apply --reverse --check --whitespace=nowarn ops/circle-card/production/one-connected-ecosystem-features.patch >/dev/null 2>&1; then
+            echo "Verified ecosystem patch is already present in branch source"
+          else
+            echo "Ecosystem patch neither applies nor matches the source" >&2
+            exit 1
+          fi
           python3 ops/circle-card/production/stage-connected-ecosystem.py --help > /tmp/circle-card-stage-help.txt
           python3 ops/circle-card/production/isolated-restore-check.py --help > /tmp/circle-card-restore-help.txt
           python3 ops/circle-card/production/one-shot-safety-backup.py --help > /tmp/circle-card-backup-help.txt
