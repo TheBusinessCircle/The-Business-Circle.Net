@@ -37,8 +37,14 @@ class InterruptedReleaseTests(unittest.TestCase):
         self.assertIn("https://circlecard.co.uk/login",request)
         self.assertNotIn("http://127.0.0.1:3387/login",request)
         core.cmd.return_value=Mock(returncode=60,stdout="000")
-        with self.assertRaisesRegex(RuntimeError,"POST_SWITCH_ORIGIN_HTTPS_HEALTH_FAILED"):
+        with self.assertRaisesRegex(RuntimeError,"POST_SWITCH_LOGIN_CURL_EXIT_60"):
             m.local_origin_https_health(core,("/login",))
+        core.cmd.return_value=Mock(returncode=0,stdout="307")
+        with self.assertRaisesRegex(RuntimeError,"POST_SWITCH_HUB_JOIN_HTTP_307"):
+            m.local_origin_https_health(core,("/card/hucknall-circle-hub/join",))
+        core.cmd.return_value=Mock(returncode=0,stdout="500")
+        with self.assertRaisesRegex(RuntimeError,"POST_SWITCH_PRO_HTTP_500"):
+            m.local_origin_https_health(core,("/circle-card/pro",))
 
     def test_origin_certificate_mismatch_rolls_back(self):
         with tempfile.TemporaryDirectory() as d:
