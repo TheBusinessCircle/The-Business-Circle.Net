@@ -240,22 +240,37 @@ def local_origin_certificate_sha256():
 
 
 def local_origin_https_health(core,paths):
-    """Check Nginx->Next HTTPS locally, without claiming public TLS trust.
+    """Verify each new-release route through local Nginx HTTPS.
 
-    --insecure is used ONLY with --resolve pinned to loopback. A pre/post
-    certificate SHA256 guard verifies that the existing origin certificate
-    was not replaced by the deployment. Public CA trust must be tested
-    separately from an external client or trusted edge.
+    The origin's existing local certificate is checked for SHA256 continuity
+    across Nginx reload. The --insecure flag is restricted to a fixed loopback
+    --resolve target and does not affect public client TLS trust. On failure,
+    return only a safe route label and HTTP/curl status; never log HTML, URLs
+    containing parameters, headers, cookies or response bodies.
     """
+    labels={
+        "/login":"LOGIN",
+        "/circle-card/pro":"PRO",
+        "/card/hucknall-circle-hub/join":"HUB_JOIN",
+        "/card/hucknall-circle-hub":"HUB",
+    }
     for route in paths:
+        need(route in labels,"UNRECOGNISED_POST_SWITCH_ROUTE")
         r=core.cmd([
             "curl","--noproxy","*","--insecure","-sS",
             "--resolve","circlecard.co.uk:443:127.0.0.1",
             "--max-time","20","-o","/dev/null","-w","%{http_code}",
             "https://circlecard.co.uk"+route,
         ],timeout=26)
-        need(r.returncode==0 and r.stdout.strip()=="200",
-             "POST_SWITCH_ORIGIN_HTTPS_HEALTH_FAILED")
+        if r.returncode:
+            need(1<=r.returncode<=99,"POST_SWITCH_CURL_EXIT_UNRECOGNISED")
+            raise RuntimeError("POST_SWITCH_"+labels[route]
+                               +"_CURL_EXIT_"+str(r.returncode))
+        status=r.stdout.strip()
+        need(re.fullmatch(r"[1-5][0-9]{2}",status) is not None,
+             "POST_SWITCH_"+labels[route]+"_HTTP_UNRECOGNISED")
+        if status!="200":
+            raise RuntimeError("POST_SWITCH_"+labels[route]+"_HTTP_"+status)
 
 
 def finish():
