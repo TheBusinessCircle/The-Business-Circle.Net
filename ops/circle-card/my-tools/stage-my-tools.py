@@ -29,7 +29,7 @@ export default async function MyToolsPage({searchParams}:{searchParams:Promise<R
   const hasProAccess = access.hasProAccess;
   const businessEnabled = card ? hasCircleCardModule(card,"business") : false;
   const creatorEnabled = card ? hasCircleCardModule(card,"creator") : false;
-  return <main className="space-y-6">
+  return <div className="space-y-6">
     <div><p className="text-xs font-bold uppercase tracking-widest text-cyan-300">Circle Card Pro</p>
     <h1 className="mt-2 font-display text-3xl font-semibold">My Tools</h1>
     <p className="mt-2 max-w-2xl text-sm text-slate-300">Tools for creators and businesses, together in one place. Switch between collections whenever you like.</p></div>
@@ -37,7 +37,7 @@ export default async function MyToolsPage({searchParams}:{searchParams:Promise<R
     {!hasProAccess?<div className="rounded-xl border border-amber-300/35 bg-amber-200/5 p-4 text-sm">Your My Tools collection is locked on Free. Your free card, connections, wallet and scanner remain available. <a href="/pro?returnTo=%2Fapp%2Ftools" className="font-semibold text-cyan-200 underline">Explore Pro</a>.</div>:null}
     <CircleCardMyToolsClient hasPro={hasProAccess} cardId={card?.id??null}
       businessEnabled={businessEnabled} creatorEnabled={creatorEnabled}/>
-  </main>;
+  </div>;
 }
 '''
 
