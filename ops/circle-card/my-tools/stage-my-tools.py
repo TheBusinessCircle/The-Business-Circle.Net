@@ -67,16 +67,16 @@ export function CircleCardMyToolsClient({hasPro,cardId,businessEnabled,creatorEn
    <div className="mb-5 flex flex-wrap gap-3" role="group" aria-label="Choose your tools collection">
      {(["creator","business"] as const).map(option=><button type="button" key={option}
        aria-pressed={category===option} onClick={()=>setCategory(option)}
-       className={\`inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold \${category===option?"border-cyan-300 bg-cyan-400/15 text-cyan-200":"border-white/20 text-slate-300"}\`}>
+       className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold ${category===option?"border-cyan-300 bg-cyan-400/15 text-cyan-200":"border-white/20 text-slate-300"}`}>
        {option==="creator"?<Sparkles size={17}/>:<BriefcaseBusiness size={17}/>}
        {option==="creator"?"Creators":"Business"}</button>)}
    </div>
    {hasPro&&cardId&&!enabled?<div className="mb-5 rounded-xl border border-cyan-300/30 bg-cyan-300/5 p-4 text-sm">
-     This card does not currently have its {category} section enabled. <Link className="font-semibold text-cyan-200 underline" href={\`/app/edit?cardId=\${encodeURIComponent(cardId)}\`}>Configure card sections</Link> to use these tools.
+     This card does not currently have its {category} section enabled. <Link className="font-semibold text-cyan-200 underline" href={`/app/edit?cardId=${encodeURIComponent(cardId)}`}>Configure card sections</Link> to use these tools.
    </div>:null}
    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
      {tools.filter(tool=>tool.category===category).map(tool=><article key={tool.key}
-       className={\`flex flex-col rounded-2xl border border-white/15 bg-white/[0.035] p-5 \${!hasPro?"opacity-60":""}\`}>
+       className={`flex flex-col rounded-2xl border border-white/15 bg-white/[0.035] p-5 ${!hasPro?"opacity-60":""}`}>
        <div className="mb-3 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-400">
          <span>{category==="creator"?"Creator":"Business"} tool</span>{!hasPro?<LockKeyhole size={17} aria-label="Pro required"/>:null}
        </div>
@@ -84,8 +84,8 @@ export function CircleCardMyToolsClient({hasPro,cardId,businessEnabled,creatorEn
        <p className="mt-2 flex-1 text-sm text-slate-300">{tool.description}</p>
        {!hasPro?<Link className="mt-5 inline-block w-fit rounded-lg border border-amber-300/30 px-3 py-2 text-sm font-semibold" href="/pro?returnTo=%2Fapp%2Ftools">Unlock with Pro</Link>:
        !cardId?<Link className="mt-5 inline-block w-fit rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold" href="/app/onboarding">Create my card</Link>:
-       !enabled?<Link className="mt-5 inline-block w-fit rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold" href={\`/app/edit?cardId=\${encodeURIComponent(cardId)}\`}>Set up section</Link>:
-       <Link className="mt-5 inline-block w-fit rounded-lg border border-cyan-300/40 px-3 py-2 text-sm font-semibold text-cyan-200" href={\`\${tool.href}?cardId=\${encodeURIComponent(cardId)}\`}>Open tool</Link>}
+       !enabled?<Link className="mt-5 inline-block w-fit rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold" href={`/app/edit?cardId=${encodeURIComponent(cardId)}`}>Set up section</Link>:
+       <Link className="mt-5 inline-block w-fit rounded-lg border border-cyan-300/40 px-3 py-2 text-sm font-semibold text-cyan-200" href={`${tool.href}?cardId=${encodeURIComponent(cardId)}`}>Open tool</Link>}
      </article>)}
    </div>
  </section>;
