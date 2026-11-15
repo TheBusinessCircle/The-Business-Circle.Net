@@ -1,0 +1,80 @@
+.experience {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  min-height: min(44rem, 82svh);
+  padding: 2rem 1rem;
+  background: radial-gradient(ellipse at center, #153463, #080f1e 65%);
+  color: #fcf8ef;
+  text-align: center;
+}
+
+.experience h1 {
+  margin: 0;
+  font-family: var(--font-sora, system-ui), sans-serif;
+  font-size: clamp(2.6rem, 8vw, 5rem);
+  font-weight: 750;
+  letter-spacing: -.07em;
+  line-height: 1.05;
+}
+
+.experience h1 span, .hint span, .skip span { color: #f7cc73; }
+.name { margin: .7rem 0 0; color: #d4dcef; font-size: clamp(1rem, 3vw, 1.3rem); }
+
+.stage {
+  display: grid;
+  place-items: center;
+  position: relative;
+  width: min(77vw, 21rem);
+  aspect-ratio: 1;
+  margin: 1rem 0 .5rem;
+  perspective: 950px;
+}
+
+.stage::before, .stage::after {
+  position: absolute;
+  border: 1px solid #f7cc733b;
+  border-radius: 50%;
+  pointer-events: none;
+  content: "";
+  inset: 5%;
+}
+
+.stage::after { inset: 1%; border-style: dashed; border-color: #9eaacb38; }
+
+.trigger {
+  position: relative;
+  width: 82%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  touch-action: pan-y pinch-zoom;
+  cursor: grab;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.trigger:active { cursor: grabbing; }
+.trigger:focus-visible, .skip:focus-visible { outline: 2px solid #f7cc73; outline-offset: 5px; }
+.coin { position: absolute; inset: 0; transform-style: preserve-3d; }
+
+.face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 50%;
+  border: clamp(4px, 1.6vw, 9px) solid #e1ad4c;
+  background: #0a1020;
+  box-shadow: 0 0 30px #2770ff66, 0 12px 30px #0307108f;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  pointer-events: none;
+}
+
+.front { transform: translateZ(3px); }
+.back { transform: rotateY(180deg) translateZ(3px); }
+.portrait { object-fit: cover; }
+.mark { object-fit: cover; transform: scale(1.44); }
+.hint, .skip { margin: 0; color: #c4cfe7; font-size: .9rem; font-weight: 600; }
+.hint span, .skip span { margin-inline: .25em; }
+.skip { display: inline-flex; align-items: center; min-height: 2.75rem; margin-top: .55rem; }
+.skip:hover { color: #f7cc73; }
