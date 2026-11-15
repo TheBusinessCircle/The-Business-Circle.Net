@@ -124,10 +124,11 @@ def patch_nginx(source, url, css_path):
 
     body += f"{indent}    sub_filter {HEAD} '<link rel=\"stylesheet\" href=\"{url}\"></head>';\n"
 
-    maps = f'''# Desktop stylesheet is added only to public profile HTML responses.
-map "$request_method:$uri" {HEAD} {{
+    maps = f'''# Load the scoped profile CSS on app documents so client navigation can reuse it.
+map "$request_method:$uri:$http_accept" {HEAD} {{
     default "";
-    ~^(GET|HEAD):/card/[^/]+/?$ "</head>";
+    "~*^(GET|HEAD):[^:]*:.*text/html" "</head>";
+    "~^(GET|HEAD):/card/[^/:]+/?:" "</head>";
 }}
 map {HEAD} {ENCODING} {{
     default {default_encoding};
@@ -149,7 +150,7 @@ def response(path):
     with tempfile.TemporaryDirectory(prefix="cc-desktop-probe-") as folder:
         body = Path(folder) / "body"
         meta = run("curl", "-sS", "--compressed", "--max-time", "15", "--retry", "1",
-                   "-H", "Cache-Control: no-cache", "--output", str(body), "--write-out",
+                   "-H", "Cache-Control: no-cache", "-H", "Accept: text/html, text/css", "--output", str(body), "--write-out",
                    "%{http_code} %{content_type}", f"https://{HOST}{path}").strip()
         status, _, media = meta.partition(" ")
         if status != "200":
@@ -162,16 +163,15 @@ def verify(url, css):
     if not media.lower().startswith("text/css") or content != css:
         raise ValueError("The public stylesheet response did not match the verified release.")
     marker = f'<link rel="stylesheet" href="{url}">'.encode()
-    for path in ("/card/trevor-newton", "/card/trevor-newton-ss", "/card/hucknall-circle-hub",
+    for path in ("/", "/card/trevor-newton", "/card/trevor-newton-ss", "/card/hucknall-circle-hub",
                  "/card/hucknall-circle-hub?reveal=spin"):
         media, content = response(path)
         if not media.lower().startswith("text/html") or content.count(marker) != 1:
             raise ValueError(f"The desktop stylesheet did not load at {path}.")
 
-    for path in ("/", "/spin"):
-        _, content = response(path)
-        if marker in content:
-            raise ValueError(f"The profile stylesheet also reached {path}.")
+    _, content = response("/spin")
+    if marker in content:
+        raise ValueError("The profile stylesheet also reached the standalone spin page.")
 
 
 def deploy(ref):
