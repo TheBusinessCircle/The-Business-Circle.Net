@@ -1,0 +1,67 @@
+/* Desktop public profiles. The canvas follows the viewport; each template keeps its own internal layout. */
+@media (min-width: 64rem) {
+  body[data-runtime-brand="circle-card"]:has(
+    #circle-card-main > :is([data-circle-card-surface], [data-liquid-version], [data-hucknall-presentation], [data-bespoke-card])
+  ),
+  body[data-runtime-brand="circle-card"]:has(#circle-card-main > section > #member-spin-title) {
+    max-width: none;
+  }
+
+  #circle-card-main {
+    --profile-desktop-gutter: clamp(1.5rem, 3vw, 4rem);
+  }
+
+  #circle-card-main > [data-circle-card-surface] > .public-page-stack {
+    width: 100%;
+    max-width: none;
+    padding-inline: var(--profile-desktop-gutter);
+  }
+
+  #circle-card-main > [data-circle-card-surface] > .public-page-stack > main,
+  #circle-card-main > [data-circle-card-surface] > .public-page-stack > section:has(> main > article[aria-labelledby="circle-card-profile-title"]) {
+    max-width: none;
+  }
+
+  #circle-card-main > [data-liquid-version] {
+    padding-inline: var(--profile-desktop-gutter);
+  }
+
+  #circle-card-main > [data-liquid-version] > :has(> [data-liquid-hero]) {
+    width: 100%;
+    max-width: none;
+  }
+
+  #circle-card-main > [data-hucknall-presentation="photographic"],
+  #circle-card-main > [data-hucknall-presentation="photographic"] + div {
+    width: 100%;
+    max-width: none;
+    padding-inline: var(--profile-desktop-gutter);
+  }
+
+  #circle-card-main > [data-hucknall-presentation="photographic"] > [aria-label="Welcome to Hucknall"] {
+    margin-inline: calc(-1 * var(--profile-desktop-gutter));
+    border-inline-width: 0;
+    border-radius: 0;
+  }
+
+  #circle-card-main > [data-hucknall-presentation="photographic"] > [aria-label="Welcome to Hucknall"] > div:last-child {
+    padding-inline: clamp(2rem, 5vw, 6rem);
+  }
+
+  #circle-card-main > [data-bespoke-card] {
+    padding-inline: var(--profile-desktop-gutter);
+  }
+
+  #circle-card-main > [data-bespoke-card] > div:first-child {
+    width: 100%;
+    max-width: none;
+  }
+
+  #circle-card-main > section:has(> #member-spin-title) {
+    min-height: calc(100svh - 4.8125rem);
+  }
+
+  #circle-card-main > section:has(> #member-spin-title) > div:has(> a[aria-label^="Spin to reveal"]) {
+    width: min(52svh, 32rem, 55vw);
+  }
+}
