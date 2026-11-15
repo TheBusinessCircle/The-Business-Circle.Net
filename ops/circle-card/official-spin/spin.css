@@ -1,0 +1,302 @@
+:root {
+  color-scheme: dark;
+  --ink: #080d19;
+  --white: #fcf8ef;
+  --muted: #b9c3d8;
+  --gold: #f7cc73;
+  font-family: Inter, system-ui, sans-serif;
+  background: var(--ink);
+  color: var(--white);
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100svh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background:
+    radial-gradient(ellipse at 50% 48%, #153566 0%, #0c1b34 36%, transparent 65%),
+    radial-gradient(ellipse at 50% 100%, #101c31 0%, #080d19 56%);
+}
+
+a { color: inherit; text-decoration: none; }
+button { color: inherit; font: inherit; }
+a:focus-visible, button:focus-visible { outline: 2px solid #fbe3ab; outline-offset: 5px; }
+
+.masthead, .footer {
+  width: min(100%, 88rem);
+  margin-inline: auto;
+  padding-inline: max(clamp(1rem, 4.5vw, 4rem), env(safe-area-inset-left), env(safe-area-inset-right));
+}
+
+.masthead {
+  min-height: 4.75rem;
+  padding-top: env(safe-area-inset-top);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  font-weight: 700;
+  letter-spacing: -.035em;
+  white-space: nowrap;
+}
+
+.brand-mark, .card-avatar {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #0c1426;
+}
+
+.brand-mark { width: 2.25rem; height: 2.25rem; }
+.brand-mark img, .card-avatar img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.42); }
+
+.site-link {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  min-height: 2.75rem;
+  color: var(--muted);
+  font-size: .85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.site-link span, .start-link span, .card-links span { color: var(--gold); }
+.site-link:hover, .start-link:hover, .footer a:hover, .card-links a:hover, .replay:hover { color: var(--gold); }
+
+.experience {
+  --direction: 1;
+  width: min(100%, 36rem);
+  margin-inline: auto;
+  padding: 1.05rem 1rem;
+  display: grid;
+  align-items: center;
+  text-align: center;
+}
+
+.experience[data-direction="left"] { --direction: -1; }
+
+.intro h1 {
+  margin: 0;
+  font-size: clamp(2.85rem, 9vw, 5.5rem);
+  letter-spacing: -.075em;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.intro h1 span { color: var(--gold); }
+
+.scene {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(100%, 76vw, clamp(15rem, 46svh, 24.25rem));
+  aspect-ratio: 1;
+  margin: clamp(.6rem, 3svh, 1.8rem) auto .3rem;
+  perspective: 950px;
+  isolation: isolate;
+}
+
+.orbit {
+  position: absolute;
+  border: 1px solid #9eaacb26;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.orbit-outer { inset: 1%; border-style: dashed; transform: rotate(-18deg); }
+.orbit-inner { inset: 5%; border-color: #f7cc7338; }
+
+.coin-button, .coin-fallback {
+  width: 83%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 0;
+  background: #0c1426;
+  box-shadow: 0 0 50px #2468ff36, 0 12px 35px #02050e94;
+}
+
+.coin-button {
+  position: relative;
+  padding: 0;
+  cursor: grab;
+  touch-action: pan-y pinch-zoom;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  transition: box-shadow 180ms ease, background 180ms ease;
+}
+
+.coin-button:active { cursor: grabbing; }
+.coin-button:hover { box-shadow: 0 0 60px #2468ff6e, 0 12px 35px #02050e94; }
+.coin-button[aria-disabled="true"] { background: transparent; box-shadow: none; cursor: default; }
+.coin-fallback { overflow: hidden; }
+.coin-fallback img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.44); }
+
+.coin {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+.coin-face, .coin-edge { position: absolute; inset: 0; border-radius: inherit; }
+.coin-face {
+  border-radius: 50%;
+  background: #0b1428 url('/branding/circle-card-logo.jpg') center 48% / 144% no-repeat;
+  box-shadow: inset 0 0 0 1px #ffe4a574;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.coin-front { transform: translateZ(3px); }
+.coin-back { transform: rotateY(180deg) translateZ(3px); }
+.coin-edge {
+  border-radius: 50%;
+  border: 3px solid #a46822;
+  box-shadow: 0 0 5px #f7cc7380;
+  pointer-events: none;
+}
+
+[data-phase="spinning"] .coin { animation: coin-spin 1300ms cubic-bezier(.31,.06,.44,1) both; }
+
+@keyframes coin-spin {
+  0% { transform: rotateY(0); }
+  82% { opacity: 1; }
+  100% { transform: rotateY(calc(810deg * var(--direction))); opacity: 0; }
+}
+
+.instruction, .start-link {
+  font-size: .9rem;
+  color: var(--muted);
+  font-weight: 550;
+}
+
+.instruction { margin: 0 auto .8rem; }
+.instruction span { margin-right: .35rem; color: var(--gold); font-size: 1.15em; }
+.start-link { display: inline-flex; align-items: center; gap: .45rem; min-height: 2.75rem; }
+
+.reveal { perspective: 1050px; }
+
+.official-card {
+  max-width: 27rem;
+  margin-inline: auto;
+  overflow: hidden;
+  border: 1px solid #c38f4e88;
+  border-radius: 1.55rem;
+  background: linear-gradient(165deg, #141e36, #0b1120 68%);
+  box-shadow: 0 26px 85px #0008, 0 0 65px #2e6fff26;
+  animation: card-turn 520ms cubic-bezier(.2,.72,.25,1) both;
+}
+
+@keyframes card-turn {
+  from { opacity: .4; transform: rotateY(calc(-87deg * var(--direction))) scale(.87); }
+  to { opacity: 1; transform: rotateY(0) scale(1); }
+}
+
+.card-cover {
+  height: clamp(5rem, 14svh, 8rem);
+  background:
+    radial-gradient(ellipse at 55% 100%, #1668e7 0%, transparent 58%),
+    repeating-linear-gradient(132deg, #f4c5742f 0 1px, #141a3200 1px 13px),
+    linear-gradient(120deg, #172d59 20%, #09152f 53%, #78501f 140%);
+  border-bottom: 1px solid #f2c06a40;
+}
+
+.card-body { position: relative; padding: 0 clamp(1rem, 5vw, 2rem) 1.35rem; }
+.card-avatar {
+  position: relative;
+  width: 4.9rem;
+  height: 4.9rem;
+  margin: -2.5rem auto 0;
+  border: 2px solid var(--gold);
+  box-shadow: 0 4px 16px #0008;
+}
+
+.card-label {
+  margin: .85rem 0 .35rem;
+  color: var(--gold);
+  text-transform: uppercase;
+  letter-spacing: .15em;
+  font-size: .68rem;
+  font-weight: 750;
+}
+
+.card-body h1 {
+  margin: 0;
+  font-size: clamp(2rem, 7vw, 3rem);
+  font-weight: 750;
+  letter-spacing: -.07em;
+  line-height: 1.12;
+  outline: none;
+}
+
+.card-description {
+  margin: .65rem auto 1.15rem;
+  max-width: 29ch;
+  color: var(--muted);
+  font-size: .925rem;
+  line-height: 1.55;
+}
+
+.card-primary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  min-height: 3.25rem;
+  padding: .75rem 1rem;
+  border: 1px solid #ffe9af;
+  border-radius: .8rem;
+  color: #241604;
+  background: linear-gradient(115deg, #fae0a2, #e9aa48);
+  font-size: .95rem;
+  font-weight: 750;
+}
+
+.card-primary:hover { background: #ffe4a0; }
+.card-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; margin-top: .55rem; }
+.card-links a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .3rem;
+  min-height: 2.75rem;
+  padding: .45rem .6rem;
+  border: 1px solid #aabfde42;
+  border-radius: .65rem;
+  color: #e3eafb;
+  text-align: left;
+  font-size: .8rem;
+  line-height: 1.2;
+}
+
+.replay {
+  margin-top: .65rem;
+  min-height: 2.75rem;
+  padding: .4rem .8rem;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: .9rem;
+}
+
+.replay span { margin-right: .25rem; color: var(--gold); }
+.footer { text-align: center; padding-bottom: max(.36rem, env(safe-area-inset-bottom)); }
+.footer a { display: inline-grid; place-items: center; min-height: 2.75rem; padding-inline: .7rem; color: var(--muted); font-size: .78rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-phase="spinning"] .coin, .official-card { animation: none; }
+  .coin-button { transition: none; }
+}
