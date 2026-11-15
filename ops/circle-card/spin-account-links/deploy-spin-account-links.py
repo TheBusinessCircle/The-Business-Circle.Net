@@ -12,6 +12,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import time
 
 BASE = Path("/var/www/circle-card-official-spin/b61506e84683369c617d")
 ROOT = BASE.parent
@@ -158,16 +159,35 @@ def local_probe(path):
     ])
 
 
-def verify(files):
-    for name, uri in (
+def verify(files, retries=1):
+    # Nginx reload is asynchronous: the first request can still reach an old worker.
+    # Require ALL three assets to match exactly before considering the release live.
+    endpoints = (
         ("index.html", "/spin"),
         ("spin.css", "/spin-assets/spin.css"),
         ("spin.js", "/spin-assets/spin.js"),
-    ):
-        response = local_probe(uri)
-        if response != files[name]:
-            raise RuntimeError(f"Origin verification mismatch for {uri}.")
-    print("VERIFIED: Origin serves the exact new HTML, CSS and JavaScript.", flush=True)
+    )
+    failures = []
+    for attempt in range(retries):
+        failures = []
+        try:
+            for name, uri in endpoints:
+                response = local_probe(uri)
+                expected = files[name]
+                if response != expected:
+                    failures.append(
+                        f"{uri} expected {hashlib.sha256(expected).hexdigest()[:16]}"
+                        f" ({len(expected)} bytes), received {hashlib.sha256(response).hexdigest()[:16]}"
+                        f" ({len(response)} bytes)"
+                    )
+        except subprocess.CalledProcessError as error:
+            failures.append(f"Origin request failed: {error}")
+        if not failures:
+            print("VERIFIED: Origin serves exact expected Spin HTML, CSS and JavaScript.", flush=True)
+            return
+        if attempt + 1 < retries:
+            time.sleep(0.4)
+    raise RuntimeError("Origin verification mismatch after retries: " + "; ".join(failures))
 
 
 def reload_nginx():
@@ -206,7 +226,7 @@ def main():
         try:
             reload_nginx()
             original = {name: (BASE / name).read_bytes() for name in FILES}
-            verify(original)
+            verify(original, retries=20)
         except Exception:
             atomic_write(SNIPPET, old)
             reload_nginx()
@@ -215,7 +235,7 @@ def main():
         return
 
     if old.count(destination_dir) == 3:
-        verify(files)
+        verify(files, retries=8)
         print("ALREADY DEPLOYED: Spin account links are present.", flush=True)
         return
     if old.count(original_dir) != 3:
@@ -250,7 +270,7 @@ def main():
     atomic_write(SNIPPET, updated)
     try:
         reload_nginx()
-        verify(files)
+        verify(files, retries=20)
     except Exception as error:
         if SNIPPET.read_bytes() == updated:
             atomic_write(SNIPPET, old)
