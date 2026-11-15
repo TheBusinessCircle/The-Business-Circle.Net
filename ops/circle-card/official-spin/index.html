@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#080d19">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+  <title>Give it a spin | Circle Card</title>
+  <meta name="description" content="Give the gold coin a spin to reveal the official Circle Card. Create your own free digital business card and link in bio.">
+  <link rel="canonical" href="https://circlecard.co.uk/spin">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Circle Card">
+  <meta property="og:title" content="Circle Card · Give it a spin">
+  <meta property="og:description" content="Spin the gold coin to reveal the official Circle Card.">
+  <meta property="og:url" content="https://circlecard.co.uk/spin">
+  <meta property="og:image" content="https://circlecard.co.uk/branding/circle-card-logo.jpg">
+  <meta property="og:image:alt" content="The gold Circle Card coin on a dark blue background">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="/circle-card-icon-192.png">
+  <link rel="stylesheet" href="/spin-assets/spin.css">
+  <script src="/spin-assets/spin.js" defer></script>
+</head>
+<body>
+  <header class="masthead">
+    <a class="brand" href="https://circlecard.co.uk/" aria-label="Circle Card home">
+      <span class="brand-mark" aria-hidden="true"><img src="/branding/circle-card-logo.jpg" alt="" width="36" height="36"></span>
+      <span>Circle Card</span>
+    </a>
+    <a class="site-link" href="https://circlecard.co.uk/">Visit website <span aria-hidden="true">↗</span></a>
+  </header>
+
+  <main class="experience" data-phase="intro">
+    <section class="intro" aria-labelledby="spin-title">
+      <h1 id="spin-title">Give it a spin<span>.</span></h1>
+      <div class="scene">
+        <div class="orbit orbit-outer" aria-hidden="true"></div>
+        <div class="orbit orbit-inner" aria-hidden="true"></div>
+        <div class="coin-fallback" aria-hidden="true">
+          <img src="/branding/circle-card-logo.jpg" alt="" width="352" height="352" fetchpriority="high">
+        </div>
+        <button class="coin-button" type="button" aria-label="Spin the logo to reveal the official Circle Card" aria-controls="official-card" hidden>
+          <span class="coin" aria-hidden="true">
+            <span class="coin-face coin-front"></span>
+            <span class="coin-face coin-back"></span>
+            <span class="coin-edge"></span>
+          </span>
+        </button>
+      </div>
+      <p class="instruction" hidden><span aria-hidden="true">↔</span> Tap or swipe the logo</p>
+      <a class="start-link" href="https://circlecard.co.uk/register">Create your free Circle Card <span aria-hidden="true">→</span></a>
+    </section>
+
+    <section class="reveal" aria-labelledby="official-card-heading" hidden>
+      <article class="official-card" id="official-card">
+        <div class="card-cover" aria-hidden="true"></div>
+        <div class="card-body">
+          <div class="card-avatar" aria-hidden="true"><img src="/branding/circle-card-logo.jpg" alt="" width="88" height="88"></div>
+          <p class="card-label">Official Circle Card</p>
+          <h1 id="official-card-heading" tabindex="-1">Circle Card</h1>
+          <p class="card-description">A digital business card and link in bio in one. Share your links, show your work and make it easy to connect.</p>
+          <a class="card-primary" href="https://circlecard.co.uk/register">Create my free card <span aria-hidden="true">→</span></a>
+          <div class="card-links">
+            <a href="https://circlecard.co.uk/">Explore the site <span aria-hidden="true">↗</span></a>
+            <a href="https://circlecard.co.uk/demo/business">Try a live demo <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+      </article>
+      <button class="replay" type="button"><span aria-hidden="true">↻</span> Spin again</button>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <a href="https://circlecard.co.uk/privacy-policy">Privacy</a>
+  </footer>
+</body>
+</html>
