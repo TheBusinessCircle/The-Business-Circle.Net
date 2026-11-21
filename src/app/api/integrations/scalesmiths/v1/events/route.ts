@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/prisma";
 import { parseScaleSmithsEvent } from "@/lib/circle-card/scalesmiths/contract";
 import { verifyScaleSmithsWebhookSignature } from "@/lib/circle-card/scalesmiths/signatures";
 import {
@@ -65,8 +67,24 @@ export async function POST(request: Request) {
     return response({ error: "invalid_event_schema" }, 400);
   }
 
+  // A forged future occurred_at could otherwise block legitimate later events.
+  if (new Date(event.occurred_at).getTime() > Date.now() + 300_000) {
+    return response({ error: "event_timestamp_in_future" }, 400);
+  }
+
   try {
     const state = await processVerifiedScaleSmithsEvent(event, rawBody);
+    // Revalidate on duplicates too, so a delivery retry repairs a prior cache
+    // invalidation failure after the event transaction was already committed.
+    if (state !== "stale") {
+      const membership = await prisma.circleCardScaleSmithsPartner.findUnique({
+        where: { externalPartnerId: event.partner_id },
+        select: { partnerCard: { select: { slug: true } } }
+      });
+      if (membership?.partnerCard?.slug) revalidatePath(`/card/${membership.partnerCard.slug}`);
+      revalidatePath("/dashboard/circle-card/scalesmiths");
+      revalidatePath("/dashboard/circle-card");
+    }
     return response({ event_id: event.event_id, state }, 202);
   } catch (error) {
     if (error instanceof ScaleSmithsEventConflict) {
