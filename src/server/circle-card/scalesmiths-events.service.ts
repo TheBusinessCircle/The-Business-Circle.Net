@@ -159,9 +159,11 @@ async function applyEvent(tx: Prisma.TransactionClient, event: ScaleSmithsEvent,
         await activatePartner(tx, member, event.data.display_name, occurredAt);
         return "applied";
       case "partner.updated":
+        // Cosmetic changes must never outrank a delayed suspension/exit event.
+        if (member.status === "ENDED" || member.status === "SUSPENDED") return "stale";
         await tx.circleCardScaleSmithsPartner.update({
           where: { id: member.id },
-          data: { ...(event.data.display_name ? { displayName: event.data.display_name } : {}), lastSourceEventAt: occurredAt }
+          data: { ...(event.data.display_name ? { displayName: event.data.display_name } : {}) }
         });
         return "applied";
       case "partner.suspended":
@@ -183,13 +185,13 @@ async function applyEvent(tx: Prisma.TransactionClient, event: ScaleSmithsEvent,
     });
     if (existing && isNotAfter(occurredAt, existing.lastSourceEventAt)) return "stale";
     if (existing) {
+      // Internal acquisition updates must never delay a later-arriving consent
+      // withdrawal or silently change an already approved public claim.
+      if (existing.publicationStatus !== "INTERNAL") return "stale";
       await tx.circleCardScaleSmithsPortfolio.update({
         where: { id: existing.id },
         data: {
-          // A public claim must never be altered by an unapproved "client.updated" event.
-          ...((existing.publicationStatus === "INTERNAL" && data.business_name)
-            ? { businessName: data.business_name }
-            : {}),
+          ...(data.business_name ? { businessName: data.business_name } : {}),
           lastSourceEventAt: occurredAt
         }
       });
@@ -217,7 +219,12 @@ async function applyEvent(tx: Prisma.TransactionClient, event: ScaleSmithsEvent,
         }
       }
     });
-    if (prior && isNotAfter(occurredAt, prior.lastSourceEventAt)) return "stale";
+    // Consent revocation takes precedence over unrelated newer client events.
+    // Only a later *new* consent can reauthorise publication.
+    if (prior?.consentWithdrawnAt && isNotAfter(occurredAt, prior.consentWithdrawnAt)) return "stale";
+    if (prior?.clientConsentAt && occurredAt < prior.clientConsentAt) return "stale";
+    const maxSourceEventAt = prior?.lastSourceEventAt &&
+      prior.lastSourceEventAt > occurredAt ? prior.lastSourceEventAt : occurredAt;
 
     await tx.circleCardScaleSmithsPortfolio.upsert({
       where: {
@@ -232,12 +239,12 @@ async function applyEvent(tx: Prisma.TransactionClient, event: ScaleSmithsEvent,
         businessName: "Withdrawn case study",
         publicationStatus: "WITHDRAWN",
         consentWithdrawnAt: occurredAt,
-        lastSourceEventAt: occurredAt
+        lastSourceEventAt: maxSourceEventAt
       },
       update: {
         publicationStatus: "WITHDRAWN",
         consentWithdrawnAt: occurredAt,
-        lastSourceEventAt: occurredAt,
+        lastSourceEventAt: maxSourceEventAt,
         publishedAt: null
       }
     });
