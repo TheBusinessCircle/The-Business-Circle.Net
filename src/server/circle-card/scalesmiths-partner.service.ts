@@ -48,13 +48,13 @@ export async function activateVerifiedScaleSmithsPartner(input: {
       partnerCardId = card.id;
     } else {
       const existingCard = await tx.circleCard.findFirst({
-        where: { id: partnerCardId, userId: member.userId, archivedAt: null },
+        where: { id: partnerCardId, userId: member.userId },
         select: { id: true }
       });
       if (!existingCard) throw new Error("Assigned partner card is missing or belongs to another account");
       await tx.circleCard.update({
         where: { id: partnerCardId },
-        data: { isPublished: true, showOnPublicProfile: true, fullName: displayName, ...brand }
+        data: { isPublished: true, archivedAt: null, showOnPublicProfile: true, fullName: displayName, ...brand }
       });
     }
 
@@ -113,7 +113,7 @@ export async function deactivateScaleSmithsPartner(input: {
       await tx.circleCard.updateMany({
         where: { id: member.partnerCardId, userId: member.userId },
         data: {
-          isPublished: false, isDefaultCard: false, isPrimary: false,
+          isPublished: false, archivedAt: input.effectiveAt, isDefaultCard: false, isPrimary: false,
           showOnPublicProfile: false, showInDiscover: false, discoverOptedInAt: null
         }
       });
