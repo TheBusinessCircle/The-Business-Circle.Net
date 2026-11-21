@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { setCircleCardPublicProfileVisibilityAction, updateScaleSmithsPartnerIdentityAction } from "@/actions/scalesmiths-circle-card.actions";
+import { ScaleSmithsPartnerClaimForm } from "@/components/circle-card/scalesmiths-partner-link-forms";
 import { canShowScaleSmithsPortfolioItem, hasActiveScaleSmithsSponsorship } from "@/lib/circle-card/scalesmiths/policy";
 import { prisma } from "@/lib/prisma";
 import { requireCircleCardUser } from "@/lib/session";
@@ -69,6 +70,18 @@ export default async function ScaleSmithsPartnerWorkspace() {
           </Link>
         ) : null}
       </header>
+
+      {!membership ? (
+        <section aria-labelledby="link-partner-title" className="rounded-3xl border border-primary/20 bg-card/75 p-6">
+          <h2 id="link-partner-title" className="text-xl font-bold">Connect your ScaleSmiths identity</h2>
+          <p className="mt-2 text-sm text-muted">
+            Register your own free Circle Card first. Ask ScaleSmiths for your private account-link token,
+            then claim it here while signed into the correct Circle Card account.
+            Your personal card remains yours and a separate branded card will be assigned after approval.
+          </p>
+          <ScaleSmithsPartnerClaimForm />
+        </section>
+      ) : null}
 
       <section aria-labelledby="card-selector-title" className="rounded-3xl border border-silver/20 bg-card/70 p-6">
         <h2 id="card-selector-title" className="text-xl font-bold">Cards on your public profile</h2>
