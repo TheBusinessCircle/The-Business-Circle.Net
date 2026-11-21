@@ -171,6 +171,7 @@ function circleCardAccessLimits(plan: CircleCardPlanKey): CircleCardAccessLimits
 
 export function buildCircleCardAccessSnapshot(input: {
   entitlement: CircleCardEntitlement;
+  extraCircleCardSlots?: number;
   lifecycleStatus?: CircleCardCustomerLifecycleStatus;
   accessEndsAt?: Date | null;
   effectiveAccessEndsAt?: Date | null;
@@ -198,7 +199,11 @@ export function buildCircleCardAccessSnapshot(input: {
     hasBillingRelationship: input.hasBillingRelationship ?? false,
     subscriptionStatus: input.subscriptionStatus ?? null,
     isInRecoveryGrace: input.isInRecoveryGrace ?? false,
-    limits: circleCardAccessLimits(input.entitlement.plan),
+    limits: {
+      ...circleCardAccessLimits(input.entitlement.plan),
+      circleCards: circleCardAccessLimits(input.entitlement.plan).circleCards +
+        (input.extraCircleCardSlots === 1 ? 1 : 0)
+    },
     capabilities: getCircleCardLaunchCapabilities(input.entitlement.plan),
     entitlement: input.entitlement
   };
