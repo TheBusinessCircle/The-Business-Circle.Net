@@ -38,13 +38,13 @@ Status: **isolated development branch / NOT deployed / NOT connected** (21 Nov 2
 ## Missing before connection (not claimed built)
 
 1. Ratify OpenAPI event schemas, entity revisions/ordering and admin ownership claims with Rhys/Jarvis.
-2. Finish founder-only account-linking challenge issue/consume flow and central ScaleSmiths template/card provisioning.
-3. Implement a **separately guarded, partner-editable personal-details form**. Generic card editing must remain forbidden for managed ScaleSmiths cards.
+2. **Staged, not activated:** a founder-only internal single-use account-link challenge service, separate branded-card provisioning/offboarding and scoped personal-details editor now exist. Add fully authenticated UI/callbacks, brand assets, operator audit log and integration tests before use.
+3. Audit all possible card mutation APIs for centrally managed fields. Generic Circle Card save/visibility actions are guarded, but a full write-surface review is still required.
 4. Add authenticated, rate-limited, signed server-to-server event receiver with durable outbox/inbox retries, strict scope validation, idempotent transaction processing and observability; keep disabled by default.
-5. Wire `showOnPublicProfile` to the existing card-picker and owner landing-selection logic, not just the new staging workspace; preserve direct URL `isPublished` behaviour.
-6. Integrate the locally-approved portfolio with client website thumbnail/logo rendering, clickable case study and client website links, consent revocation and event ordering.
-7. Confirm entitlement/revenue-reporting logic separates ScaleSmiths sponsored Pro from paying subscribers and Circle Card referral commissions.
-8. Run `npx prisma validate`, `npx prisma migrate diff`, `npx prisma migrate deploy` in disposable staging, `npm test`, `npm run build`, multi-tenant security tests, manual mobile UX review and backup/rollback rehearsal. These have not been run in the current environment.
+5. Existing public card switcher now honours `showOnPublicProfile` behind the preview flag, without affecting direct URL publication; test all chooser/primary-card combinations and offboarding.
+6. Add client website thumbnails/logos, consent revocation event processing, and entity revision/order enforcement. Two safe outbound links are staged.
+7. Verify finance reports distinguish ScaleSmiths sponsored Pro from paying subscribers and Circle Card referral commissions.
+8. GitHub CI is configured to validate Prisma migration, run tests and build for this PR. Review actual CI outcome, then stage multi-tenant security tests, manual mobile UX review and backup/rollback rehearsal before deployment.
 
 ## Manual staging acceptance examples
 
