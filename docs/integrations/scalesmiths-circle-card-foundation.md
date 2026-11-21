@@ -8,20 +8,25 @@ Status: **isolated development branch / NOT deployed / NOT connected** (21 Nov 2
 - The existing Circle Card Pro billing and access engine handles paid Stripe subscriptions, BCN included Pro, grandfathered grants and ambassador access.
 - The new work does not replace this architecture, existing authentication, founder cards, billing or public card routes.
 
-## Added in this branch
+## Implemented on the draft branch (not deployed)
 
-- Additive Prisma models and a migration for verified ScaleSmiths account linkage, partner/card IDs, independent sponsored Pro dates, per-partner client portfolio records, link-challenge hashes and deduplicated event receipts.
-- `CircleCard.showOnPublicProfile`, separate from `isPublished`: allows a card to disappear from account-level card selection while its direct URL can remain published.
-- `/dashboard/circle-card/scalesmiths`: staging-only partner card management and consent-gated portfolio view.
-- Staging-only `ScaleSmithsPublicPortfolio` display on `/card/[slug]`, only if the card belongs to an active partner and the project has client consent, founder approval, delivered-work evidence and PUBLISHED status.
-- Strict Zod v1 event contract, HMAC SHA-256 timestamp verification and tests for publication, access and Pro preservation.
-- A new sponsored Pro entitlement source and lifecycle, **independent of Stripe**, controlled by a second explicit feature flag.
-- A defensive block on generic managed-partner-card changes. A dedicated scoped editor must be completed before partner personalised edits become available.
+- Additive Prisma models/migration for verified partner account linking, one partner-owned ScaleSmiths card, sponsorship dates, public portfolio records, unique client attribution, immutable event receipts and a centrally managed company brand template.
+- Scoped staging partner dashboard with personal-card selector toggle, approved-field partner identity editor and a consent-gated client portfolio.
+- Founder-admin staging page for choosing an exact Circle Card user ID, issuing one-time account-link claims and editing central brand information. Signed-in partners claim their own link token before backend approval.
+- Account-link token cryptography (256-bit random token, SHA-256 hash storage, 10-minute expiry, single-use transactional consume), no email auto-matching.
+- Separate branded partner card issuance after the signed `partner.approved` event, and suspensions/exits that unpublish it without touching personal cards or Stripe payments.
+- Versioned Zod event schema, OpenAPI draft, HMAC signature validation, body-size/time guards, transactional idempotent webhook processing, stale-event rejection and cache revalidation.
+- Admin-updatable ScaleSmiths company tagline/logo/website fields propagated only to assigned partner cards; personal details remain partner owned.
+- A distinct sponsored Pro entitlement in the current billing resolver, with paid subscriptions taking precedence; the source is classified separately from revenue.
+- Public portfolio component requiring an ACTIVE approved partner card, client consent, founder approval, delivered work and PUBLISHED state. Links to case study and client's own website are HTTPS-only.
+- Focused automated tests for event schemas, signature verification, personal card selection, ownership, sponsorship separation and one-time link tokens.
+- GitHub draft PR #37. The production site and ScaleSmiths integrations have **not** been updated.
 
 ## Feature flags — all default OFF
 
 - `CIRCLE_CARD_SCALESMITHS_PREVIEW=true` enables only the staging partner workspace and public portfolio display and the branded-card generic-action guard.
 - `CIRCLE_CARD_SCALESMITHS_SPONSORSHIP_ENABLED=true` allows an ACTIVE verified membership with started (non-expired) sponsorship to confer Pro. No Stripe subscription is created or cancelled.
+- `CIRCLE_CARD_SCALESMITHS_WEBHOOKS_ENABLED=true` permits signed server-to-server events only when preview is also enabled and `SCALESMITHS_CIRCLE_CARD_WEBHOOK_SECRET` is configured with at least 32 bytes.
 - **Do not enable either flag until the migration is tested, scoped editing is complete, security review passes and Trev/Rhys explicitly approve.**
 
 ## Boundary and security decisions
@@ -35,16 +40,15 @@ Status: **isolated development branch / NOT deployed / NOT connected** (21 Nov 2
 - Public links are HTTPS only, with no embedded credentials. Do not include payment data, client messages, private project details or commission ledger entries in public payloads.
 - For signed events: verify raw body signature, timestamp and schema; use the event receipt table for idempotency; reject stale/out-of-order changes and log rejections. Event payload hash is for audit and replay analysis, not a signature replacement.
 
-## Missing before connection (not claimed built)
+## Remaining before connection or deployment
 
-1. Ratify OpenAPI event schemas, entity revisions/ordering and admin ownership claims with Rhys/Jarvis.
-2. **Staged, not activated:** a founder-only internal single-use account-link challenge service, separate branded-card provisioning/offboarding and scoped personal-details editor now exist. Add fully authenticated UI/callbacks, brand assets, operator audit log and integration tests before use.
-3. Audit all possible card mutation APIs for centrally managed fields. Generic Circle Card save/visibility actions are guarded, but a full write-surface review is still required.
-4. Add authenticated, rate-limited, signed server-to-server event receiver with durable outbox/inbox retries, strict scope validation, idempotent transaction processing and observability; keep disabled by default.
-5. Existing public card switcher now honours `showOnPublicProfile` behind the preview flag, without affecting direct URL publication; test all chooser/primary-card combinations and offboarding.
-6. Add client website thumbnails/logos, consent revocation event processing, and entity revision/order enforcement. Two safe outbound links are staged.
-7. Verify finance reports distinguish ScaleSmiths sponsored Pro from paying subscribers and Circle Card referral commissions.
-8. GitHub CI is configured to validate Prisma migration, run tests and build for this PR. Review actual CI outcome, then stage multi-tenant security tests, manual mobile UX review and backup/rollback rehearsal before deployment.
+1. Validate the whole branch with green GitHub CI: Prisma generate, clean PostgreSQL migration, Vitest, Next build and Next server-action build verifier. Older CI runs had issues and **a final green run is required**.
+2. Run role-based integration tests using a disposable staging database and independent accounts (free, paid Pro, partner, client, founder) including concurrent replays, consent withdrawal, disputes and offboarding. Verify actual hostname and latest Circle Card deployment branch.
+3. Review the draft API contract with Rhys/Jarvis, confirming partner/client IDs, event timestamps/revisions, signing key storage and whether existing ScaleSmiths data matches the nine event variants.
+4. Confirm the final ScaleSmiths logo asset, brand palette, wording, offer and case-study permissions. Do not create or reuse a founder card.
+5. Rehearse data migration, backup/restore, offboarding, failure scenarios and rollback in staging; review GDPR consent provenance, consent revocation latency, audit records and permitted claims.
+6. Add production-secret rotation, monitoring/alerting and sender retry/dead-letter procedures before cross-system traffic is enabled.
+7. Only after joint Trev/Rhys approval: deploy the validated migrations and application to staging, enable flags sequentially, exchange credentials securely, run a limited full end-to-end demo, then make a separate production go/no-go decision.
 
 ## Manual staging acceptance examples
 
