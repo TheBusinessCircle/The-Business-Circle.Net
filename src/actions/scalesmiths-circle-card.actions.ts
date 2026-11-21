@@ -6,6 +6,8 @@ import { normalizeSafeCircleCardImageUrl } from "@/lib/circle-card/image-url";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireCircleCardUser } from "@/lib/session";
+import { requireAdmin } from "@/lib/session";
+import { claimScaleSmithsPartnerLinkChallenge, issueScaleSmithsPartnerLinkChallenge } from "@/server/circle-card/scalesmiths-link.service";
 
 const workspacePath = "/dashboard/circle-card/scalesmiths";
 
@@ -86,4 +88,67 @@ export async function updateScaleSmithsPartnerIdentityAction(formData: FormData)
   });
   revalidatePath(workspacePath);
   revalidatePath(`/card/${ownedCard.slug}`);
+}
+
+export type ScaleSmithsAdminLinkState = {
+  message: string;
+  token: string | null;
+  expiresAt: string | null;
+};
+
+export async function createScaleSmithsPartnerLinkAction(
+  _previous: ScaleSmithsAdminLinkState,
+  formData: FormData
+): Promise<ScaleSmithsAdminLinkState> {
+  if (process.env.CIRCLE_CARD_SCALESMITHS_PREVIEW !== "true") notFound();
+  const admin = await requireAdmin();
+  const targetCircleCardUserId = formData.get("circleCardUserId");
+  const externalPartnerId = formData.get("externalPartnerId");
+  if (typeof targetCircleCardUserId !== "string" || targetCircleCardUserId.length > 128 ||
+      typeof externalPartnerId !== "string" || externalPartnerId.length > 128) {
+    return { message: "Enter the exact partner ID and Circle Card user ID.", token: null, expiresAt: null };
+  }
+  try {
+    const challenge = await issueScaleSmithsPartnerLinkChallenge({
+      adminUserId: admin.user.id,
+      targetCircleCardUserId,
+      externalPartnerId
+    });
+    return {
+      message: "One-time account-link token issued. Deliver it privately to the intended partner.",
+      token: challenge.token,
+      expiresAt: challenge.expiresAt.toISOString()
+    };
+  } catch {
+    return {
+      message: "Could not issue this link. Check the authenticated account and whether the partner is already linked.",
+      token: null, expiresAt: null
+    };
+  }
+}
+
+export type ScaleSmithsClaimLinkState = { message: string; linked: boolean };
+
+export async function claimScaleSmithsPartnerLinkAction(
+  _previous: ScaleSmithsClaimLinkState,
+  formData: FormData
+): Promise<ScaleSmithsClaimLinkState> {
+  if (process.env.CIRCLE_CARD_SCALESMITHS_PREVIEW !== "true") notFound();
+  const session = await requireCircleCardUser();
+  const externalPartnerId = formData.get("externalPartnerId");
+  const token = formData.get("token");
+  if (typeof externalPartnerId !== "string" || typeof token !== "string") {
+    return { linked: false, message: "Enter the partner ID and your private link token." };
+  }
+  try {
+    await claimScaleSmithsPartnerLinkChallenge({
+      authenticatedCircleCardUserId: session.user.id,
+      externalPartnerId,
+      token
+    });
+    revalidatePath(workspacePath);
+    return { linked: true, message: "Account linked. ScaleSmiths approval is the next step." };
+  } catch {
+    return { linked: false, message: "Link unsuccessful. Verify the token is unused, unexpired and issued for this account." };
+  }
 }
