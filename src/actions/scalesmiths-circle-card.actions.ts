@@ -34,3 +34,57 @@ export async function setCircleCardPublicProfileVisibilityAction(formData: FormD
 
 // This action only controls presentation in the card chooser.
 // It never changes isPublished, Stripe state, Pro access, or the card's ownership.
+
+import { z } from "zod";
+import { normalizeSafeCircleCardImageUrl } from "@/lib/circle-card/image-url";
+
+const partnerIdentitySchema = z.object({
+  fullName: z.string().trim().min(2).max(120),
+  tagline: z.string().trim().max(180),
+  about: z.string().trim().max(1600),
+  profileImageUrl: z.string().trim().max(2048),
+  email: z.union([z.literal(""), z.string().trim().email().max(320)]),
+  phone: z.string().trim().max(48).regex(/^[0-9+().\\-\\s]*$/),
+  location: z.string().trim().max(160)
+}).strict();
+
+export async function updateScaleSmithsPartnerIdentityAction(formData: FormData) {
+  if (process.env.CIRCLE_CARD_SCALESMITHS_PREVIEW !== "true") notFound();
+  const session = await requireCircleCardUser();
+  const membership = await prisma.circleCardScaleSmithsPartner.findUnique({
+    where: { userId: session.user.id },
+    select: { partnerCardId: true, status: true }
+  });
+  if (!membership?.partnerCardId || membership.status !== "ACTIVE") {
+    throw new Error("Active ScaleSmiths partner membership required");
+  }
+  const fields = Object.fromEntries([
+    "fullName", "tagline", "about", "profileImageUrl",
+    "email", "phone", "location"
+  ].map((field) => [field, formData.get(field) ?? ""]));
+  const values = partnerIdentitySchema.parse(fields);
+  const picture = values.profileImageUrl
+    ? normalizeSafeCircleCardImageUrl(values.profileImageUrl)
+    : null;
+  if (values.profileImageUrl && !picture) throw new Error("Invalid profile image URL");
+  const ownedCard = await prisma.circleCard.findFirst({
+    where: { id: membership.partnerCardId, userId: session.user.id, archivedAt: null },
+    select: { id: true, slug: true }
+  });
+  if (!ownedCard) throw new Error("Partner card unavailable");
+
+  await prisma.circleCard.update({
+    where: { id: ownedCard.id },
+    data: {
+      fullName: values.fullName,
+      tagline: values.tagline || null,
+      about: values.about || null,
+      profileImageUrl: picture,
+      email: values.email || null,
+      phone: values.phone || null,
+      location: values.location || null
+    }
+  });
+  revalidatePath(workspacePath);
+  revalidatePath(`/card/${ownedCard.slug}`);
+}
