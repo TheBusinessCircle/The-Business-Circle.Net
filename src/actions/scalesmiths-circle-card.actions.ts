@@ -41,7 +41,6 @@ export async function setCircleCardPublicProfileVisibilityAction(formData: FormD
 
 const partnerIdentitySchema = z.object({
   fullName: z.string().trim().min(2).max(120),
-  tagline: z.string().trim().max(180),
   about: z.string().trim().max(1600),
   profileImageUrl: z.string().trim().max(2048),
   email: z.union([z.literal(""), z.string().trim().email().max(320)]),
@@ -60,7 +59,7 @@ export async function updateScaleSmithsPartnerIdentityAction(formData: FormData)
     throw new Error("Active ScaleSmiths partner membership required");
   }
   const fields = Object.fromEntries([
-    "fullName", "tagline", "about", "profileImageUrl",
+    "fullName", "about", "profileImageUrl",
     "email", "phone", "location"
   ].map((field) => [field, formData.get(field) ?? ""]));
   const values = partnerIdentitySchema.parse(fields);
@@ -78,7 +77,6 @@ export async function updateScaleSmithsPartnerIdentityAction(formData: FormData)
     where: { id: ownedCard.id },
     data: {
       fullName: values.fullName,
-      tagline: values.tagline || null,
       about: values.about || null,
       profileImageUrl: picture,
       email: values.email || null,
