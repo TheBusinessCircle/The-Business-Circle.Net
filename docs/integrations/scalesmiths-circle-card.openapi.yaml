@@ -1,0 +1,101 @@
+openapi: 3.1.0
+info:
+  title: ScaleSmiths to Circle Card Integration (DRAFT - disabled)
+  version: 1.0.0-draft
+  description: |
+    Proposed HMAC-authenticated partner and public portfolio event protocol.
+    No endpoint is live. Align with Rhys/Jarvis before activation.
+servers:
+  - url: https://circlecard.co.uk
+paths:
+  /api/integrations/scalesmiths/v1/events:
+    post:
+      summary: Stage a signed ScaleSmiths partner/client event
+      description: |
+        Proposed endpoint only. Disabled until both sides sign off.
+        Requires TLS, least-privilege service key, HMAC v1 over timestamp.rawBody,
+        duplicate event ID storage, source ownership checks and out-of-order protection.
+        Respond with 503 when the integration flag is off.
+      parameters:
+        - in: header
+          name: X-ScaleSmiths-Timestamp
+          required: true
+          schema: { type: string, pattern: '^[0-9]{10,12}$' }
+        - in: header
+          name: X-ScaleSmiths-Signature
+          required: true
+          schema: { type: string, pattern: '^v1=[a-f0-9]{64}$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventEnvelope'
+      responses:
+        '202':
+          description: Verified, deduplicated and accepted for processing
+        '400':
+          description: Invalid event or unsupported schema version
+        '401':
+          description: Invalid signature, timestamp or service identity
+        '409':
+          description: Unlinked partner, stale revision or conflicting attribution
+        '503':
+          description: Cross-system integration disabled
+components:
+  schemas:
+    EventEnvelope:
+      type: object
+      additionalProperties: false
+      required: [event_id, version, occurred_at, event_type, partner_id, data]
+      properties:
+        event_id: { type: string, format: uuid }
+        version: { const: 1 }
+        occurred_at: { type: string, format: date-time }
+        partner_id: { type: string, minLength: 1, maxLength: 128 }
+        event_type:
+          enum: [partner.approved, partner.updated, partner.suspended, partner.ended, client.acquired, client.updated, portfolio.approved, portfolio.withdrawn, project.published]
+        data:
+          oneOf:
+            - $ref: '#/components/schemas/PartnerApproval'
+            - $ref: '#/components/schemas/ClientAcquired'
+            - $ref: '#/components/schemas/PublicProject'
+            - $ref: '#/components/schemas/PortfolioWithdrawn'
+          description: |
+            Type-specific body validated by event_type in the implementation.
+            Other partner lifecycle variants use narrow data objects.
+    PartnerApproval:
+      type: object
+      additionalProperties: false
+      required: [display_name]
+      properties:
+        display_name: { type: string, minLength: 1, maxLength: 180 }
+    ClientAcquired:
+      type: object
+      additionalProperties: false
+      required: [client_id, business_name, acquired_at]
+      properties:
+        client_id: { type: string, minLength: 1, maxLength: 128 }
+        business_name: { type: string, maxLength: 180 }
+        acquired_at: { type: string, format: date-time }
+    PublicProject:
+      type: object
+      additionalProperties: false
+      required: [client_id, business_name, client_consent_at, founder_approved_at, project_delivered_at]
+      properties:
+        client_id: { type: string, minLength: 1, maxLength: 128 }
+        business_name: { type: string, maxLength: 180 }
+        summary: { type: string, maxLength: 1000 }
+        logo_url: { type: [string, 'null'], format: uri }
+        website_url: { type: [string, 'null'], format: uri }
+        case_study_url: { type: [string, 'null'], format: uri }
+        client_consent_at: { type: string, format: date-time }
+        founder_approved_at: { type: string, format: date-time }
+        project_delivered_at: { type: string, format: date-time }
+    PortfolioWithdrawn:
+      type: object
+      additionalProperties: false
+      required: [client_id]
+      properties:
+        client_id: { type: string, minLength: 1, maxLength: 128 }
+        reason: { type: string, maxLength: 240 }
