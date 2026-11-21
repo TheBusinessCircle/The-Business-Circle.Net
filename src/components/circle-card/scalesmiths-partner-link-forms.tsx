@@ -5,7 +5,9 @@ import {
   claimScaleSmithsPartnerLinkAction,
   createScaleSmithsPartnerLinkAction,
   type ScaleSmithsAdminLinkState,
-  type ScaleSmithsClaimLinkState
+  type ScaleSmithsClaimLinkState,
+  updateScaleSmithsBrandTemplateAction,
+  type ScaleSmithsBrandUpdateState
 } from "@/actions/scalesmiths-circle-card.actions";
 
 const initialClaim: ScaleSmithsClaimLinkState = { linked: false, message: "" };
@@ -66,6 +68,45 @@ export function ScaleSmithsAdminIssueLinkForm() {
           </p>
         </div>
       ) : null}
+    </form>
+  );
+}
+
+const initialBrand: ScaleSmithsBrandUpdateState = {
+  message: "", version: null, updatedCards: null
+};
+
+export function ScaleSmithsAdminBrandForm({ template }: {
+  template: { tagline: string; businessLogoUrl: string | null; websiteUrl: string | null };
+}) {
+  const [state, submit, pending] = useActionState(updateScaleSmithsBrandTemplateAction, initialBrand);
+  return (
+    <form action={submit} className="mt-4 grid gap-4">
+      <label className="grid gap-1 text-sm">
+        <span className="font-semibold">Company tagline</span>
+        <input className={fieldClass} name="tagline" maxLength={180} required defaultValue={template.tagline} />
+      </label>
+      <label className="grid gap-1 text-sm">
+        <span className="font-semibold">Approved business logo URL</span>
+        <input className={fieldClass} name="businessLogoUrl" type="text" maxLength={2048}
+          defaultValue={template.businessLogoUrl ?? ""} placeholder="Approved Circle Card asset URL" />
+      </label>
+      <label className="grid gap-1 text-sm">
+        <span className="font-semibold">ScaleSmiths company website URL</span>
+        <input className={fieldClass} name="websiteUrl" type="url" maxLength={2048}
+          defaultValue={template.websiteUrl ?? "https://scalesmiths.co.uk"} />
+      </label>
+      <p className="text-xs text-muted">
+        Changes affect only the branded fields of assigned ScaleSmiths partner cards.
+        Their names, personal photographs and contact information remain unchanged.
+      </p>
+      <button className={submitClass} disabled={pending} type="submit">
+        {pending ? "Updating partner branding…" : "Update partner card branding"}
+      </button>
+      {state.message ? <p role="status" className="text-sm text-muted">
+        {state.message}
+        {state.version !== null ? ` Template version ${state.version}. ${state.updatedCards ?? 0} cards updated.` : ""}
+      </p> : null}
     </form>
   );
 }
