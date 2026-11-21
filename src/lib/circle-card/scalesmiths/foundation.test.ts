@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { eventMayPublishPortfolio, parseScaleSmithsEvent } from "./contract";
+import { buildCircleCardAccessSnapshot, resolveCircleCardEntitlement } from "@/lib/circle-card/permissions";
 import {
   appearsOnPublicCardSelector, canShowScaleSmithsPortfolioItem,
   effectiveProAccess, hasActiveScaleSmithsSponsorship, canPartnerEditField,
@@ -62,6 +63,23 @@ describe("publication, ownership and entitlements", () => {
     expect(appearsOnPublicCardSelector({
       cardIsPublished: true, cardIsArchived: false, showOnPublicProfile: false
     })).toBe(false);
+  });
+
+  it("keeps a reserved company card slot even when the owner already pays for Pro", () => {
+    const paidWithSponsor = resolveCircleCardEntitlement({
+      role: "MEMBER",
+      hasActiveCircleCardSubscription: true,
+      circleCardSubscriptionPlan: "PRO",
+      circleCardScaleSmithsSponsorActive: true
+    });
+    expect(paidWithSponsor.source).toBe("PRO_SUBSCRIPTION");
+    const snapshot = buildCircleCardAccessSnapshot({
+      entitlement: paidWithSponsor, extraCircleCardSlots: 1
+    });
+    expect(snapshot.limits.circleCards).toBe(3);
+    expect(buildCircleCardAccessSnapshot({
+      entitlement: paidWithSponsor
+    }).limits.circleCards).toBe(2);
   });
 
   it("preserves separate paid access when sponsored access expires", () => {
