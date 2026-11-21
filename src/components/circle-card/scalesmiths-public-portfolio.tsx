@@ -43,7 +43,7 @@ export async function ScaleSmithsPublicPortfolio({ cardId }: { cardId: string })
   return (
     <section aria-label="Clients I've Helped" className="mx-auto my-8 w-full max-w-3xl rounded-3xl border border-silver/20 bg-card/80 p-5 sm:p-7">
       <p className="text-xs font-bold uppercase tracking-widest text-primary">Verified ScaleSmiths partner portfolio</p>
-      <h2 className="mt-2 text-2xl font-bold">Clients I've Helped</h2>
+      <h2 className="mt-2 text-2xl font-bold">Clients I&apos;ve Helped</h2>
       <p className="mt-2 text-sm text-muted">
         Businesses introduced by this independent ScaleSmiths partner.
         Services and project work delivered by the ScaleSmiths team.
