@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { normalizeSafeCircleCardImageUrl } from "@/lib/circle-card/image-url";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireCircleCardUser } from "@/lib/session";
@@ -35,16 +37,13 @@ export async function setCircleCardPublicProfileVisibilityAction(formData: FormD
 // This action only controls presentation in the card chooser.
 // It never changes isPublished, Stripe state, Pro access, or the card's ownership.
 
-import { z } from "zod";
-import { normalizeSafeCircleCardImageUrl } from "@/lib/circle-card/image-url";
-
 const partnerIdentitySchema = z.object({
   fullName: z.string().trim().min(2).max(120),
   tagline: z.string().trim().max(180),
   about: z.string().trim().max(1600),
   profileImageUrl: z.string().trim().max(2048),
   email: z.union([z.literal(""), z.string().trim().email().max(320)]),
-  phone: z.string().trim().max(48).regex(/^[0-9+().\\-\\s]*$/),
+  phone: z.string().trim().max(48).regex(/^[0-9+().\s-]*$/),
   location: z.string().trim().max(160)
 }).strict();
 
