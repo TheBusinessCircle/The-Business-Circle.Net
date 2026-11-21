@@ -62,9 +62,9 @@ CREATE TABLE "CircleCardScaleSmithsPortfolio" (
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "CircleCardScaleSmithsPortfolio_pkey" PRIMARY KEY ("id")
 );
-CREATE UNIQUE INDEX "CircleCardScaleSmithsPortfolio_externalPartnerId_externalClientId_key"
+CREATE UNIQUE INDEX "cc_ss_portfolio_partner_client_key"
   ON "CircleCardScaleSmithsPortfolio"("externalPartnerId", "externalClientId");
-CREATE INDEX "CircleCardScaleSmithsPortfolio_externalPartnerId_publicationStatus_idx"
+CREATE INDEX "cc_ss_portfolio_partner_status_idx"
   ON "CircleCardScaleSmithsPortfolio"("externalPartnerId", "publicationStatus");
 CREATE INDEX "CircleCardScaleSmithsPortfolio_lastSourceEventAt_idx"
   ON "CircleCardScaleSmithsPortfolio"("lastSourceEventAt");
