@@ -3617,8 +3617,8 @@ model CircleCardScaleSmithsPortfolio {
   updatedAt              DateTime                              @updatedAt
   partner                CircleCardScaleSmithsPartner          @relation(fields: [externalPartnerId], references: [externalPartnerId], onDelete: Cascade)
 
-  @@unique([externalPartnerId, externalClientId])
-  @@index([externalPartnerId, publicationStatus])
+  @@unique([externalPartnerId, externalClientId], map: "cc_ss_portfolio_partner_client_key")
+  @@index([externalPartnerId, publicationStatus], map: "cc_ss_portfolio_partner_status_idx")
   @@index([lastSourceEventAt])
 }
 
