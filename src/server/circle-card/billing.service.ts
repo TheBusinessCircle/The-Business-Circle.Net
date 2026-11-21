@@ -2252,6 +2252,7 @@ function buildCircleCardAccessForUserRecord(
 
   return buildCircleCardAccessSnapshot({
     entitlement,
+    extraCircleCardSlots: hasScaleSmithsSponsoredPro ? 1 : 0,
     lifecycleStatus,
     accessEndsAt: confirmedAccessEndsAt,
     effectiveAccessEndsAt,
