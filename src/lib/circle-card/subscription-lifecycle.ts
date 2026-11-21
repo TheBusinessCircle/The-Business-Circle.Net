@@ -17,6 +17,7 @@ export const CIRCLE_CARD_CUSTOMER_LIFECYCLE_STATUSES = [
   "grandfathered",
   "ambassador",
   "membership_included",
+  "partner_sponsored",
   "admin"
 ] as const;
 
