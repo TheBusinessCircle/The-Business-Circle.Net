@@ -64,6 +64,8 @@ CREATE TABLE "CircleCardScaleSmithsPortfolio" (
 );
 CREATE UNIQUE INDEX "cc_ss_portfolio_partner_client_key"
   ON "CircleCardScaleSmithsPortfolio"("externalPartnerId", "externalClientId");
+CREATE UNIQUE INDEX "cc_ss_portfolio_client_unique_key"
+  ON "CircleCardScaleSmithsPortfolio"("externalClientId");
 CREATE INDEX "cc_ss_portfolio_partner_status_idx"
   ON "CircleCardScaleSmithsPortfolio"("externalPartnerId", "publicationStatus");
 CREATE INDEX "CircleCardScaleSmithsPortfolio_lastSourceEventAt_idx"
