@@ -141,9 +141,9 @@ export default async function ScaleSmithsPartnerWorkspace() {
       ) : null}
 
       <section aria-labelledby="partner-portfolio-title" className="rounded-3xl border border-silver/20 bg-card/70 p-6">
-        <h2 id="partner-portfolio-title" className="text-xl font-bold">Clients I've Helped</h2>
+        <h2 id="partner-portfolio-title" className="text-xl font-bold">Clients I&apos;ve Helped</h2>
         <p className="mt-2 text-sm text-muted">
-          Verified clients you've introduced. Project work is delivered by ScaleSmiths.
+          Verified clients you&apos;ve introduced. Project work is delivered by ScaleSmiths.
           Only client-permitted and founder-approved completed work appears here.
         </p>
         <div className="mt-5 grid gap-4 md:grid-cols-2">
