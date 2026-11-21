@@ -28,13 +28,13 @@ async function provisionPartnerCard(tx: Prisma.TransactionClient, member: Circle
   const brand = await getScaleSmithsBrandForDb(tx);
   if (member.partnerCardId) {
     const existing = await tx.circleCard.findFirst({
-      where: { id: member.partnerCardId, userId: member.userId, archivedAt: null },
+      where: { id: member.partnerCardId, userId: member.userId },
       select: { id: true }
     });
     if (!existing) throw new ScaleSmithsEventConflict("Assigned partner card missing or owned by another user");
     await tx.circleCard.update({
       where: { id: existing.id },
-      data: { isPublished: true, showOnPublicProfile: true, ...brand }
+      data: { isPublished: true, archivedAt: null, showOnPublicProfile: true, ...brand }
     });
     return existing.id;
   }
@@ -117,6 +117,7 @@ async function endPartner(
       where: { id: member.partnerCardId, userId: member.userId },
       data: {
         isPublished: false,
+        archivedAt: effectiveAt,
         isPrimary: false,
         isDefaultCard: false,
         showOnPublicProfile: false,
