@@ -110,3 +110,16 @@ CREATE INDEX "CircleCardScaleSmithsLinkChallenge_expiresAt_idx"
 ALTER TABLE "CircleCardScaleSmithsLinkChallenge"
   ADD CONSTRAINT "CircleCardScaleSmithsLinkChallenge_userId_fkey"
   FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+CREATE TABLE "CircleCardScaleSmithsBrandTemplate" (
+  "id" TEXT NOT NULL DEFAULT 'main',
+  "businessName" VARCHAR(140) NOT NULL DEFAULT 'ScaleSmiths',
+  "tagline" VARCHAR(180) NOT NULL DEFAULT 'Forge Your Digital Edge',
+  "businessLogoUrl" VARCHAR(2048),
+  "websiteUrl" VARCHAR(2048),
+  "version" INTEGER NOT NULL DEFAULT 1,
+  "lastEditedById" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL,
+  CONSTRAINT "CircleCardScaleSmithsBrandTemplate_pkey" PRIMARY KEY ("id")
+);
