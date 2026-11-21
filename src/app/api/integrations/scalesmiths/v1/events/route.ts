@@ -85,7 +85,21 @@ export async function POST(request: Request) {
       revalidatePath("/dashboard/circle-card/scalesmiths");
       revalidatePath("/dashboard/circle-card");
     }
-    return response({ event_id: event.event_id, state }, 202);
+    // Signed acknowledgement contains only a public card path, not private data.
+    const member = await prisma.circleCardScaleSmithsPartner.findUnique({
+      where: { externalPartnerId: event.partner_id },
+      select: {
+        status: true,
+        partnerCard: { select: { isPublished: true, slug: true } }
+      }
+    });
+    const partnerCardPath = member?.status === "ACTIVE" &&
+      member.partnerCard?.isPublished
+      ? `/card/${member.partnerCard.slug}`
+      : null;
+    return response({
+      event_id: event.event_id, state, partner_card_path: partnerCardPath
+    }, 202);
   } catch (error) {
     if (error instanceof ScaleSmithsEventConflict) {
       return response({ error: "conflicting_event" }, 409);
