@@ -2171,6 +2171,13 @@ const CIRCLE_CARD_ACCESS_USER_SELECT = {
       startsAt: true,
       endsAt: true
     }
+  },
+  scaleSmithsPartnerMembership: {
+    select: {
+      status: true,
+      sponsoredProStartsAt: true,
+      sponsoredProEndsAt: true
+    }
   }
 } as const satisfies Prisma.UserSelect;
 
@@ -2197,6 +2204,12 @@ function buildCircleCardAccessForUserRecord(
       (!grant.startsAt || grant.startsAt <= now) &&
       (!grant.endsAt || grant.endsAt >= now)
   );
+  const sponsor = user.scaleSmithsPartnerMembership;
+  const hasScaleSmithsSponsoredPro =
+    process.env.CIRCLE_CARD_SCALESMITHS_SPONSORSHIP_ENABLED === "true" &&
+    sponsor?.status === "ACTIVE" &&
+    Boolean(sponsor.sponsoredProStartsAt && sponsor.sponsoredProStartsAt <= now) &&
+    (!sponsor.sponsoredProEndsAt || sponsor.sponsoredProEndsAt > now);
   const entitlement = resolveCircleCardEntitlement({
     role: user.role,
     membershipTier: user.membershipTier,
@@ -2204,6 +2217,7 @@ function buildCircleCardAccessForUserRecord(
     hasActiveSubscription: hasEntitledSubscription(user.subscription?.status ?? null),
     hasActiveCircleCardSubscription: hasPaidCircleCardSubscription,
     circleCardSubscriptionPlan,
+    circleCardScaleSmithsSponsorActive: hasScaleSmithsSponsoredPro,
     circleCardAmbassadorFreePro:
       Boolean(user.circleCardAmbassadorProfile?.freeProGranted) &&
       user.circleCardAmbassadorProfile?.active !== false,
@@ -2214,9 +2228,11 @@ function buildCircleCardAccessForUserRecord(
 
   const confirmedAccessEndsAt = entitlement.hasPaidCircleCardSubscription
     ? circleCardSubscription?.accessEndsAt ?? null
-    : entitlement.source === "EARLY_ACCESS"
-      ? grant?.endsAt ?? null
-      : null;
+    : entitlement.source === "SCALESMITHS_SPONSORED_PRO"
+      ? sponsor?.sponsoredProEndsAt ?? null
+      : entitlement.source === "EARLY_ACCESS"
+        ? grant?.endsAt ?? null
+        : null;
   const paidLifecycleStatus = deriveCircleCardPaidLifecycleStatus(circleCardSubscription, now);
   const lifecycleStatus =
     entitlement.source === "ADMIN_OVERRIDE"
@@ -2225,7 +2241,9 @@ function buildCircleCardAccessForUserRecord(
         ? "ambassador"
         : entitlement.source === "BCN_INCLUDED_PRO"
           ? "membership_included"
-          : entitlement.source === "EARLY_ACCESS"
+          : entitlement.source === "SCALESMITHS_SPONSORED_PRO"
+            ? "partner_sponsored"
+            : entitlement.source === "EARLY_ACCESS"
             ? "grandfathered"
             : paidLifecycleStatus;
   const effectiveAccessEndsAt = entitlement.hasPaidCircleCardSubscription
