@@ -265,7 +265,8 @@ export default async function AdminCircleCardPage({ searchParams }: PageProps) {
     BCN_INCLUDED_PRO: "Active BCN members receiving Circle Card Pro without a separate Circle Card subscription.",
     ADMIN_OVERRIDE: "Admin Preview access, separate from paid and BCN-included reporting.",
     EARLY_ACCESS: "Future early-access grants, separate from paid and BCN-included reporting.",
-    AMBASSADOR_FREE_PRO: "Founding Ambassador free Pro access. Not a paid subscription source."
+    AMBASSADOR_FREE_PRO: "Founding Ambassador free Pro access. Not a paid subscription source.",
+    SCALESMITHS_SPONSORED_PRO: "ScaleSmiths partner sponsorship. Free to qualifying partners; excluded from paid Circle Card subscribers and referral commissions."
   } satisfies Record<(typeof CIRCLE_CARD_ENTITLEMENT_SOURCES)[number], string>;
   const entitlementSourceMetrics: MetricItem[] = CIRCLE_CARD_ENTITLEMENT_SOURCES.map((source) => ({
     label: CIRCLE_CARD_ENTITLEMENT_SOURCE_LABELS[source],
