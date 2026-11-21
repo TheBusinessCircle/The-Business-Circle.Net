@@ -35,6 +35,7 @@ import {
   getCircleCardActivationSnapshot
 } from "@/server/circle-card/activation.service";
 import { getAdminCircleCardReferralEngineDashboard } from "@/server/circle-card/referral-engine.service";
+import { loadCircleCardAccessForUsers } from "@/server/circle-card/billing.service";
 
 const ACTIVE_SUBSCRIPTION_STATUSES: SubscriptionStatus[] = [
   SubscriptionStatus.ACTIVE,
@@ -1598,13 +1599,55 @@ async function loadCircleCardPlanBoundary() {
 
   const multiCardCandidates = await loadLikelyProMultiCardUsers(likelyProUsers);
   const earlyAccessUsers = 0;
+  // Sponsored Pro is independent from billing and may overlap paid/BCN/ambassador
+  // entitlements. Count only users whose *effective* source is sponsorship.
+  const now = new Date();
+  const possibleSponsors = process.env.CIRCLE_CARD_SCALESMITHS_SPONSORSHIP_ENABLED === "true"
+    ? await db.circleCardScaleSmithsPartner.findMany({
+        where: {
+          status: "ACTIVE",
+          sponsoredProStartsAt: { lte: now },
+          OR: [{ sponsoredProEndsAt: null }, { sponsoredProEndsAt: { gt: now } }],
+          user: {
+            suspended: false,
+            circleCards: { some: {} }
+          }
+        },
+        select: { userId: true }
+      })
+    : [];
+  const sponsorUserIds = possibleSponsors.map((sponsor) => sponsor.userId);
+  const sponsorEntitlements = await loadCircleCardAccessForUsers(sponsorUserIds, now);
+  const actualSponsoredUserIds = sponsorUserIds.filter((id) =>
+    sponsorEntitlements.get(id)?.entitlement.source === "SCALESMITHS_SPONSORED_PRO"
+  );
+  const sponsorUserRecords = actualSponsoredUserIds.length
+    ? await db.user.findMany({
+        where: { id: { in: actualSponsoredUserIds } },
+        select: {
+          subscription: { select: { status: true } },
+          circleCardAmbassadorProfile: { select: { active: true, freeProGranted: true } }
+        }
+      })
+    : [];
+  const sponsorBcnOverlap = sponsorUserRecords.filter((user) =>
+    Boolean(user.subscription && ACTIVE_SUBSCRIPTION_STATUSES.includes(user.subscription.status))
+  ).length;
+  const sponsorAmbassadorOverlap = sponsorUserRecords.filter((user) =>
+    Boolean(user.circleCardAmbassadorProfile?.active &&
+      user.circleCardAmbassadorProfile.freeProGranted)
+  ).length;
+  const effectiveBcnIncludedProUsers = Math.max(0, bcnIncludedProUsers - sponsorBcnOverlap);
+  const effectiveAmbassadorFreeProUsers = Math.max(0, ambassadorFreeProUsers - sponsorAmbassadorOverlap);
+  const sponsoredProUsers = actualSponsoredUserIds.length;
   const freeEntitlementUsers = Math.max(
     totalCircleCardUsers -
-      bcnIncludedProUsers -
+      effectiveBcnIncludedProUsers -
       adminOverrideUsers -
       paidCircleCardProUsers -
       paidCircleCardTeamsUsers -
-      ambassadorFreeProUsers -
+      effectiveAmbassadorFreeProUsers -
+      sponsoredProUsers -
       earlyAccessUsers,
     0
   );
@@ -1612,10 +1655,11 @@ async function loadCircleCardPlanBoundary() {
     FREE: freeEntitlementUsers,
     PRO_SUBSCRIPTION: paidCircleCardProUsers,
     TEAMS_SUBSCRIPTION: paidCircleCardTeamsUsers,
-    BCN_INCLUDED_PRO: bcnIncludedProUsers,
+    BCN_INCLUDED_PRO: effectiveBcnIncludedProUsers,
     ADMIN_OVERRIDE: adminOverrideUsers,
     EARLY_ACCESS: earlyAccessUsers,
-    AMBASSADOR_FREE_PRO: ambassadorFreeProUsers
+    AMBASSADOR_FREE_PRO: effectiveAmbassadorFreeProUsers,
+    SCALESMITHS_SPONSORED_PRO: sponsoredProUsers
   };
   const planCounts: Record<CircleCardPlanKey, number> = {
     FREE: sourceCounts.FREE,
@@ -1624,7 +1668,8 @@ async function loadCircleCardPlanBoundary() {
       sourceCounts.BCN_INCLUDED_PRO +
       sourceCounts.ADMIN_OVERRIDE +
       sourceCounts.EARLY_ACCESS +
-      sourceCounts.AMBASSADOR_FREE_PRO,
+      sourceCounts.AMBASSADOR_FREE_PRO +
+      sourceCounts.SCALESMITHS_SPONSORED_PRO,
     TEAMS: sourceCounts.TEAMS_SUBSCRIPTION
   };
   const accountTypeCounts = {

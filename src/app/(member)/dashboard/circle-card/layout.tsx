@@ -8,7 +8,7 @@ export const metadata: Metadata = CIRCLE_CARD_PWA_METADATA;
 export default function CircleCardDashboardLayout({ children }: { children: ReactNode }) {
   return (
     <Suspense fallback={<div className="circle-card-page-transition">{children}</div>}>
-      <CircleCardWorkspaceShell>{children}</CircleCardWorkspaceShell>
+      <CircleCardWorkspaceShell showScaleSmithsPreview={process.env.CIRCLE_CARD_SCALESMITHS_PREVIEW === "true"}>{children}</CircleCardWorkspaceShell>
     </Suspense>
   );
 }

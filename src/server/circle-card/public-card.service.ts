@@ -547,6 +547,7 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
         isDefaultCard: true,
         isPrimary: true,
         isPublished: true,
+        showOnPublicProfile: true,
         createdAt: true
       }
     })
@@ -568,7 +569,12 @@ const loadPublicCircleCard = async (slug: string): Promise<PublicCircleCard | nu
   }
 
   const ownerCards = await Promise.all(
-    planVisibleOwnerCards.map(async (ownerCard) => ({
+    planVisibleOwnerCards
+      .filter((ownerCard) =>
+        process.env.CIRCLE_CARD_SCALESMITHS_PREVIEW !== "true" ||
+        ownerCard.showOnPublicProfile
+      )
+      .map(async (ownerCard) => ({
       id: ownerCard.id,
       slug: ownerCard.slug,
       cardType: ownerCard.cardType,

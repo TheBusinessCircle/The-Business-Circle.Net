@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { PublicCircleCardProfile } from "@/components/circle-card";
 import { CircleCardReferralAttribution } from "@/components/circle-card/circle-card-referral-attribution";
+import { ScaleSmithsPublicPortfolio } from "@/components/circle-card/scalesmiths-public-portfolio";
 import { SITE_CONFIG } from "@/config/site";
 import {
   CIRCLE_CARD_APP_NAME,
@@ -285,6 +286,9 @@ export default async function PublicCircleCardPage({ params, searchParams }: Pag
         notice={notice}
         error={error}
       />
+      {process.env.CIRCLE_CARD_SCALESMITHS_PREVIEW === "true" && !card.isDemo ? (
+        <ScaleSmithsPublicPortfolio cardId={card.id} />
+      ) : null}
     </>
   );
 }

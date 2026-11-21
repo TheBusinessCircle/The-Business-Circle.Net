@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Wrench } from "lucide-react";
+import { Wrench, BriefcaseBusiness } from "lucide-react";
 import { CircleCardBackButton } from "@/components/circle-card/circle-card-back-button";
 import { BackToTopButton } from "@/components/ui/back-to-top-button";
 import { CIRCLE_CARD_DASHBOARD_PATH } from "@/lib/circle-card/routes";
@@ -37,7 +37,7 @@ function internalCircleCardUrl(anchor: HTMLAnchorElement) {
     : null;
 }
 
-export function CircleCardWorkspaceShell({ children }: { children: ReactNode }) {
+export function CircleCardWorkspaceShell({ children, showScaleSmithsPreview = false }: { children: ReactNode; showScaleSmithsPreview?: boolean }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -108,7 +108,12 @@ export function CircleCardWorkspaceShell({ children }: { children: ReactNode }) 
   return (
     <div className="circle-card-workspace-shell" data-route-pending={pending ? "true" : "false"}>
       <div className="circle-card-route-progress" role="progressbar" aria-label="Loading page" aria-hidden={!pending} />
-      <nav aria-label="Circle Card quick navigation" className="flex justify-end px-3 pt-3 sm:px-6">
+      <nav aria-label="Circle Card quick navigation" className="flex flex-wrap justify-end gap-2 px-3 pt-3 sm:px-6">
+        {showScaleSmithsPreview ? (
+          <Link href={`${CIRCLE_CARD_DASHBOARD_PATH}/scalesmiths`} className="inline-flex items-center gap-2 rounded-xl border border-primary/25 bg-card/70 px-4 py-2 text-sm font-semibold">
+            <BriefcaseBusiness size={16} aria-hidden /> ScaleSmiths Partner
+          </Link>
+        ) : null}
         <Link href={`${CIRCLE_CARD_DASHBOARD_PATH}/tools`} className="inline-flex items-center gap-2 rounded-xl border border-silver/20 bg-card/70 px-4 py-2 text-sm font-semibold hover:border-primary/50">
           <Wrench size={16} aria-hidden /> My Tools <span className="rounded-md border border-primary/40 px-1.5 py-0.5 text-[10px] font-bold text-primary">PRO</span>
         </Link>

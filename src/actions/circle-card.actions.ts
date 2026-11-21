@@ -433,6 +433,16 @@ async function requireCircleCardActionUser(): Promise<CircleCardActionUser> {
 }
 
 async function isCircleCardLockedByPlan(user: CircleCardActionUser, cardId: string) {
+  if (process.env.CIRCLE_CARD_SCALESMITHS_PREVIEW === "true") {
+    // The company-issued card is not a general-purpose Pro Business Card.
+    // Guard every existing card editor, including services, galleries, social
+    // links, studio changes and content block mutations that reuse this helper.
+    const managedCard = await prisma.circleCardScaleSmithsPartner.findUnique({
+      where: { partnerCardId: cardId },
+      select: { id: true }
+    });
+    if (managedCard) return true;
+  }
   if (user.access.hasProAccess) {
     return false;
   }
@@ -454,6 +464,14 @@ async function enforceCircleCardContentMutationAccess(input: {
   cardId: string;
   returnPath: string;
 }) {
+  // ScaleSmiths owns the branded template. Keep normal card actions read-only.
+  if (process.env.CIRCLE_CARD_SCALESMITHS_PREVIEW === "true") {
+    const managedCard = await prisma.circleCardScaleSmithsPartner.findUnique({
+      where: { partnerCardId: input.cardId },
+      select: { id: true }
+    });
+    if (managedCard) redirectWithError(input.returnPath, "scalesmiths-managed-card");
+  }
   if (await isCircleCardLockedByPlan(input.user, input.cardId)) {
     redirectWithError(input.returnPath, "card-plan-locked");
   }
@@ -1806,6 +1824,19 @@ export async function upsertCircleCardAction(
       message: "The Circle Card could not be saved.",
       formError: "That Circle Card could not be found."
     });
+  }
+
+  if (cardId && existingCard && process.env.CIRCLE_CARD_SCALESMITHS_PREVIEW === "true") {
+    const managedCard = await prisma.circleCardScaleSmithsPartner.findUnique({
+      where: { partnerCardId: existingCard.id },
+      select: { id: true }
+    });
+    if (managedCard) {
+      return circleCardSaveFailure({
+        message: "This ScaleSmiths Partner Card uses a centrally managed template.",
+        formError: "Use your dedicated partner profile editor for approved personal details."
+      });
+    }
   }
 
   if (cardId && existingCard && (await isCircleCardLockedByPlan(user, existingCard.id))) {

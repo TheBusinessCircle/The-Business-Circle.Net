@@ -28,7 +28,8 @@ export const CIRCLE_CARD_ENTITLEMENT_SOURCES = [
   "BCN_INCLUDED_PRO",
   "ADMIN_OVERRIDE",
   "EARLY_ACCESS",
-  "AMBASSADOR_FREE_PRO"
+  "AMBASSADOR_FREE_PRO",
+  "SCALESMITHS_SPONSORED_PRO"
 ] as const;
 
 export type CircleCardEntitlementSource =
@@ -42,7 +43,8 @@ export type CircleCardBillingReportCategory =
   | "BCN_INCLUDED"
   | "ADMIN_OVERRIDE"
   | "EARLY_ACCESS"
-  | "AMBASSADOR_FREE";
+  | "AMBASSADOR_FREE"
+  | "PARTNER_SPONSORED";
 
 export type CircleCardEntitlementInput = {
   role?: Role | null;
@@ -54,6 +56,7 @@ export type CircleCardEntitlementInput = {
   circleCardAdminOverridePlan?: PaidCircleCardPlanKey | null;
   circleCardEarlyAccessPlan?: PaidCircleCardPlanKey | null;
   circleCardAmbassadorFreePro?: boolean | null;
+  circleCardScaleSmithsSponsorActive?: boolean | null;
 };
 
 export type CircleCardEntitlement = {
@@ -78,7 +81,8 @@ export const CIRCLE_CARD_ACCESS_SOURCES = [
   "admin",
   "ambassador",
   "grandfathered",
-  "teams"
+  "teams",
+  "scalesmiths"
 ] as const;
 
 export type CircleCardAccessSource = (typeof CIRCLE_CARD_ACCESS_SOURCES)[number];
@@ -131,6 +135,8 @@ function circleCardAccessSource(source: CircleCardEntitlementSource): CircleCard
       return "admin";
     case "AMBASSADOR_FREE_PRO":
       return "ambassador";
+    case "SCALESMITHS_SPONSORED_PRO":
+      return "scalesmiths";
     case "EARLY_ACCESS":
       return "grandfathered";
     case "FREE":
@@ -165,6 +171,7 @@ function circleCardAccessLimits(plan: CircleCardPlanKey): CircleCardAccessLimits
 
 export function buildCircleCardAccessSnapshot(input: {
   entitlement: CircleCardEntitlement;
+  extraCircleCardSlots?: number;
   lifecycleStatus?: CircleCardCustomerLifecycleStatus;
   accessEndsAt?: Date | null;
   effectiveAccessEndsAt?: Date | null;
@@ -192,7 +199,11 @@ export function buildCircleCardAccessSnapshot(input: {
     hasBillingRelationship: input.hasBillingRelationship ?? false,
     subscriptionStatus: input.subscriptionStatus ?? null,
     isInRecoveryGrace: input.isInRecoveryGrace ?? false,
-    limits: circleCardAccessLimits(input.entitlement.plan),
+    limits: {
+      ...circleCardAccessLimits(input.entitlement.plan),
+      circleCards: circleCardAccessLimits(input.entitlement.plan).circleCards +
+        (input.extraCircleCardSlots === 1 ? 1 : 0)
+    },
     capabilities: getCircleCardLaunchCapabilities(input.entitlement.plan),
     entitlement: input.entitlement
   };
@@ -208,7 +219,8 @@ export const CIRCLE_CARD_ENTITLEMENT_SOURCE_LABELS: Record<
   BCN_INCLUDED_PRO: "BCN Included Pro",
   ADMIN_OVERRIDE: "Admin Preview",
   EARLY_ACCESS: "Early Access",
-  AMBASSADOR_FREE_PRO: "Ambassador Free Pro"
+  AMBASSADOR_FREE_PRO: "Ambassador Free Pro",
+  SCALESMITHS_SPONSORED_PRO: "ScaleSmiths Sponsored Pro"
 };
 
 export type CircleCardFeatureAccess = {
@@ -299,6 +311,8 @@ function circleCardBillingReportCategory(
       return "EARLY_ACCESS";
     case "AMBASSADOR_FREE_PRO":
       return "AMBASSADOR_FREE";
+    case "SCALESMITHS_SPONSORED_PRO":
+      return "PARTNER_SPONSORED";
     case "FREE":
     default:
       return "FREE";
@@ -359,6 +373,14 @@ export function resolveCircleCardEntitlement(
         input.circleCardSubscriptionPlan === "TEAMS"
           ? "TEAMS_SUBSCRIPTION"
           : "PRO_SUBSCRIPTION",
+      membershipTier: input.membershipTier
+    });
+  }
+
+  if (input.circleCardScaleSmithsSponsorActive) {
+    return buildCircleCardEntitlement({
+      plan: "PRO",
+      source: "SCALESMITHS_SPONSORED_PRO",
       membershipTier: input.membershipTier
     });
   }
