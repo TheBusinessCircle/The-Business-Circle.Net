@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { setCircleCardPublicProfileVisibilityAction } from "@/actions/scalesmiths-circle-card.actions";
+import { setCircleCardPublicProfileVisibilityAction, updateScaleSmithsPartnerIdentityAction } from "@/actions/scalesmiths-circle-card.actions";
 import { canShowScaleSmithsPortfolioItem, hasActiveScaleSmithsSponsorship } from "@/lib/circle-card/scalesmiths/policy";
 import { prisma } from "@/lib/prisma";
 import { requireCircleCardUser } from "@/lib/session";
@@ -100,6 +100,45 @@ export default async function ScaleSmithsPartnerWorkspace() {
           {cards.length === 0 ? <p className="text-sm text-muted">Create your first Circle Card to get started.</p> : null}
         </div>
       </section>
+
+
+      {membership?.status === "ACTIVE" && membership.partnerCard ? (
+        <section aria-labelledby="partner-details-title" className="rounded-3xl border border-silver/20 bg-card/70 p-6">
+          <h2 id="partner-details-title" className="text-xl font-bold">Your approved partner details</h2>
+          <p className="mt-2 text-sm text-muted">
+            These personal details are yours to update. ScaleSmiths manages the company
+            logo, offer, brand, partner role, client proof and referral attribution.
+          </p>
+          <form action={updateScaleSmithsPartnerIdentityAction} className="mt-5 grid gap-4 sm:grid-cols-2">
+            {([
+              ["fullName", "Display name", membership.partnerCard.fullName],
+              ["tagline", "Short introduction", membership.partnerCard.tagline ?? ""],
+              ["email", "Contact email", membership.partnerCard.email ?? ""],
+              ["phone", "Contact telephone", membership.partnerCard.phone ?? ""],
+              ["location", "Location", membership.partnerCard.location ?? ""],
+              ["profileImageUrl", "Profile image URL", membership.partnerCard.profileImageUrl ?? ""]
+            ] as const).map(([field, label, value]) => (
+              <label key={field} className="grid gap-1 text-sm">
+                <span className="font-semibold">{label}</span>
+                <input type={field === "email" ? "email" : "text"} name={field}
+                  defaultValue={value} required={field === "fullName"}
+                  className="w-full rounded-xl border border-silver/30 bg-background px-3 py-2" />
+              </label>
+            ))}
+            <label className="grid gap-1 text-sm sm:col-span-2">
+              <span className="font-semibold">About you</span>
+              <textarea name="about" rows={4} maxLength={1600}
+                defaultValue={membership.partnerCard.about ?? ""}
+                className="w-full rounded-xl border border-silver/30 bg-background px-3 py-2" />
+            </label>
+            <div className="sm:col-span-2">
+              <button type="submit" className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">
+                Save personal details
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : null}
 
       <section aria-labelledby="partner-portfolio-title" className="rounded-3xl border border-silver/20 bg-card/70 p-6">
         <h2 id="partner-portfolio-title" className="text-xl font-bold">Clients I've Helped</h2>
