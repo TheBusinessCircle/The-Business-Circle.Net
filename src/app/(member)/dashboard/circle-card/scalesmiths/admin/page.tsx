@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ScaleSmithsAdminIssueLinkForm } from "@/components/circle-card/scalesmiths-partner-link-forms";
+import { ScaleSmithsAdminIssueLinkForm, ScaleSmithsAdminBrandForm } from "@/components/circle-card/scalesmiths-partner-link-forms";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/session";
 
@@ -15,7 +15,7 @@ export default async function ScaleSmithsCircleCardAdminPage() {
   if (process.env.CIRCLE_CARD_SCALESMITHS_PREVIEW !== "true") notFound();
   await requireAdmin();
 
-  const [recentUsers, linkedPartners] = await Promise.all([
+  const [recentUsers, linkedPartners, brandTemplate] = await Promise.all([
     prisma.user.findMany({
       take: 20,
       orderBy: { createdAt: "desc" },
@@ -28,6 +28,10 @@ export default async function ScaleSmithsCircleCardAdminPage() {
         id: true, externalPartnerId: true, displayName: true, status: true,
         userId: true, partnerCardId: true, linkedAt: true
       }
+    }),
+    prisma.circleCardScaleSmithsBrandTemplate.findUnique({
+      where: { id: "main" },
+      select: { tagline: true, businessLogoUrl: true, websiteUrl: true }
     })
   ]);
 
@@ -49,6 +53,19 @@ export default async function ScaleSmithsCircleCardAdminPage() {
       <section aria-label="Issue private account-link token" className="rounded-3xl border border-silver/20 bg-card/65 p-6">
         <h2 className="mb-4 text-xl font-bold">Issue verified account link</h2>
         <ScaleSmithsAdminIssueLinkForm />
+      </section>
+
+      <section aria-labelledby="brand-title" className="rounded-3xl border border-silver/20 bg-card/65 p-6">
+        <h2 id="brand-title" className="text-xl font-bold">Centrally managed partner branding</h2>
+        <p className="mt-2 text-sm text-muted">
+          Edit the ScaleSmiths company information shown on all assigned partner cards.
+          Personal identity fields remain independently controlled by each approved partner.
+        </p>
+        <ScaleSmithsAdminBrandForm template={brandTemplate ?? {
+          tagline: "Forge Your Digital Edge",
+          businessLogoUrl: null,
+          websiteUrl: "https://scalesmiths.co.uk"
+        }} />
       </section>
 
       <section aria-labelledby="partner-registry-title" className="rounded-3xl border border-silver/20 bg-card/65 p-6">
