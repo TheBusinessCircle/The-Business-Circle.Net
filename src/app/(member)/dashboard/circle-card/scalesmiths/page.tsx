@@ -125,7 +125,6 @@ export default async function ScaleSmithsPartnerWorkspace() {
           <form action={updateScaleSmithsPartnerIdentityAction} className="mt-5 grid gap-4 sm:grid-cols-2">
             {([
               ["fullName", "Display name", membership.partnerCard.fullName],
-              ["tagline", "Short introduction", membership.partnerCard.tagline ?? ""],
               ["email", "Contact email", membership.partnerCard.email ?? ""],
               ["phone", "Contact telephone", membership.partnerCard.phone ?? ""],
               ["location", "Location", membership.partnerCard.location ?? ""],
