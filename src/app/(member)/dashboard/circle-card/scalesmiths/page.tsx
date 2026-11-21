@@ -172,6 +172,31 @@ export default async function ScaleSmithsPartnerWorkspace() {
           {portfolio.length === 0 ? <p className="text-sm text-muted">Approved work will appear here once linked from ScaleSmiths.</p> : null}
         </div>
       </section>
+      {membership?.status === "ACTIVE" ? (
+        <section aria-labelledby="client-attribution-title" className="rounded-3xl border border-silver/20 bg-card/70 p-6">
+          <h2 id="client-attribution-title" className="text-xl font-bold">My acquired clients · private</h2>
+          <p className="mt-2 text-sm text-muted">
+            Your verified acquisition record is private until ScaleSmiths has client
+            permission, approved a completed project and made its portfolio entry public.
+          </p>
+          <div className="mt-4 grid gap-3">
+            {membership.portfolio.map((item) => (
+              <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-silver/20 bg-background/35 p-3 text-sm">
+                <span className="font-semibold">{item.businessName}</span>
+                <span className="rounded-lg border border-silver/25 px-2 py-1 text-xs text-muted">
+                  {item.publicationStatus === "PUBLISHED" && portfolio.some((p) => p.id === item.id)
+                    ? "Publicly showcased"
+                    : item.publicationStatus === "WITHDRAWN" ? "Showcase withdrawn"
+                    : "Awaiting public showcase approval"}
+                </span>
+              </div>
+            ))}
+            {membership.portfolio.length === 0 ? (
+              <p className="text-sm text-muted">Client acquisitions from ScaleSmiths will appear here after the systems connect.</p>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
       <Link href="/dashboard/circle-card" className="inline-block text-sm font-semibold text-primary underline">Back to Circle Card</Link>
     </main>
   );
