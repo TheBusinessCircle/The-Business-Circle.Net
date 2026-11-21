@@ -25,6 +25,13 @@ export async function activateVerifiedScaleSmithsPartner(input: {
     if (!member || !member.linkedAt || member.status === "ENDED") {
       throw new Error("Partner must be linked and eligible for approval");
     }
+    if (member.status === "ACTIVE" && member.partnerCardId) {
+      await tx.circleCardScaleSmithsPartner.update({
+        where: { id: member.id },
+        data: { displayName, lastSourceEventAt: input.approvedAt }
+      });
+      return { externalPartnerId: member.externalPartnerId, partnerCardId: member.partnerCardId };
+    }
 
     const brand = await getScaleSmithsBrandForDb(tx);
     let partnerCardId = member.partnerCardId;
