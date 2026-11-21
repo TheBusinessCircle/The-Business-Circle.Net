@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
+import { getScaleSmithsBrandForDb } from "@/server/circle-card/scalesmiths-brand.service";
 
 function assertStagingEnabled() {
   if (process.env.CIRCLE_CARD_SCALESMITHS_PREVIEW !== "true") {
@@ -25,6 +26,7 @@ export async function activateVerifiedScaleSmithsPartner(input: {
       throw new Error("Partner must be linked and eligible for approval");
     }
 
+    const brand = await getScaleSmithsBrandForDb(tx);
     let partnerCardId = member.partnerCardId;
     if (!partnerCardId) {
       // Do not clone a founder card: create a fresh card owned by this user.
@@ -34,10 +36,9 @@ export async function activateVerifiedScaleSmithsPartner(input: {
           slug: "scalesmiths-" + randomUUID().replace(/-/g, "").slice(0, 16),
           cardType: "BUSINESS",
           fullName: displayName,
-          businessName: "ScaleSmiths",
+          ...brand,
           accountType: "INDIVIDUAL",
           role: "Independent ScaleSmiths Partner",
-          tagline: "Forge Your Digital Edge",
           isPublished: true,
           showInDiscover: false,
           showOnPublicProfile: true
@@ -53,7 +54,7 @@ export async function activateVerifiedScaleSmithsPartner(input: {
       if (!existingCard) throw new Error("Assigned partner card is missing or belongs to another account");
       await tx.circleCard.update({
         where: { id: partnerCardId },
-        data: { isPublished: true, showOnPublicProfile: true, fullName: displayName }
+        data: { isPublished: true, showOnPublicProfile: true, fullName: displayName, ...brand }
       });
     }
 
