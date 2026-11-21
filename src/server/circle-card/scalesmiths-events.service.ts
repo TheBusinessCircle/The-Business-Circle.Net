@@ -67,6 +67,15 @@ async function activatePartner(
   if (member.status === "ENDED") throw new ScaleSmithsEventConflict(
     "Ended partner requires an explicitly authorised fresh onboarding flow"
   );
+  if (member.status === "ACTIVE" && member.partnerCardId) {
+    // A repeated approval is not consent to reset the user's card visibility,
+    // preferred card, personal name or paid subscription.
+    await tx.circleCardScaleSmithsPartner.update({
+      where: { id: member.id },
+      data: { displayName: name, lastSourceEventAt: effectiveAt }
+    });
+    return;
+  }
   const cardId = await provisionPartnerCard(tx, member, name);
 
   await tx.circleCard.updateMany({
