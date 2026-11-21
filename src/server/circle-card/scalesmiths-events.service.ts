@@ -198,11 +198,13 @@ async function applyEvent(tx: Prisma.TransactionClient, event: ScaleSmithsEvent,
       return "applied";
     }
     if (event.event_type === "client.updated") return "stale";
+    // Narrow to the acquisition schema: a new acquisition requires a real name.
+    const acquisition = event.data;
     await tx.circleCardScaleSmithsPortfolio.create({
       data: {
         externalPartnerId: event.partner_id,
-        externalClientId: data.client_id,
-        businessName: data.business_name,
+        externalClientId: acquisition.client_id,
+        businessName: acquisition.business_name,
         publicationStatus: "INTERNAL",
         lastSourceEventAt: occurredAt
       }
