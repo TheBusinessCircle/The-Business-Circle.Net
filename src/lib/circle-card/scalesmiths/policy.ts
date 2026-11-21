@@ -61,8 +61,8 @@ export function effectiveProAccess(input: {
 
 export function canPartnerEditField(field: string): boolean {
   return new Set([
-    "fullName", "role", "tagline", "about", "profileImageUrl",
-    "email", "phone", "location", "socialLinks"
+    "fullName", "tagline", "about", "profileImageUrl",
+    "email", "phone", "location"
   ]).has(field);
 }
 
