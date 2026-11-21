@@ -3585,6 +3585,7 @@ model CircleCardScaleSmithsPartner {
   linkedAt            DateTime?
   approvedAt          DateTime?
   endedAt             DateTime?
+  lastSourceEventAt   DateTime?
   createdAt           DateTime                           @default(now())
   updatedAt           DateTime                           @updatedAt
   user                User                               @relation("ScaleSmithsPartnerOwner", fields: [userId], references: [id], onDelete: Cascade)
