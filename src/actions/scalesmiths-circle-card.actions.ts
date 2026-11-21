@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { requireCircleCardUser } from "@/lib/session";
 import { requireAdmin } from "@/lib/session";
 import { claimScaleSmithsPartnerLinkChallenge, issueScaleSmithsPartnerLinkChallenge } from "@/server/circle-card/scalesmiths-link.service";
+import { updateScaleSmithsBrandTemplate } from "@/server/circle-card/scalesmiths-brand.service";
 
 const workspacePath = "/dashboard/circle-card/scalesmiths";
 
@@ -148,5 +149,42 @@ export async function claimScaleSmithsPartnerLinkAction(
     return { linked: true, message: "Account linked. ScaleSmiths approval is the next step." };
   } catch {
     return { linked: false, message: "Link unsuccessful. Verify the token is unused, unexpired and issued for this account." };
+  }
+}
+
+export type ScaleSmithsBrandUpdateState = {
+  message: string;
+  version: number | null;
+  updatedCards: number | null;
+};
+
+export async function updateScaleSmithsBrandTemplateAction(
+  _previous: ScaleSmithsBrandUpdateState,
+  formData: FormData
+): Promise<ScaleSmithsBrandUpdateState> {
+  if (process.env.CIRCLE_CARD_SCALESMITHS_PREVIEW !== "true") notFound();
+  const admin = await requireAdmin();
+  const tagline = formData.get("tagline");
+  const businessLogoUrl = formData.get("businessLogoUrl");
+  const websiteUrl = formData.get("websiteUrl");
+  if (typeof tagline !== "string" || typeof businessLogoUrl !== "string" ||
+      typeof websiteUrl !== "string") {
+    return { message: "Invalid brand settings.", version: null, updatedCards: null };
+  }
+  try {
+    const updated = await updateScaleSmithsBrandTemplate({
+      adminUserId: admin.user.id,
+      tagline, businessLogoUrl, websiteUrl
+    });
+    return {
+      message: "Brand updated across assigned partner cards.",
+      version: updated.version,
+      updatedCards: updated.updatedCards
+    };
+  } catch {
+    return {
+      message: "Brand update refused. Check that the URL and logo asset meet the security rules.",
+      version: null, updatedCards: null
+    };
   }
 }
