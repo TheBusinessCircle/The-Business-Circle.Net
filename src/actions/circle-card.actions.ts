@@ -433,6 +433,16 @@ async function requireCircleCardActionUser(): Promise<CircleCardActionUser> {
 }
 
 async function isCircleCardLockedByPlan(user: CircleCardActionUser, cardId: string) {
+  if (process.env.CIRCLE_CARD_SCALESMITHS_PREVIEW === "true") {
+    // The company-issued card is not a general-purpose Pro Business Card.
+    // Guard every existing card editor, including services, galleries, social
+    // links, studio changes and content block mutations that reuse this helper.
+    const managedCard = await prisma.circleCardScaleSmithsPartner.findUnique({
+      where: { partnerCardId: cardId },
+      select: { id: true }
+    });
+    if (managedCard) return true;
+  }
   if (user.access.hasProAccess) {
     return false;
   }
