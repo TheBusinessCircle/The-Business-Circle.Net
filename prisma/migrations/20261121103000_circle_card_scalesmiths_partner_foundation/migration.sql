@@ -20,6 +20,7 @@ CREATE TABLE "CircleCardScaleSmithsPartner" (
   "linkedAt" TIMESTAMP(3),
   "approvedAt" TIMESTAMP(3),
   "endedAt" TIMESTAMP(3),
+  "lastSourceEventAt" TIMESTAMP(3),
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "CircleCardScaleSmithsPartner_pkey" PRIMARY KEY ("id")
