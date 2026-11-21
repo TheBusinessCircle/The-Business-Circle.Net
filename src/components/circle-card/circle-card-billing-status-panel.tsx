@@ -53,6 +53,18 @@ export function buildCircleCardBillingStatusView(
         showUpgrade: false,
         upgradeLabel: "Explore Pro"
       };
+    case "scalesmiths":
+      return {
+        label: "Sponsored by ScaleSmiths",
+        title: "Circle Card Pro is included",
+        description:
+          "Your active independent ScaleSmiths partnership includes Pro at no charge. This is not a renewing Circle Card subscription; your own paid membership, if any, stays separate.",
+        tone: "success",
+        dateLabel: access.accessEndsAt ? "Partner sponsorship ends" : null,
+        date: access.accessEndsAt,
+        showUpgrade: false,
+        upgradeLabel: "Explore Pro"
+      };
     case "grandfathered":
       return {
         label: "Grandfathered access",
