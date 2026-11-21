@@ -3651,3 +3651,15 @@ model CircleCardScaleSmithsLinkChallenge {
   @@index([externalPartnerId])
   @@index([expiresAt])
 }
+
+model CircleCardScaleSmithsBrandTemplate {
+  id              String   @id @default("main")
+  businessName    String   @default("ScaleSmiths") @db.VarChar(140)
+  tagline         String   @default("Forge Your Digital Edge") @db.VarChar(180)
+  businessLogoUrl String?  @db.VarChar(2048)
+  websiteUrl      String?  @db.VarChar(2048)
+  version         Int      @default(1)
+  lastEditedById  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
