@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Prisma, type CircleCardScaleSmithsPartner } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getScaleSmithsBrandForDb } from "@/server/circle-card/scalesmiths-brand.service";
 import { type ScaleSmithsEvent } from "@/lib/circle-card/scalesmiths/contract";
 
 export class ScaleSmithsEventConflict extends Error {
@@ -24,6 +25,7 @@ function partnerIsLinked(partner: CircleCardScaleSmithsPartner | null) {
 }
 
 async function provisionPartnerCard(tx: Prisma.TransactionClient, member: CircleCardScaleSmithsPartner, name: string) {
+  const brand = await getScaleSmithsBrandForDb(tx);
   if (member.partnerCardId) {
     const existing = await tx.circleCard.findFirst({
       where: { id: member.partnerCardId, userId: member.userId, archivedAt: null },
@@ -32,7 +34,7 @@ async function provisionPartnerCard(tx: Prisma.TransactionClient, member: Circle
     if (!existing) throw new ScaleSmithsEventConflict("Assigned partner card missing or owned by another user");
     await tx.circleCard.update({
       where: { id: existing.id },
-      data: { isPublished: true, showOnPublicProfile: true }
+      data: { isPublished: true, showOnPublicProfile: true, ...brand }
     });
     return existing.id;
   }
@@ -45,9 +47,8 @@ async function provisionPartnerCard(tx: Prisma.TransactionClient, member: Circle
       cardType: "BUSINESS",
       accountType: "INDIVIDUAL",
       fullName: name,
-      businessName: "ScaleSmiths",
+      ...brand,
       role: "Independent ScaleSmiths Partner",
-      tagline: "Forge Your Digital Edge",
       isPublished: true,
       showOnPublicProfile: true,
       showInDiscover: false
