@@ -108,6 +108,8 @@ model User {
   approvedTestimonials           Testimonial[]                @relation("TestimonialApprovedByAdmin")
   submittedTestimonials          Testimonial[]                @relation("TestimonialSubmittedByUser")
   reviewApprovedTestimonials     Testimonial[]                @relation("TestimonialApprovedByUser")
+  scaleSmithsPartnerMembership     CircleCardScaleSmithsPartner? @relation("ScaleSmithsPartnerOwner")
+  scaleSmithsLinkChallenges        CircleCardScaleSmithsLinkChallenge[] @relation("ScaleSmithsLinkOwner")
   circleCards                    CircleCard[]
   circleWalletContacts           CircleWalletContact[]
   circleCardEvents               CircleCardEvent[]
@@ -453,6 +455,7 @@ model CircleCard {
   studioPreviousActiveAt DateTime?
   isPrimary       Boolean               @default(false)
   isPublished     Boolean               @default(true)
+  showOnPublicProfile Boolean           @default(true)
   showInDiscover  Boolean               @default(false)
   discoverOptedInAt DateTime?
   viewCount       Int                   @default(0)
@@ -461,6 +464,7 @@ model CircleCard {
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
   user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scaleSmithsAssignedPartner CircleCardScaleSmithsPartner? @relation("ScaleSmithsPartnerCard")
   customLinks     CircleCardLink[]
   walletContacts  CircleWalletContact[]
   events          CircleCardEvent[]
@@ -3550,4 +3554,98 @@ enum GroupHostAccessRequestStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+
+enum CircleCardScaleSmithsPartnerStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  ENDED
+}
+
+enum CircleCardScaleSmithsPortfolioStatus {
+  INTERNAL
+  APPROVED
+  PUBLISHED
+  WITHDRAWN
+}
+
+// A ScaleSmiths membership is mapped through a verified, one-time linking flow.
+// No username/email auto-matching and no modifications to paid Stripe subscriptions.
+model CircleCardScaleSmithsPartner {
+  id                  String                             @id @default(cuid())
+  externalPartnerId   String                             @unique @db.VarChar(128)
+  userId              String                             @unique
+  partnerCardId       String?                            @unique
+  displayName         String                             @db.VarChar(180)
+  status              CircleCardScaleSmithsPartnerStatus @default(PENDING)
+  sponsoredProStartsAt DateTime?
+  sponsoredProEndsAt   DateTime?
+  linkedAt            DateTime?
+  approvedAt          DateTime?
+  endedAt             DateTime?
+  createdAt           DateTime                           @default(now())
+  updatedAt           DateTime                           @updatedAt
+  user                User                               @relation("ScaleSmithsPartnerOwner", fields: [userId], references: [id], onDelete: Cascade)
+  partnerCard         CircleCard?                        @relation("ScaleSmithsPartnerCard", fields: [partnerCardId], references: [id], onDelete: SetNull)
+  portfolio           CircleCardScaleSmithsPortfolio[]
+
+  @@index([status])
+  @@index([updatedAt])
+}
+
+// Internal attribution is stored independently from whether a project is public.
+model CircleCardScaleSmithsPortfolio {
+  id                     String                                @id @default(cuid())
+  externalPartnerId      String                                @db.VarChar(128)
+  externalClientId       String                                @db.VarChar(128)
+  businessName           String                                @db.VarChar(180)
+  summary                String?                               @db.VarChar(1000)
+  logoUrl                String?                               @db.VarChar(2048)
+  websiteUrl             String?                               @db.VarChar(2048)
+  caseStudyUrl           String?                               @db.VarChar(2048)
+  publicationStatus      CircleCardScaleSmithsPortfolioStatus  @default(INTERNAL)
+  clientConsentAt        DateTime?
+  founderApprovedAt      DateTime?
+  projectDeliveredAt     DateTime?
+  consentWithdrawnAt     DateTime?
+  publishedAt            DateTime?
+  lastSourceEventAt      DateTime?
+  createdAt              DateTime                              @default(now())
+  updatedAt              DateTime                              @updatedAt
+  partner                CircleCardScaleSmithsPartner          @relation(fields: [externalPartnerId], references: [externalPartnerId], onDelete: Cascade)
+
+  @@unique([externalPartnerId, externalClientId])
+  @@index([externalPartnerId, publicationStatus])
+  @@index([lastSourceEventAt])
+}
+
+// Durable event receipts will prevent duplicate webhook processing once connected.
+model CircleCardScaleSmithsEventReceipt {
+  eventId       String   @id @db.VarChar(64)
+  eventType     String   @db.VarChar(80)
+  partnerId     String   @db.VarChar(128)
+  occurredAt    DateTime
+  processedAt   DateTime @default(now())
+  payloadHash   String   @db.VarChar(64)
+
+  @@index([partnerId, occurredAt])
+  @@index([eventType])
+}
+
+// Only the hash of a short-lived linking token may be stored.
+model CircleCardScaleSmithsLinkChallenge {
+  id                String    @id @default(cuid())
+  userId            String
+  externalPartnerId String    @db.VarChar(128)
+  tokenHash         String    @unique @db.VarChar(64)
+  expiresAt         DateTime
+  consumedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  user              User      @relation("ScaleSmithsLinkOwner", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([externalPartnerId])
+  @@index([expiresAt])
 }
