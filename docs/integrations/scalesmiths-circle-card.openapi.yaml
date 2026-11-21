@@ -1,30 +1,31 @@
 openapi: 3.1.0
 info:
-  title: ScaleSmiths to Circle Card Integration (DRAFT - disabled)
+  title: ScaleSmiths to Circle Card Partner Events
   version: 1.0.0-draft
   description: |
-    Proposed HMAC-authenticated partner and public portfolio event protocol.
-    No endpoint is live. Align with Rhys/Jarvis before activation.
+    Contract draft for Rhys/Jarvis review. Integration disabled by default.
+    ScaleSmiths is authoritative for partner/client/project attribution and permission.
+    Circle Card owns its users, cards, presentation preferences and sponsored Pro grants.
 servers:
   - url: https://circlecard.co.uk
 paths:
   /api/integrations/scalesmiths/v1/events:
     post:
-      summary: Stage a signed ScaleSmiths partner/client event
+      operationId: receiveScaleSmithsEvent
+      summary: Receive an authenticated, immutable-id partner event
       description: |
-        Proposed endpoint only. Disabled until both sides sign off.
-        Requires TLS, least-privilege service key, HMAC v1 over timestamp.rawBody,
-        duplicate event ID storage, source ownership checks and out-of-order protection.
-        Respond with 503 when the integration flag is off.
-      parameters:
-        - in: header
-          name: X-ScaleSmiths-Timestamp
-          required: true
-          schema: { type: string, pattern: '^[0-9]{10,12}$' }
-        - in: header
-          name: X-ScaleSmiths-Signature
-          required: true
-          schema: { type: string, pattern: '^v1=[a-f0-9]{64}$' }
+        Not enabled in production. Requires both flags, 32+ byte shared secret,
+        signed RAW body, timestamp within 5 minutes, max 32768 bytes.
+        Signature value = 'v1=' + hex(HMAC_SHA256(secret, timestamp + '.' + rawBody)).
+        Each event_id is unique and recorded transactionally. Same-ID same-body retry
+        returns duplicate; changed payload returns 409. Incoming occurred_at must
+        be newer than the source item's last applied change. Future occurred_at
+        timestamps beyond five minutes are rejected.
+        External linking must complete with a separate short-lived single-use token
+        before partner.approved can provision a branded card.
+      security:
+        - webhookSignature: []
+          webhookTimestamp: []
       requestBody:
         required: true
         content:
@@ -33,69 +34,200 @@ paths:
               $ref: '#/components/schemas/EventEnvelope'
       responses:
         '202':
-          description: Verified, deduplicated and accepted for processing
+          description: Applied, duplicate or stale event
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventAcknowledgement'
         '400':
-          description: Invalid event or unsupported schema version
+          description: Invalid schema, JSON body or future event timestamp
         '401':
-          description: Invalid signature, timestamp or service identity
+          description: Missing, expired or invalid HMAC signature
         '409':
-          description: Unlinked partner, stale revision or conflicting attribution
+          description: Unlinked account, conflicting event ID, partner status or consent
+        '413':
+          description: Event body exceeds 32 KiB
+        '415':
+          description: Content type must be application/json
         '503':
-          description: Cross-system integration disabled
+          description: Disabled, unconfigured or unable to process
 components:
+  securitySchemes:
+    webhookSignature:
+      type: apiKey
+      in: header
+      name: X-ScaleSmiths-Signature
+      description: HMAC SHA256 v1 signature over timestamp dot raw JSON body
+    webhookTimestamp:
+      type: apiKey
+      in: header
+      name: X-ScaleSmiths-Timestamp
+      description: Unix epoch seconds within 300 seconds of receiver time
   schemas:
-    EventEnvelope:
+    EventAcknowledgement:
       type: object
       additionalProperties: false
-      required: [event_id, version, occurred_at, event_type, partner_id, data]
+      required: [event_id, state, partner_card_path]
       properties:
         event_id: { type: string, format: uuid }
-        version: { const: 1 }
+        state: { type: string, enum: [applied, duplicate, stale] }
+        partner_card_path:
+          type: [string, 'null']
+          description: Relative path for an active published partner card; sender owns the configured Circle Card origin
+          example: /card/scalesmiths-example
+    EventEnvelope:
+      oneOf:
+        - { $ref: '#/components/schemas/PartnerApprovedEvent' }
+        - { $ref: '#/components/schemas/PartnerUpdatedEvent' }
+        - { $ref: '#/components/schemas/PartnerSuspendedEvent' }
+        - { $ref: '#/components/schemas/PartnerEndedEvent' }
+        - { $ref: '#/components/schemas/ClientAcquiredEvent' }
+        - { $ref: '#/components/schemas/ClientUpdatedEvent' }
+        - { $ref: '#/components/schemas/PortfolioApprovedEvent' }
+        - { $ref: '#/components/schemas/PortfolioWithdrawnEvent' }
+        - { $ref: '#/components/schemas/ProjectPublishedEvent' }
+      discriminator:
+        propertyName: event_type
+    CommonEvent:
+      type: object
+      required: [event_id, occurred_at, version, partner_id]
+      properties:
+        event_id: { type: string, format: uuid }
         occurred_at: { type: string, format: date-time }
-        partner_id: { type: string, minLength: 1, maxLength: 128 }
-        event_type:
-          enum: [partner.approved, partner.updated, partner.suspended, partner.ended, client.acquired, client.updated, portfolio.approved, portfolio.withdrawn, project.published]
-        data:
-          oneOf:
-            - $ref: '#/components/schemas/PartnerApproval'
-            - $ref: '#/components/schemas/ClientAcquired'
-            - $ref: '#/components/schemas/PublicProject'
-            - $ref: '#/components/schemas/PortfolioWithdrawn'
-          description: |
-            Type-specific body validated by event_type in the implementation.
-            Other partner lifecycle variants use narrow data objects.
-    PartnerApproval:
-      type: object
-      additionalProperties: false
-      required: [display_name]
-      properties:
-        display_name: { type: string, minLength: 1, maxLength: 180 }
-    ClientAcquired:
-      type: object
-      additionalProperties: false
-      required: [client_id, business_name, acquired_at]
-      properties:
-        client_id: { type: string, minLength: 1, maxLength: 128 }
-        business_name: { type: string, maxLength: 180 }
-        acquired_at: { type: string, format: date-time }
+        version: { const: 1 }
+        partner_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: '^[a-zA-Z0-9][a-zA-Z0-9._:-]*$'
+    PartnerApprovedEvent:
+      allOf:
+        - { $ref: '#/components/schemas/CommonEvent' }
+        - type: object
+          required: [event_type, data]
+          properties:
+            event_type: { const: partner.approved }
+            data:
+              type: object
+              additionalProperties: false
+              required: [display_name]
+              properties:
+                display_name: { type: string, minLength: 1, maxLength: 180 }
+      unevaluatedProperties: false
+    PartnerUpdatedEvent:
+      allOf:
+        - { $ref: '#/components/schemas/CommonEvent' }
+        - type: object
+          required: [event_type, data]
+          properties:
+            event_type: { const: partner.updated }
+            data:
+              type: object
+              additionalProperties: false
+              properties:
+                display_name: { type: string, minLength: 1, maxLength: 180 }
+      unevaluatedProperties: false
+    PartnerSuspendedEvent:
+      allOf:
+        - { $ref: '#/components/schemas/CommonEvent' }
+        - type: object
+          required: [event_type, data]
+          properties:
+            event_type: { const: partner.suspended }
+            data:
+              type: object
+              additionalProperties: false
+              properties:
+                reason: { type: string, maxLength: 240 }
+      unevaluatedProperties: false
+    PartnerEndedEvent:
+      allOf:
+        - { $ref: '#/components/schemas/CommonEvent' }
+        - type: object
+          required: [event_type, data]
+          properties:
+            event_type: { const: partner.ended }
+            data:
+              type: object
+              additionalProperties: false
+              properties:
+                reason: { type: string, maxLength: 240 }
+      unevaluatedProperties: false
+    ClientAcquiredEvent:
+      allOf:
+        - { $ref: '#/components/schemas/CommonEvent' }
+        - type: object
+          required: [event_type, data]
+          properties:
+            event_type: { const: client.acquired }
+            data:
+              type: object
+              additionalProperties: false
+              required: [client_id, business_name, acquired_at]
+              properties:
+                client_id: { type: string, minLength: 1, maxLength: 128 }
+                business_name: { type: string, minLength: 1, maxLength: 180 }
+                acquired_at: { type: string, format: date-time }
+      unevaluatedProperties: false
+    ClientUpdatedEvent:
+      allOf:
+        - { $ref: '#/components/schemas/CommonEvent' }
+        - type: object
+          required: [event_type, data]
+          properties:
+            event_type: { const: client.updated }
+            data:
+              type: object
+              additionalProperties: false
+              required: [client_id]
+              properties:
+                client_id: { type: string, minLength: 1, maxLength: 128 }
+                business_name: { type: string, minLength: 1, maxLength: 180 }
+      unevaluatedProperties: false
     PublicProject:
       type: object
       additionalProperties: false
       required: [client_id, business_name, client_consent_at, founder_approved_at, project_delivered_at]
       properties:
         client_id: { type: string, minLength: 1, maxLength: 128 }
-        business_name: { type: string, maxLength: 180 }
+        business_name: { type: string, minLength: 1, maxLength: 180 }
         summary: { type: string, maxLength: 1000 }
-        logo_url: { type: [string, 'null'], format: uri }
-        website_url: { type: [string, 'null'], format: uri }
-        case_study_url: { type: [string, 'null'], format: uri }
+        logo_url: { type: [string, 'null'], format: uri, pattern: '^https://' }
+        website_url: { type: [string, 'null'], format: uri, pattern: '^https://' }
+        case_study_url: { type: [string, 'null'], format: uri, pattern: '^https://' }
         client_consent_at: { type: string, format: date-time }
         founder_approved_at: { type: string, format: date-time }
         project_delivered_at: { type: string, format: date-time }
-    PortfolioWithdrawn:
-      type: object
-      additionalProperties: false
-      required: [client_id]
-      properties:
-        client_id: { type: string, minLength: 1, maxLength: 128 }
-        reason: { type: string, maxLength: 240 }
+    PortfolioApprovedEvent:
+      allOf:
+        - { $ref: '#/components/schemas/CommonEvent' }
+        - type: object
+          required: [event_type, data]
+          properties:
+            event_type: { const: portfolio.approved }
+            data: { $ref: '#/components/schemas/PublicProject' }
+      unevaluatedProperties: false
+    ProjectPublishedEvent:
+      allOf:
+        - { $ref: '#/components/schemas/CommonEvent' }
+        - type: object
+          required: [event_type, data]
+          properties:
+            event_type: { const: project.published }
+            data: { $ref: '#/components/schemas/PublicProject' }
+      unevaluatedProperties: false
+    PortfolioWithdrawnEvent:
+      allOf:
+        - { $ref: '#/components/schemas/CommonEvent' }
+        - type: object
+          required: [event_type, data]
+          properties:
+            event_type: { const: portfolio.withdrawn }
+            data:
+              type: object
+              additionalProperties: false
+              required: [client_id]
+              properties:
+                client_id: { type: string, minLength: 1, maxLength: 128 }
+                reason: { type: string, maxLength: 240 }
+      unevaluatedProperties: false
